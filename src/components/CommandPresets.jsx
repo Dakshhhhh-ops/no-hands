@@ -5,7 +5,7 @@ import { sound } from '../utils/sound.js';
 export const PRESET_COMMANDS = [
   {
     id: 'challenge-core',
-    tag: '[CHALLENGE_DEMO]',
+    tag: 'DEMO',
     category: 'MIGRATION & RATE LIMIT',
     title: 'Redis Session Store & Auth Rate Limit',
     command: DEMO_COMMAND,
@@ -13,7 +13,7 @@ export const PRESET_COMMANDS = [
   },
   {
     id: 'postgres-preserve',
-    tag: '[GOVERNANCE]',
+    tag: 'DATA SAFETY',
     category: 'DATA INTEGRITY',
     title: 'Preserve PostgreSQL as Source of Truth',
     command: 'Keep PostgreSQL as the persistent source of truth for all user records and account state.',
@@ -21,7 +21,7 @@ export const PRESET_COMMANDS = [
   },
   {
     id: 'redis-resilience',
-    tag: '[RESILIENCE]',
+    tag: 'RESILIENCE',
     category: 'HIGH AVAILABILITY',
     title: 'Redis Outage Resilience & Fallback',
     command: 'Make login resilient if Redis becomes unavailable, and add rate limiting to the authentication endpoint.',
@@ -29,7 +29,7 @@ export const PRESET_COMMANDS = [
   },
   {
     id: 'rate-limiting',
-    tag: '[SECURITY]',
+    tag: 'SECURITY',
     category: 'TRAFFIC CONTROL',
     title: 'Authentication Endpoint Rate Limiting',
     command: 'Add rate limiting to the authentication endpoint to prevent brute-force attacks on login.',
@@ -43,7 +43,7 @@ export default function CommandPresets({ onSelectPreset, currentCommand }) {
       <div className="presets-header">
         <div className="presets-title">
           <Terminal size={12} className="text-cyan" />
-          <span>[PROMPT_LIBRARY // PRESET_INSTRUCTIONS]</span>
+          <span>QUICK START INSTRUCTIONS</span>
         </div>
         <span className="presets-hint">Click preset to load</span>
       </div>

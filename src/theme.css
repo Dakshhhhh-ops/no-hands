@@ -1,46 +1,62 @@
-/* ==========================================================================
-   VoiceArchitect Theme — Inspired by Beintech, Crox, Signal-A, and AI COMMON
-   Architectural Blueprint & Precision Engineering Studio Aesthetic
-   ========================================================================== */
+/* VoiceArchitect UI component styles. Product layout overrides live in noHands.css. */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  /* High-end Cosmic Obsidian & Carbon Slate Palette */
-  --bg-deep: #07090d;
-  --bg-canvas: #0a0d13;
-  --surface-1: #0f131a;
-  --surface-2: #141a24;
-  --surface-3: #1a2230;
-  --surface-card: #111620;
+  --c-coral: #ff5c3b;
+  --c-amber: #ffad2e;
+  --c-yellow: #f5dd3c;
+  --c-green: #33d67e;
+  --c-cyan: #2fcde8;
+  --c-blue: #5a86ff;
+  --c-violet: #a685ff;
+  --c-pink: #ff63b0;
+  --acc: #fff;
+  --bg: #000000;
+  --bg-2: #070707;
+  --card: #0b0b0b;
+  --line: #1c1c1c;
+  --line-2: #2c2c2c;
+  --line-3: #444444;
+  --muted: #777777;
+  --soft: #a6a6a6;
+  --ink: #ffffff;
 
-  /* Hairline Structural Borders */
-  --line-dim: #1f2838;
-  --line-mid: #2b384c;
-  --line-bright: #3d4f6b;
-  --line-glow: rgba(78, 242, 210, 0.25);
+  /* Studio Workspace Mappings */
+  --bg-deep: #000000;
+  --bg-canvas: #050505;
+  --surface-1: #070707;
+  --surface-2: #0b0b0b;
+  --surface-3: #121212;
+  --surface-card: #0a0a0a;
 
-  /* Typography Colors */
-  --text-pure: #fdffff;
-  --text-high: #eef3f8;
-  --text-mid: #a0aec0;
-  --text-muted: #64748b;
-  --text-faint: #475569;
+  --line-dim: #1c1c1c;
+  --line-mid: #2a2a2a;
+  --line-bright: #3f3f3f;
+  --line-glow: rgba(255, 255, 255, 0.12);
 
-  /* Signature Studio Accents */
-  --cyan: #4ef2d2;          /* Signal-A & Beintech Teal-Cyan */
+  --text-pure: #ffffff;
+  --text-high: #f0f0f0;
+  --text-mid: #a6a6a6;
+  --text-muted: #777777;
+  --text-faint: #444444;
+
+  --cyan: #2fcde8;
   --cyan-bright: #68ffdf;
-  --cyan-glow: rgba(78, 242, 210, 0.35);
-  --teal-architect: #7ecad2;/* Beintech Engineering Teal */
-  --orange-crox: #ff6b35;    /* Crox Blaze Orange */
-  --amber-warn: #f59e0b;     /* Unresolved Decision Amber */
-  --gold-common: #c8bc9e;    /* AI COMMON Sand-Gold */
-  --violet-downstream: #b5a2ff;
-  --green-nominal: #10b981;
+  --cyan-glow: rgba(47, 205, 232, 0.35);
+  --teal-architect: #2fcde8;
+  --orange-crox: #ff5c3b;
+  --amber-warn: #ffad2e;
+  --gold-common: #f5dd3c;
+  --violet-downstream: #a685ff;
+  --green-nominal: #33d67e;
 
-  /* Typography Families */
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'DM Mono', ui-monospace, monospace;
+  --font-sans: 'Geist', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  --gutter: clamp(16px, 4vw, 56px);
+  --max: 1240px;
+  --r: 10px;
+  --nav: 60px;
 
   color-scheme: dark;
 }
@@ -52,8 +68,8 @@
 
 html {
   font-family: var(--font-sans);
-  background-color: var(--bg-deep);
-  color: var(--text-high);
+  background-color: var(--bg);
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -64,12 +80,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 85% -10%, rgba(30, 48, 80, 0.28) 0%, transparent 45%),
-    radial-gradient(circle at 10% 25%, rgba(78, 242, 210, 0.05) 0%, transparent 40%),
-    radial-gradient(circle at 50% 110%, rgba(255, 107, 53, 0.04) 0%, transparent 50%),
-    var(--bg-deep);
-  background-attachment: fixed;
+  background: var(--bg);
+  color: var(--ink);
   overflow-x: hidden;
 }
 
@@ -106,7 +118,7 @@ body {
 }
 
 /* ==========================================================================
-   Studio Telemetry Bar (Signal-A & Crox inspired)
+   Studio Telemetry Bar
    ========================================================================== */
 
 .studio-telemetry-bar {
@@ -390,7 +402,7 @@ body {
 }
 
 /* ==========================================================================
-   Hero Section: Architectural Command Deck (Beintech + Signal-A)
+   Hero Section: VoiceArchitect Workspace
    ========================================================================== */
 
 .intro {
@@ -619,7 +631,7 @@ body {
   cursor: crosshair;
 }
 
-/* Technical Corner Ticks (Beintech style) */
+/* Technical corner ticks */
 .scene-crosshair {
   position: absolute;
   color: var(--cyan);
@@ -984,7 +996,7 @@ body {
 }
 
 /* ==========================================================================
-   Prompt Presets Carousel (Crox & Beintech inspired)
+   Prompt Presets
    ========================================================================== */
 
 .presets-container {
@@ -1354,7 +1366,7 @@ body {
 }
 
 /* ==========================================================================
-   Architecture Diagram (SVG Graph with Beintech Blueprint Styling)
+   Architecture Diagram (SVG graph)
    ========================================================================== */
 
 .diagram-toolbar {
@@ -1469,7 +1481,7 @@ body {
   background-image: none;
 }
 
-/* Blueprint Crosshair Overlays (Beintech style) */
+/* Diagram focus overlays */
 .blueprint-crosshair {
   position: absolute;
   font-family: var(--font-mono);
@@ -3914,4 +3926,3 @@ body {
   white-space: pre-wrap;
   color: var(--text-mid);
 }
-

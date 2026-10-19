@@ -1,0 +1,217 @@
+/* Bridge: restyles the legacy component classes (styles.css / theme.css) so
+   CommandPresets, ScenarioBranchingBar, ArchitectureDiagram, the panels and the
+   modals look like part of the va- shell.
+   Everything is scoped under .va-app, so it beats legacy rules by specificity
+   and no !important is needed. Load order: tokens.css, bridge.css, app-shell.css. */
+
+/* ---------- 1. Readable type floor ---------- */
+.va-app :is(
+  .presets-title, .presets-hint, .preset-tag, .preset-cat, .preset-chip, .preset-snippet,
+  .char-counter, .intent-title, .intent-count, .intent-chip, .status-line,
+  .diagram-toolbar span, .diagram-help, .legend, .edge-label, .hop-tag,
+  .component-inspector-grid ul, .component-inspector-grid p, .component-inspector-grid b,
+  .api-version-tag, .api-val-status, .badge-architectural, .schema-note, .resp-headers-list,
+  .evidence, .evidence-header b, .fine-print, .risk-index-badge, .risk-kind, .kpi-title,
+  .task-state, .task-card-footer, .decision-hint, .decision-tag, .acceptance-header small,
+  .impact-artifact span, .art-sub, .impact-provenance span, .impact-provenance-bar,
+  .manual-decision span, .manual-decision small, .decision-item-meta, .decision-id-tag,
+  .manual-heading p, .diff-status, .diff-status-pill, .diff-tag, .group-bracket, .group-count-chip,
+  .kpi-label, .kpi-sub, .badge-tag, .table-count, .comp-sub, .comp-type-pill, .edge-target-chip,
+  .code-pill, .protocol-count, .stat-label, .branch-badge, .patch-count-badge, .branch-dropdown-header,
+  .signoff-signee, .telemetry-pill, .telemetry-health-badge, .chaos-btn, .chaos-label,
+  .peer-chip, .peer-cursor-badge, .footer-left, .app-footer
+) { font-size: var(--va-fs-xs); }
+
+.va-app :is(
+  .preset-name, .dictation-text small, .dictation-text b, .intent-chip,
+  .component-inspector-grid b, .risk-desc, .risk-card > p, .task-rationale, .rationale-text,
+  .decision-desc, .checklist-item, .acceptance-header b, .endpoint-summary, .api-note,
+  .impact-source p, .impact-entry p, .entry-label, .impact-artifact b, .impact-group h4,
+  .manual-decision b, .manual-heading h4, .panel-intro p, .gov-item p, .gov-item b,
+  .protocol-item, .telemetry-table, .proposal-item p, .proposal-item b, .modal-summary,
+  .assumption-line, .callout-content p, .wispr-step-card p, .metric-row, .diff-row,
+  .signoff-role, .branch-chip, .time-travel-btn, .timeline-item, .branch-dropdown-item
+) { font-size: var(--va-fs-sm); line-height: 1.55; }
+
+.va-app .api-code, .va-app .line-content, .va-app .adr-markdown-preview { font-size: var(--va-fs-sm); }
+.va-app .command-body textarea { font-size: var(--va-fs-md); line-height: 1.6; }
+
+/* ---------- 2. Buttons ---------- */
+.va-app .button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--va-line-strong);
+  border-radius: var(--va-r-md);
+  background: transparent;
+  color: var(--va-ink);
+  font: 500 var(--va-fs-sm)/1 var(--va-font);
+  box-shadow: none;
+  transition: background-color .15s, border-color .15s, color .15s;
+}
+.va-app .button:hover:not(:disabled) { transform: none; background: var(--va-panel-2); border-color: var(--va-muted); color: var(--va-ink); }
+.va-app .button.primary { background: var(--va-accent); border-color: var(--va-accent); color: var(--va-accent-ink); font-weight: 600; box-shadow: none; }
+.va-app .button.primary:hover:not(:disabled) { background: var(--va-accent-strong); border-color: var(--va-accent-strong); }
+.va-app .button.subtle { border-color: transparent; color: var(--va-muted); }
+.va-app .button.compact { min-height: 30px; padding: 0 10px; }
+.va-app .button:disabled { opacity: .45; }
+
+.va-app :is(.icon-button) {
+  width: 36px; height: 36px; border-radius: var(--va-r-md);
+  background: transparent; border: 1px solid var(--va-line-strong); color: var(--va-muted);
+}
+.va-app .icon-button:hover { background: var(--va-panel-2); color: var(--va-ink); }
+
+/* ---------- 3. Example prompts (CommandPresets) ---------- */
+.va-app .presets-container { gap: 8px; }
+.va-app .presets-title { color: var(--va-muted); letter-spacing: 0; text-transform: none; font-family: var(--va-font); font-weight: 600; }
+.va-app .presets-hint { color: var(--va-faint); font-family: var(--va-font); }
+.va-app .presets-grid { grid-template-columns: 1fr; gap: 6px; }
+@media (min-width: 1101px) and (max-width: 1500px) { .va-app .presets-grid { grid-template-columns: 1fr; } }
+@media (min-width: 1501px) { .va-app .presets-grid { grid-template-columns: 1fr 1fr; } }
+.va-app .preset-card {
+  padding: 10px 12px; border: 1px solid var(--va-line); border-radius: var(--va-r-lg);
+  background: var(--va-bg); transition: border-color .15s, background-color .15s;
+}
+.va-app .preset-card:hover { transform: none; border-color: var(--va-line-bright); background: var(--va-panel-2); }
+.va-app .preset-card.active { border-color: var(--va-accent); background: color-mix(in srgb, var(--va-accent) 10%, var(--va-bg)); box-shadow: none; }
+.va-app .preset-tag { color: var(--va-accent); }
+.va-app .preset-cat { color: var(--va-faint); }
+.va-app .preset-name { color: var(--va-ink); font-weight: 600; }
+.va-app .preset-snippet { color: var(--va-muted); -webkit-line-clamp: 2; }
+.va-app .preset-chip { background: var(--va-panel-2); border-color: var(--va-line); color: var(--va-muted); }
+
+/* ---------- 4. History / branching bar ---------- */
+.va-app .scenario-branching-bar {
+  margin: 0; padding: 8px 12px; gap: 10px; flex-wrap: wrap;
+  border: 0; background: transparent;
+}
+.va-app .branch-chip, .va-app .time-travel-btn {
+  min-height: 32px; border: 1px solid var(--va-line-strong); border-radius: var(--va-r-md);
+  background: var(--va-panel-2); color: var(--va-ink); font-weight: 500;
+}
+.va-app .branch-chip:hover, .va-app .time-travel-btn:hover:not(:disabled) { border-color: var(--va-accent); background: color-mix(in srgb, var(--va-accent) 12%, var(--va-panel-2)); color: var(--va-ink); }
+.va-app .branch-label { color: var(--va-ink); }
+.va-app .branch-badge, .va-app .patch-count-badge { background: var(--va-panel-3); color: var(--va-muted); }
+.va-app .branch-dropdown-menu, .va-app .timeline-dropdown-menu {
+  background: var(--va-panel); border-color: var(--va-line-strong);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .45);
+}
+.va-app .branch-dropdown-item:hover, .va-app .timeline-item:hover { background: var(--va-panel-2); }
+.va-app .branch-dropdown-item.active { background: color-mix(in srgb, var(--va-accent) 14%, transparent); border-color: color-mix(in srgb, var(--va-accent) 40%, transparent); }
+
+/* ---------- 5. Output panels ---------- */
+/* The shell's .va-panel-body already provides padding and the card frame,
+   so legacy panels lose their own box and fixed pixel heights. */
+.va-app :is(.risk-panel, .api-panel, .task-panel, .impact-panel, .telemetry-panel) {
+  height: auto; min-height: 420px; max-height: none; padding: 0;
+  border: 0; border-radius: 0; background: transparent; overflow: visible; gap: 14px;
+}
+.va-app :is(.risk-card, .task-card, .endpoint-card, .impact-entry, .impact-source, .impact-group-box,
+  .impact-entry-card, .telemetry-kpi-card, .telemetry-section-box, .telemetry-table-container,
+  .endpoints-lead-card, .risk-kpi-chip, .component-inspector, .impact-source-banner) {
+  background: var(--va-bg); border: 1px solid var(--va-line); border-radius: var(--va-r-lg);
+}
+.va-app :is(.evidence, .acceptance-block, .endpoint-section-box, .inspector-box, .impact-artifact,
+  .impact-artifact-card, .response-code-card, .task-filter-bar, .api-note) {
+  background: var(--va-panel); border: 1px solid var(--va-line); border-radius: var(--va-r-md);
+}
+.va-app .impact-artifact.updated, .va-app .impact-artifact-card.is-updated {
+  border-color: color-mix(in srgb, var(--va-ok) 45%, transparent);
+  background: color-mix(in srgb, var(--va-ok) 8%, var(--va-panel));
+}
+.va-app .risk-card.border-amber { border-left: 3px solid var(--va-warn); }
+.va-app .risk-kpi-chip.active { border-color: var(--va-accent); background: color-mix(in srgb, var(--va-accent) 10%, var(--va-bg)); }
+.va-app .risk-kpi-chip:hover { border-color: var(--va-line-bright); }
+.va-app .panel-intro h3 { font-size: var(--va-fs-lg); color: var(--va-ink); }
+.va-app .panel-lead-tag, .va-app .eyebrow { color: var(--va-accent); letter-spacing: .04em; font-family: var(--va-font); text-transform: none; font-size: var(--va-fs-xs); }
+.va-app :is(.risk-card h4, .task-card h4, .task-title-left h4) { font-size: var(--va-fs-md); color: var(--va-ink); }
+.va-app .risk-kind.potential, .va-app .priority-medium { background: color-mix(in srgb, var(--va-warn) 14%, transparent); border-color: color-mix(in srgb, var(--va-warn) 40%, transparent); color: var(--va-warn); }
+.va-app .risk-kind.coverage, .va-app .status-modified, .va-app .diff-status.modified, .va-app .schema-badge, .va-app .endpoint-count-badge, .va-app .code-pill {
+  background: color-mix(in srgb, var(--va-accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--va-accent) 35%, transparent); color: var(--va-accent-strong);
+}
+.va-app .decision-box, .va-app .manual-decisions, .va-app .manual-decisions-card, .va-app .assumption-box {
+  background: color-mix(in srgb, var(--va-warn) 9%, transparent);
+  border-color: color-mix(in srgb, var(--va-warn) 35%, transparent);
+}
+.va-app .decision-desc, .va-app .assumption-line, .va-app .manual-decision b, .va-app .manual-heading h4 { color: #f3dfae; }
+.va-app .manual-heading p, .va-app .manual-decision span, .va-app .decision-hint, .va-app .manual-decision small { color: #cdbb8a; }
+.va-app .api-code-wrapper, .va-app .api-code { background: var(--va-bg-sunken); border-color: var(--va-line); color: var(--va-ink); }
+.va-app .api-code { max-height: 520px; }
+.va-app .line-num { color: var(--va-faint); }
+.va-app .api-view-switch, .va-app .diagram-view-toggle, .va-app .diagram-grid-toggle, .va-app .diagram-zoom-controls {
+  background: var(--va-bg); border: 1px solid var(--va-line); border-radius: var(--va-r-md);
+}
+.va-app :is(.api-view-switch button, .diagram-view-toggle button, .diagram-grid-toggle button, .diagram-zoom-controls button, .filter-btn) {
+  color: var(--va-muted); font: 500 var(--va-fs-xs)/1 var(--va-font); min-height: 28px;
+}
+.va-app :is(.api-view-switch button.active, .diagram-view-toggle button.active, .diagram-grid-toggle button.active, .filter-btn.active) {
+  background: var(--va-panel-3); color: var(--va-ink); border-color: transparent;
+}
+.va-app .telemetry-table th { color: var(--va-muted); font-size: var(--va-fs-xs); font-family: var(--va-font); font-weight: 600; }
+.va-app .telemetry-table td { color: var(--va-ink); }
+.va-app .protocol-bar-wrap { background: var(--va-panel-3); }
+
+/* ---------- 6. Diagram ---------- */
+.va-app .diagram-canvas {
+  height: clamp(380px, 56vh, 560px); border: 1px solid var(--va-line); border-radius: var(--va-r-lg);
+  background-color: var(--va-bg-sunken); background-image: radial-gradient(var(--va-line) 1px, transparent 1px); background-size: 22px 22px;
+}
+.va-app .diagram-toolbar b { color: var(--va-ink); font-size: var(--va-fs-sm); font-family: var(--va-font); }
+.va-app .diagram-toolbar span { color: var(--va-muted); }
+.va-app .edge { stroke: #6a7388; }
+.va-app .edge.changed, .va-app .diagram-relationship.direct .edge { stroke: var(--va-accent); }
+.va-app .diagram-relationship.downstream .edge { stroke: var(--va-downstream); }
+.va-app .diagram-relationship.upstream .edge { stroke: var(--va-warn); }
+.va-app .edge-label { fill: #d3d8e4; stroke: var(--va-bg-sunken); font-size: 10.5px; }
+.va-app .node rect { fill: var(--va-panel-2); stroke: var(--va-line-bright); filter: none; }
+.va-app .node:hover rect { stroke: var(--va-accent); fill: #262c38; filter: none; }
+.va-app .node text { fill: var(--va-ink); }
+.va-app .node .node-type { fill: var(--va-accent); font-family: var(--va-mono); font-size: 9.5px; }
+.va-app .node .node-sub { fill: var(--va-muted); font-size: 10px; }
+.va-app .node.changed rect, .va-app .node.direct rect { stroke: var(--va-accent); }
+.va-app .node.downstream rect { stroke: var(--va-downstream); }
+.va-app .node.upstream rect { stroke: var(--va-warn); }
+.va-app .node.selected rect { stroke: #fff; filter: drop-shadow(0 0 6px rgba(255, 255, 255, .35)); }
+.va-app .node:focus-visible rect { stroke: #fff; stroke-width: 2.5; }
+.va-app .legend { background: color-mix(in srgb, var(--va-panel) 94%, transparent); border-color: var(--va-line-strong); color: var(--va-muted); font-family: var(--va-font); }
+.va-app .legend-direct, .va-app .legend-changed { background: var(--va-accent); }
+.va-app .legend-downstream, .va-app .legend .downstream-key { background: var(--va-downstream); }
+.va-app .legend-upstream { background: var(--va-warn); }
+.va-app .diagram-chaos-bar { background: var(--va-panel); border-color: var(--va-line); }
+.va-app .diagram-help { color: var(--va-muted); }
+.va-app .component-inspector-heading h3 { color: var(--va-ink); font-size: var(--va-fs-lg); }
+.va-app .component-inspector-grid ul, .va-app .component-inspector-grid p { color: var(--va-muted); }
+.va-app .diagram-cycle-banner { background: color-mix(in srgb, var(--va-danger) 12%, transparent); border-color: color-mix(in srgb, var(--va-danger) 40%, transparent); color: var(--va-danger); font-size: var(--va-fs-sm); }
+
+/* ---------- 7. Modals ---------- */
+.va-app .modal-backdrop { background: rgba(8, 10, 14, .72); backdrop-filter: blur(3px); }
+.va-app :is(.wispr-modal, .review-modal, .comparison-modal, .merge-modal) {
+  background: var(--va-panel); border: 1px solid var(--va-line-strong); border-radius: var(--va-r-xl);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
+}
+.va-app :is(.wispr-step-card, .proposal-item, .scenario-card, .comparison-summary-strip, .adr-signoff-card, .wispr-callout-box) {
+  background: var(--va-bg); border: 1px solid var(--va-line); border-radius: var(--va-r-lg);
+}
+.va-app .wispr-title, .va-app #review-title { font-size: 20px; color: var(--va-ink); }
+.va-app .step-icon-wrap, .va-app .mic-icon { background: var(--va-panel-2); border-color: var(--va-line-strong); color: var(--va-accent); }
+.va-app .wispr-step-card kbd { background: var(--va-panel-2); border-color: var(--va-line-strong); color: var(--va-ink); font-size: var(--va-fs-xs); }
+
+/* ---------- 8. Misc ---------- */
+.va-app .status-dot.active, .va-app .telemetry-dot { background: var(--va-ok); box-shadow: none; }
+.va-app .sync-state i { background: var(--va-ok); box-shadow: none; }
+.va-app .intent-preview-tag { background: var(--va-bg); border: 1px solid var(--va-line); }
+.va-app .toast { background: var(--va-panel-2); border-color: var(--va-line-strong); color: var(--va-ink); font-family: var(--va-font); font-size: var(--va-fs-sm); box-shadow: 0 14px 40px rgba(0, 0, 0, .45); }
+.va-app ::-webkit-scrollbar-thumb:hover { background: var(--va-accent); }
+
+/* Responsive: legacy two/three-column grids collapse earlier inside the narrower output pane */
+@media (max-width: 1280px) {
+  .va-app :is(.risk-kpi-row, .telemetry-kpi-grid, .impact-artifacts-grid, .impact-artifacts) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .va-app :is(.telemetry-split-layout, .endpoint-subsections, .task-sections, .component-inspector-grid) { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .va-app .diagram-canvas { overflow: auto; height: 360px; }
+  .va-app .diagram-canvas svg { min-width: 800px; }
+  .va-app .legend { position: static; margin: 8px; flex-wrap: wrap; justify-content: center; }
+  .va-app .api-toolbar, .va-app .diagram-toolbar { flex-direction: column; align-items: flex-start; }
+}

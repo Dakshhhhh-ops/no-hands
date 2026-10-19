@@ -1,0 +1,103 @@
+/* VoiceArchitect design tokens.
+   Loads AFTER the legacy stylesheets so the legacy variable names
+   (--cyan, --surface-1, --text-muted ...) resolve to the new palette.
+   Tip: move the font <link> into index.html for faster first paint, then delete the @import. */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --va-bg: #13161c;
+  --va-bg-sunken: #0f1217;
+  --va-panel: #1a1e26;
+  --va-panel-2: #212630;
+  --va-panel-3: #2a303d;
+  --va-line: #2c3240;
+  --va-line-strong: #3b4252;
+  --va-line-bright: #515a6e;
+
+  /* Text (all pass WCAG AA on --va-panel) */
+  --va-ink: #e7e9ef;
+  --va-muted: #a3aabb;
+  --va-faint: #7d8599;
+
+  /* Accent and status */
+  --va-accent: #8ca4ff;
+  --va-accent-strong: #a9bbff;
+  --va-accent-ink: #0e1430;
+  --va-rec: #ff6f61;
+  --va-warn: #e8b04b;
+  --va-ok: #5ed3a0;
+  --va-danger: #ff8a80;
+  --va-downstream: #b9a6ff;
+
+  /* Type */
+  --va-font: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --va-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --va-fs-xs: 12px;     /* smallest text allowed anywhere */
+  --va-fs-sm: 13px;
+  --va-fs-md: 14.5px;
+  --va-fs-lg: 17px;
+
+  /* Shape */
+  --va-r-sm: 6px;
+  --va-r-md: 8px;
+  --va-r-lg: 12px;
+  --va-r-xl: 16px;
+
+  /* ---- Legacy aliases: old components pick these up automatically ---- */
+  --bg: var(--va-bg);
+  --bg-2: var(--va-panel);
+  --bg-deep: var(--va-bg-sunken);
+  --bg-canvas: var(--va-bg-sunken);
+  --card: var(--va-panel);
+  --surface: var(--va-panel);
+  --surface2: var(--va-panel-2);
+  --surface-1: var(--va-panel);
+  --surface-2: var(--va-panel-2);
+  --surface-3: var(--va-panel-3);
+  --surface-card: #171b22;
+  --surface-hover: var(--va-panel-3);
+
+  --line: var(--va-line);
+  --line-2: var(--va-line-strong);
+  --line-3: var(--va-line-bright);
+  --line-dim: var(--va-line);
+  --line-mid: var(--va-line-strong);
+  --line-bright: var(--va-line-bright);
+  --line-high: var(--va-line-bright);
+
+  --ink: var(--va-ink);
+  --muted: var(--va-muted);
+  --soft: var(--va-muted);
+  --text-pure: #f4f6fb;
+  --text-high: var(--va-ink);
+  --text-mid: var(--va-muted);
+  --text-muted: var(--va-muted);
+  --text-dim: var(--va-muted);   /* was used but never defined */
+  --text-faint: var(--va-faint);
+
+  --cyan: var(--va-accent);
+  --cyan-bright: var(--va-accent-strong);
+  --cyan-glow: color-mix(in srgb, var(--va-accent) 35%, transparent);
+  --teal-architect: var(--va-accent);
+  --violet: var(--va-downstream);
+  --violet-downstream: var(--va-downstream);
+  --orange-crox: var(--va-rec);
+  --amber-warn: var(--va-warn);
+  --green-nominal: var(--va-ok);
+
+  --font-sans: var(--va-font);
+  --font-mono: var(--va-mono);
+  --mono: var(--va-mono);        /* styles.css used var(--mono) without defining it */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
