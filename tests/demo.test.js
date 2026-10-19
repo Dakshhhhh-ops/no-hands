@@ -4,6 +4,7 @@ import { makeCommerceProject, DEMO_COMMAND, proposeChange, applyChange } from '.
 import { checkOpenApiStructure, makeOpenApi, toYaml } from '../src/data/openapi.js';
 import { deriveRiskFindings, deriveTasks, getProjectSyncStatus } from '../src/data/analysis.js';
 import { deriveChangeDiff, deriveManualDecisions } from '../src/data/changeDiff.js';
+import { getDiagramNeighborhood } from '../src/data/diagram.js';
 import { createVerifiedExportZip, makeExportFiles } from '../src/data/export.js';
 import { strFromU8, unzipSync } from 'fflate';
 
@@ -47,6 +48,18 @@ test('before-and-after diff covers all artifact types with instruction provenanc
   assert.ok(deriveManualDecisions(project).some(({ id }) => id === 'redis-fallback'));
   assert.equal(project.changes[0].originalInstruction, DEMO_COMMAND);
   assert.equal(project.changes[0].id, 'CHG-0002');
+});
+
+test('diagram selection finds direct relationships and transitive downstream impact', () => {
+  const project = makeCommerceProject();
+  const neighborhood = getDiagramNeighborhood(project.components, project.relationships, 'web');
+  assert.deepEqual([...neighborhood.directIds], ['gateway']);
+  assert.ok(!neighborhood.downstreamIds.has('gateway'), 'the immediate dependency is shown separately from downstream impact');
+  assert.ok(neighborhood.directRelationships.has('web->gateway:HTTPS'));
+  for (const id of ['auth', 'catalog', 'orders', 'redis', 'postgres', 'kafka', 'payment']) {
+    assert.ok(neighborhood.downstreamIds.has(id), `${id} is downstream from web`);
+  }
+  assert.deepEqual([...getDiagramNeighborhood(project.components, project.relationships, 'missing').downstreamIds], []);
 });
 
 test('applying the same request updates the diagram and records requirements only once', () => {
