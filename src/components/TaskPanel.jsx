@@ -1,17 +1,8 @@
 import { ClipboardList } from 'lucide-react';
-
-function tasksFrom(project) {
-  const tasks = [];
-  for (const requirement of project.requirements) {
-    if (requirement.id === 'REQ-AUTH-RATE') tasks.push({ id: 'TASK-AUTH-RATE', epic: 'Secure authentication', title: 'Add rate limiting to login', priority: 'High', requirement, acceptance: ['Requests above the configured threshold receive HTTP 429.', 'Rate-limit headers describe the current limit and retry window.', 'The threshold and window are explicitly configured and documented.'], unresolved: 'The product owner must choose the limit and time window.' });
-    if (requirement.id === 'REQ-REDIS-FAIL') tasks.push({ id: 'TASK-REDIS-FAILOVER', epic: 'Improve login resilience', title: 'Define and implement login behavior during Redis outage', priority: 'High', requirement, acceptance: ['Redis outage behavior is explicitly selected and documented.', 'Login follows the selected behavior when Redis is unavailable.', 'Automated tests cover the Redis failure path.'], unresolved: 'Choose fail-open or fail-closed behavior and define any session fallback.' });
-    if (requirement.id === 'REQ-DATA-OWNER') tasks.push({ id: 'TASK-DATA-OWNER', epic: 'Protect data ownership', title: 'Preserve PostgreSQL as the source of truth', priority: 'Medium', requirement, acceptance: ['Durable user and business records remain owned by PostgreSQL.', 'Redis is used for session caching only.', 'Tests or architecture documentation show the ownership boundary.'], unresolved: 'The model does not define replication or recovery policy.' });
-  }
-  return tasks;
-}
+import { deriveTasks } from '../data/analysis.js';
 
 export default function TaskPanel({ project }) {
-  const tasks = tasksFrom(project);
+  const tasks = deriveTasks(project);
   return <section className="task-panel">
     <div className="panel-intro"><div><h3>Proposed engineering work</h3><p>Generated from confirmed requirements. These are suggestions, not completed issues.</p></div><span className="small-pill">{tasks.length} proposed</span></div>
     {tasks.length ? <div className="task-list">{tasks.map((task) => <article className="task-card" key={task.id}>

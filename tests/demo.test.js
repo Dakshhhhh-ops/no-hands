@@ -1,0 +1,82 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { makeCommerceProject, DEMO_COMMAND, proposeChange, applyChange } from '../src/data/commerce.js';
+import { checkOpenApiStructure, makeOpenApi, toYaml } from '../src/data/openapi.js';
+import { deriveRiskFindings, deriveTasks } from '../src/data/analysis.js';
+import { createVerifiedExportZip, makeExportFiles } from '../src/data/export.js';
+import { strFromU8, unzipSync } from 'fflate';
+
+test('Commerce Platform fixture has the expected components and valid relationship references', () => {
+  const project = makeCommerceProject();
+  const names = project.components.map(({ name }) => name);
+  for (const expected of ['Web & mobile', 'API Gateway', 'Auth Service', 'Catalog Service', 'Order Service', 'Redis', 'PostgreSQL', 'Kafka', 'Payment Provider']) assert.ok(names.includes(expected));
+  const ids = new Set(project.components.map(({ id }) => id));
+  for (const edge of project.relationships) assert.ok(ids.has(edge.from) && ids.has(edge.to), `relationship ${edge.from} → ${edge.to} must reference modeled components`);
+});
+
+test('sample change stays reviewable and preserves unresolved decisions', () => {
+  const proposal = proposeChange(DEMO_COMMAND);
+  assert.equal(proposal.items.length, 4);
+  assert.ok(proposal.assumptions.some((item) => item.includes('threshold')));
+  assert.ok(proposal.assumptions.some((item) => item.includes('fallback')));
+  const unrelated = proposeChange('Add a dashboard for service health.');
+  assert.equal(unrelated.items[0].key, 'unresolved');
+  assert.ok(!unrelated.assumptions.some((item) => item.includes('rate-limit threshold')));
+});
+
+test('applying the same request updates the diagram and records requirements only once', () => {
+  const proposal = proposeChange(DEMO_COMMAND);
+  const once = applyChange(makeCommerceProject(), proposal);
+  const twice = applyChange(once, proposal);
+  assert.equal(once.version, 2);
+  assert.equal(twice.version, 3);
+  assert.equal(twice.requirements.length, 3);
+  assert.equal(twice.components.find(({ id }) => id === 'redis').sub, 'Primary session store');
+  assert.equal(twice.relationships.find(({ from, to }) => from === 'auth' && to === 'redis').label, 'sessions · primary store');
+});
+
+test('OpenAPI contract has a basic 3.0 structure and gates rate limit details on the requirement', () => {
+  const base = makeOpenApi(makeCommerceProject());
+  const baseOperation = base.paths['/auth/login'].post;
+  assert.equal(base.openapi, '3.0.3');
+  assert.ok(!baseOperation.responses['429']);
+  assert.deepEqual(checkOpenApiStructure(base), []);
+  assert.ok(baseOperation.requestBody.content['application/json'].schema.additionalProperties);
+
+  const project = applyChange(makeCommerceProject(), proposeChange(DEMO_COMMAND));
+  const updated = makeOpenApi(project);
+  const updatedOperation = updated.paths['/auth/login'].post;
+  assert.deepEqual(checkOpenApiStructure(updated), []);
+  assert.ok(updatedOperation.responses['429']);
+  assert.ok(updatedOperation.responses['429'].headers['X-RateLimit-Limit'].description.includes('unresolved'));
+  assert.match(toYaml(updated), /"429"/);
+});
+
+test('risk findings and proposed tasks follow the applied requirements', () => {
+  const project = applyChange(makeCommerceProject(), proposeChange(DEMO_COMMAND));
+  const findings = deriveRiskFindings(project);
+  assert.ok(findings.some(({ kind }) => kind === 'Potential risk'));
+  assert.ok(findings.some(({ title }) => title.includes('Redis outage')));
+  assert.ok(findings.some(({ kind }) => kind === 'Requirement coverage'));
+  assert.ok(findings.some(({ kind }) => kind === 'Consistency check'));
+  const tasks = deriveTasks(project);
+  assert.deepEqual(tasks.map(({ id }) => id), ['TASK-DATA-OWNER', 'TASK-AUTH-RATE', 'TASK-REDIS-FAILOVER']);
+  assert.ok(tasks.every((task) => task.requirement.status === 'confirmed' && task.acceptance.length > 0 && task.unresolved));
+});
+
+test('Export All ZIP contains the current model and all expected artifacts', () => {
+  const project = applyChange(makeCommerceProject(), proposeChange(DEMO_COMMAND));
+  const timestamp = '2026-10-19T00:00:00.000Z';
+  const expected = makeExportFiles(project, timestamp);
+  const { data, files } = createVerifiedExportZip(project, timestamp);
+  const contents = unzipSync(data);
+  assert.deepEqual(files.sort(), Object.keys(expected).sort());
+  assert.equal(Object.keys(contents).length, 9);
+  for (const [name, text] of Object.entries(expected)) assert.equal(strFromU8(contents[name]), text, `${name} should match current export content`);
+  const architecture = JSON.parse(strFromU8(contents['architecture.json']));
+  assert.equal(architecture.version, 2);
+  assert.ok(architecture.requirements.some((item) => item.id === 'REQ-AUTH-RATE'));
+  assert.match(strFromU8(contents['openapi.yaml']), /"429"/);
+  assert.match(strFromU8(contents['README.md']), /Model version: 2/);
+  assert.match(strFromU8(contents['README.md']), /fallback/);
+});

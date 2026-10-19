@@ -40,7 +40,11 @@ export function proposeChange(text) {
   if (lower.includes('rate limit') || lower.includes('rate-limit')) items.push({ key: 'rate-limit', title: 'Add an authentication rate-limiting requirement', detail: 'Attach a rate-limiting requirement to login. No threshold was specified.' });
   if (lower.includes('resilien') || lower.includes('unavailable') || lower.includes('failure')) items.push({ key: 'redis-fallback', title: 'Add a Redis-unavailable resilience requirement', detail: 'Record login resilience as required; fallback behavior remains unresolved.' });
   if (!items.length) items.push({ key: 'unresolved', title: 'Record this as an unresolved architecture request', detail: 'No demo rule matched. No component or relationship will change automatically.' });
-  return { text, items, assumptions: ['No rate-limit threshold was provided.', 'Redis outage fallback and session persistence behavior are unspecified.', 'These are requirements to review, not claims that the behavior is implemented.'] };
+  const assumptions = [];
+  if (items.some((item) => item.key === 'rate-limit')) assumptions.push('No rate-limit threshold or time window was provided.');
+  if (items.some((item) => item.key === 'redis-session' || item.key === 'redis-fallback')) assumptions.push('Redis outage fallback and session persistence behavior are unspecified.');
+  assumptions.push(items[0].key === 'unresolved' ? 'No architecture facts will be added until the request is clarified.' : 'A recorded requirement does not mean the behavior is implemented.');
+  return { text, items, assumptions };
 }
 
 export function applyChange(project, proposal) {
@@ -53,6 +57,8 @@ export function applyChange(project, proposal) {
   if (lower.includes('redis') && lower.includes('session')) {
     const edge = next.relationships.find((item) => item.from === 'auth' && item.to === 'redis');
     if (edge) edge.label = 'sessions · primary store';
+    const redis = next.components.find((item) => item.id === 'redis');
+    if (redis) redis.sub = 'Primary session store';
     changes.push('Redis relationship labeled as primary session storage');
   }
   if (lower.includes('postgres') && (lower.includes('source of truth') || lower.includes('persistent'))) {

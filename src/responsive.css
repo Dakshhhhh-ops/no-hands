@@ -1,0 +1,8 @@
+@media (max-width: 650px) {
+  body { min-width: 320px; }
+  .topbar { flex-wrap: wrap; }
+  .top-actions { width: 100%; justify-content: flex-start; }
+  .diagram-canvas { overflow: auto; }
+  .diagram-canvas svg { min-width: 800px; }
+  .api-toolbar { flex-wrap: wrap; }
+}
