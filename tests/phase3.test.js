@@ -122,6 +122,31 @@ test('one applied command creates one timestamped, undoable history entry', () =
   assert.equal(history.redo().changes[0].timestamp, change.timestamp);
 });
 
+test('joined commands preview and apply as separate graph and API changes', () => {
+  const baseline = makeCommerceProject();
+  const instruction = 'Add a Redis cache for catalog, then split payments into a separate service';
+  const proposal = proposeChange(instruction);
+  assert.deepEqual(proposal.items.map((item) => item.key), ['redis-cache', 'payment-split']);
+  const updated = applyChange(baseline, proposal);
+  assert.ok(updated.relationships.some((edge) => edge.from === 'catalog' && edge.to === 'redis'));
+  assert.ok(updated.components.some((item) => item.id === 'payment-service'));
+  assert.ok(updated.relationships.some((edge) => edge.from === 'kafka' && edge.to === 'payment-service'));
+  assert.ok(updated.relationships.some((edge) => edge.from === 'payment-service' && edge.to === 'payment'));
+  assert.ok(updated.apiOperations.some((item) => item.path === '/payments'));
+  assert.equal(updated.version, baseline.version + 1, 'A joined instruction is one atomic apply/history entry');
+});
+
+test('sequential commands propose against the latest applied model', () => {
+  const baseline = makeCommerceProject();
+  const first = applyChange(baseline, proposeChange('Add Redis cache for catalog'));
+  const secondProposal = proposeChange('Split payments into a separate service');
+  const second = applyChange(first, secondProposal);
+  assert.equal(first.version, 2);
+  assert.equal(second.version, 3);
+  assert.equal(second.changes.length, 2);
+  assert.ok(second.relationships.some((edge) => edge.from === 'payment-service' && edge.to === 'payment'));
+});
+
 test('Scenario Branching: creates Serverless & K8s scenario branches with distinct metrics', () => {
   const base = makeCommerceProject();
   const serverlessBranch = createServerlessBranch(base);

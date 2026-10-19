@@ -55,6 +55,12 @@ export function proposeChange(text) {
   if (lower.includes('postgres') && (lower.includes('source of truth') || lower.includes('persistent'))) items.push({ key: 'postgres-owner', title: 'Preserve PostgreSQL as the source of truth', detail: 'Record the stated data-ownership constraint; do not infer Redis persistence behavior.' });
   if (lower.includes('rate limit') || lower.includes('rate-limit')) items.push({ key: 'rate-limit', title: 'Add an authentication rate-limiting requirement', detail: 'Attach a rate-limiting requirement to login; the exact limit can be recorded during review.' });
   if (lower.includes('resilien') || lower.includes('unavailable') || lower.includes('failure')) items.push({ key: 'redis-fallback', title: 'Add a Redis-unavailable resilience requirement', detail: 'Record login resilience as required; the team can specify outage behavior during review.' });
+  if (/\b(add|use|introduce)\b/.test(lower) && /\bredis\b/.test(lower) && /\bcache\b/.test(lower) && /\bcatalog|product\b/.test(lower)) {
+    items.push({ key: 'redis-cache', title: 'Use Redis as the Catalog cache', detail: 'Add a Catalog Service → existing Redis relationship. Cache expiry and invalidation remain unspecified.' });
+  }
+  if (/\b(split|separate|extract)\b/.test(lower) && /\b(payment|payments)\b/.test(lower) && /\b(service|services)\b/.test(lower)) {
+    items.push({ key: 'payment-split', title: 'Separate payment processing into a service', detail: 'Add an internal Payment Service between order events and the external Payment Provider.' });
+  }
   if (!items.length) items.push({ key: 'unresolved', title: 'Record this as an unresolved architecture request', detail: 'No demo rule matched. No component or relationship will change automatically.' });
   const assumptions = [];
   if (items.some((item) => item.key === 'rate-limit')) assumptions.push('The rate-limit threshold and time window are still undecided.');
@@ -144,6 +150,36 @@ export function applyChange(project, proposal, decisions = {}) {
     changes.push(fallback
       ? `Redis outage choice recorded: ${fallback}`
       : 'Redis outage resilience requirement recorded; fallback unresolved');
+  }
+
+  if (proposal.items.some((item) => item.key === 'redis-cache')) {
+    if (next.components.some((item) => item.id === 'redis') && !next.relationships.some((item) => item.from === 'catalog' && item.to === 'redis')) {
+      next.relationships.push({ from: 'catalog', to: 'redis', label: 'product cache', ...provenance });
+      affectedArtifacts.add('relationships');
+      changes.push('Catalog Service connected to the existing Redis cache');
+    } else {
+      changes.push('Redis cache request recorded; no duplicate cache component added');
+    }
+  }
+
+  if (proposal.items.some((item) => item.key === 'payment-split')) {
+    if (!next.components.some((item) => item.id === 'payment-service')) {
+      next.components.push({ id: 'payment-service', name: 'Payment Service', type: 'SERVICE', x: 640, y: 380, sub: 'Payment orchestration', responsibilities: ['Processes payment requests and coordinates the external payment provider.'], ...provenance });
+      const eventEdge = next.relationships.find((item) => item.from === 'kafka' && item.to === 'payment');
+      if (eventEdge) {
+        eventEdge.to = 'payment-service';
+        eventEdge.label = 'payment event';
+        Object.assign(eventEdge, provenance);
+      }
+      next.relationships.push({ from: 'payment-service', to: 'payment', label: 'provider request', ...provenance });
+      next.apiOperations.push({ id: 'api-payment-create', componentId: 'payment-service', method: 'post', path: '/payments', summary: 'Create and process a payment', ...provenance });
+      affectedArtifacts.add('components');
+      affectedArtifacts.add('relationships');
+      affectedArtifacts.add('apiOperations');
+      changes.push('Payment Service added between order events and the Payment Provider');
+    } else {
+      changes.push('Payment Service already exists; no duplicate service added');
+    }
   }
 
   if (lower.includes('postgres') && (lower.includes('source of truth') || lower.includes('persistent'))) {
