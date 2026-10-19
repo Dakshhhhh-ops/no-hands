@@ -189,7 +189,7 @@ export function deriveManualDecisions(project) {
           requirementId: undefined,
         };
 
-  if (!rateLimit || /threshold unresolved/i.test(rateLimit.text)) {
+  if (!rateLimit?.resolution) {
     decisions.push({
       id: 'rate-limit-threshold',
       title: 'Choose the authentication rate limit',
@@ -197,7 +197,7 @@ export function deriveManualDecisions(project) {
       ...sourceFor(rateLimit),
     });
   }
-  if (!redisFallback || /fallback unresolved/i.test(redisFallback.text)) {
+  if (!redisFallback?.resolution) {
     decisions.push({
       id: 'redis-fallback',
       title: 'Choose Redis outage behavior',

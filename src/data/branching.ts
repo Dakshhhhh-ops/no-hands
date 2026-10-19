@@ -52,6 +52,7 @@ export function createServerlessBranch(baseProject: Project): ArchitectureBranch
     changes: [
       {
         id: 'CHG-SERVERLESS',
+        version: baseProject.version + 1,
         originalInstruction: 'Fork architecture to Serverless compute with DynamoDB and EventBridge',
         timestamp: Date.now(),
         summary: 'Replaced container services with AWS Lambda, DynamoDB single-table design, and EventBridge.',
@@ -80,8 +81,8 @@ export function createServerlessBranch(baseProject: Project): ArchitectureBranch
       { from: 'eventbridge', to: 'payment', label: 'charge card' },
     ],
     requirements: [
-      { id: 'REQ-SERVERLESS-SLA', text: 'Serverless execution time must remain under 150ms cold-start' },
-      { id: 'REQ-DYNAMO-OWNER', text: 'DynamoDB on-demand capacity with continuous automated backups' },
+      { id: 'REQ-SERVERLESS-SLA', status: 'confirmed', text: 'Serverless execution time must remain under 150ms cold-start' },
+      { id: 'REQ-DYNAMO-OWNER', status: 'confirmed', text: 'DynamoDB on-demand capacity with continuous automated backups' },
     ],
     apiOperations: [
       { id: 'api-login', componentId: 'auth-fn', method: 'post', path: '/auth/login', summary: 'Serverless authentication endpoint' },
@@ -115,6 +116,7 @@ export function createKubernetesBranch(baseProject: Project): ArchitectureBranch
     changes: [
       {
         id: 'CHG-K8S-REPLICAS',
+        version: baseProject.version + 1,
         originalInstruction: 'Fork architecture to Kubernetes clusters with PostgreSQL Multi-AZ Read Replicas',
         timestamp: Date.now(),
         summary: 'Added Kubernetes pod auto-scaling, PostgreSQL read-replica pool, and Redis Sentinel cluster.',
@@ -146,8 +148,8 @@ export function createKubernetesBranch(baseProject: Project): ArchitectureBranch
       { from: 'kafka', to: 'payment', label: 'payment event' },
     ],
     requirements: [
-      { id: 'REQ-REPLICA-FAILOVER', text: 'PostgreSQL automated failover within 30 seconds of primary failure' },
-      { id: 'REQ-K8S-HPA', text: 'Horizontal Pod Autoscaler triggers when CPU exceeds 70%' },
+      { id: 'REQ-REPLICA-FAILOVER', status: 'confirmed', text: 'PostgreSQL automated failover within 30 seconds of primary failure' },
+      { id: 'REQ-K8S-HPA', status: 'confirmed', text: 'Horizontal Pod Autoscaler triggers when CPU exceeds 70%' },
     ],
     apiOperations: [
       { id: 'api-login', componentId: 'auth', method: 'post', path: '/auth/login', summary: 'Envoy-routed auth endpoint' },

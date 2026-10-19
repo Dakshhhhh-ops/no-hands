@@ -1,8 +1,7 @@
 /* VoiceArchitect design tokens.
    Loads AFTER the legacy stylesheets so the legacy variable names
    (--cyan, --surface-1, --text-muted ...) resolve to the new palette.
-   Tip: move the font <link> into index.html for faster first paint, then delete the @import. */
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+   Font faces loaded via <link> in index.html. */
 
 :root {
   color-scheme: dark;

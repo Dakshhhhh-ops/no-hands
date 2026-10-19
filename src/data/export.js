@@ -21,11 +21,12 @@ function riskMarkdown(project, findings, generatedAt) {
 }
 
 function taskMarkdown(project, tasks, generatedAt) {
-  return `# Proposed engineering tasks — ${project.name}\n\nModel version: ${project.version}  \nGenerated: ${generatedAt}\n\n${tasks.length ? tasks.map((task) => `## ${task.title}\n\n- Status: Proposed — not completed\n- Epic: ${task.epic}\n- ID: ${task.id}\n- Priority: ${task.priority}\n- Requirement: ${task.requirement.id} — ${task.requirement.text}\n\n### Acceptance criteria\n${task.acceptance.map((item) => `- ${item}`).join('\n')}\n\n### Unresolved decision\n${task.unresolved}`).join('\n\n') : 'No requirement-based tasks are proposed yet.'}\n`;
+  return `# Proposed engineering tasks — ${project.name}\n\nModel version: ${project.version}  \nGenerated: ${generatedAt}\n\n${tasks.length ? tasks.map((task) => `## ${task.title}\n\n- Status: Proposed — not completed\n- Epic: ${task.epic}\n- ID: ${task.id}\n- Priority: ${task.priority}\n- Requirement: ${task.requirement.id} — ${task.requirement.text}\n\n### Acceptance criteria\n${task.acceptance.map((item) => `- ${item}`).join('\n')}\n\n### Decision status\n${task.requirement.resolution ? `Recorded choice: ${task.requirement.resolution}. Implementation remains proposed.` : `Unresolved: ${task.unresolved}`}`).join('\n\n') : 'No requirement-based tasks are proposed yet.'}\n`;
 }
 
 function exportReadme(project, generatedAt, unresolved, validationStatus) {
-  return `# ${project.name} — VoiceArchitect export\n\n- Model version: ${project.version}\n- Generated at: ${generatedAt}\n- Status: ${project.changed ? 'Updated from reviewed changes' : 'Baseline sample'}\n- Validation status: ${validationStatus}\n\n## Files\n\n- \`architecture.json\`: current canonical demo model\n- \`architecture.mmd\`: current component and relationship diagram\n- \`openapi.yaml\`: generated OpenAPI 3.0.3 contract\n- \`risk-audit.json\` and \`risk-audit.md\`: deterministic findings with model evidence\n- \`engineering-tasks.json\` and \`engineering-tasks.md\`: proposed work derived from requirements\n- \`change-log.json\`: accepted changes in this project session\n\n## Known unresolved decisions\n\n${unresolved.map((item) => `- ${item}`).join('\n')}\n\n## Limitations\n\nThis is a synthetic, deterministic demo. Requirements and generated tasks do not imply implementation. Risk findings are not calibrated probabilities. OpenAPI request and successful-response payload details are not specified where absent from the model.\n`;
+  const recorded = project.requirements.filter((requirement) => requirement.resolution).map((requirement) => `${requirement.id}: ${requirement.resolution}`);
+  return `# ${project.name} — VoiceArchitect export\n\n- Model version: ${project.version}\n- Generated at: ${generatedAt}\n- Status: ${project.changed ? 'Updated from reviewed changes' : 'Baseline sample'}\n- Validation status: ${validationStatus}\n\n## Files\n\n- \`architecture.json\`: current canonical demo model\n- \`architecture.mmd\`: current component and relationship diagram\n- \`openapi.yaml\`: generated OpenAPI 3.0.3 contract\n- \`risk-audit.json\` and \`risk-audit.md\`: deterministic findings with model evidence\n- \`engineering-tasks.json\` and \`engineering-tasks.md\`: proposed work derived from requirements\n- \`change-log.json\`: accepted changes in this project session\n\n## Recorded decisions\n\n${recorded.length ? recorded.map((item) => `- ${item}`).join('\n') : 'No choices have been recorded.'}\n\n## Known unresolved decisions\n\n${unresolved.length ? unresolved.map((item) => `- ${item}`).join('\n') : 'No tracked decisions remain unresolved.'}\n\n## Limitations\n\nThis is a synthetic, deterministic demo. Requirements and generated tasks do not imply implementation. Risk findings are not calibrated probabilities. OpenAPI request and successful-response payload details are not specified where absent from the model.\n`;
 }
 
 export function makeExportFiles(project, generatedAt = new Date().toISOString()) {
@@ -36,10 +37,11 @@ export function makeExportFiles(project, generatedAt = new Date().toISOString())
     ? `Basic OpenAPI structural checks failed (${validationIssues.length} issue${validationIssues.length === 1 ? '' : 's'}).`
     : 'Basic OpenAPI structural checks passed; this is not a full OpenAPI validator.';
   const unresolved = [];
-  if (!project.requirements.some((item) => /rate.?limit/i.test(item.text))) unresolved.push('Authentication rate-limit threshold and time window have not been decided.');
-  else unresolved.push('Authentication rate-limit threshold and time window remain unspecified.');
-  if (!project.requirements.some((item) => /redis/i.test(item.text) && /(unavailable|resilien|fallback)/i.test(item.text))) unresolved.push('Login behavior when Redis is unavailable has not been decided.');
-  else unresolved.push('Redis outage fallback and session persistence behavior remain unspecified.');
+  const rateLimitRequirement = project.requirements.find((item) => /rate.?limit/i.test(item.text));
+  const redisFallbackRequirement = project.requirements.find((item) => /redis/i.test(item.text) && /(unavailable|resilien|fallback)/i.test(item.text));
+  if (!rateLimitRequirement?.resolution) unresolved.push('Authentication rate-limit threshold and time window remain unspecified.');
+  if (!redisFallbackRequirement?.resolution) unresolved.push('Redis outage fallback behavior remains unspecified.');
+  unresolved.push('Redis session persistence behavior remains unspecified.');
   unresolved.push('Authentication request fields and successful response fields are not defined in the current model.');
 
   const metadata = { generatedAt, modelVersion: project.version };

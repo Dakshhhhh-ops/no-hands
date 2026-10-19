@@ -55,6 +55,17 @@
 .va-app .button.compact { min-height: 30px; padding: 0 10px; }
 .va-app .button:disabled { opacity: .45; }
 
+/* Consistent focus ring on every legacy button — the shell's :focus-visible
+   only covers va-* classes, so legacy .button / .icon-button need it here. */
+.va-app .button:focus-visible,
+.va-app .icon-button:focus-visible,
+.va-app .chaos-btn:focus-visible,
+.va-app .time-travel-btn:focus-visible,
+.va-app .filter-btn:focus-visible {
+  outline: 2px solid var(--va-accent);
+  outline-offset: 2px;
+}
+
 .va-app :is(.icon-button) {
   width: 36px; height: 36px; border-radius: var(--va-r-md);
   background: transparent; border: 1px solid var(--va-line-strong); color: var(--va-muted);

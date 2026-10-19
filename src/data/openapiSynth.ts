@@ -113,7 +113,12 @@ export function generateMultiServiceOpenApi(project: Project) {
   // 1. Auth Service Routes
   const rateLimitHeaders: Record<string, any> = rateLimitReq
     ? {
-        'X-RateLimit-Limit': { schema: { type: 'integer' }, description: 'Configured request rate limit window' },
+        'X-RateLimit-Limit': {
+          schema: { type: 'integer' },
+          description: rateLimitReq.resolution
+            ? `Configured request limit. Recorded choice: ${rateLimitReq.resolution}.`
+            : 'Configured request rate limit; exact threshold remains unresolved.',
+        },
         'X-RateLimit-Remaining': { schema: { type: 'integer' }, description: 'Remaining quota in active window' },
         'Retry-After': { schema: { type: 'integer' }, description: 'Seconds to wait before retrying' },
       }
@@ -140,7 +145,9 @@ export function generateMultiServiceOpenApi(project: Project) {
         ...(rateLimitReq
           ? {
               '429': {
-                description: 'Rate limit exceeded: ' + rateLimitReq.text,
+                description: rateLimitReq.resolution
+                  ? `Rate limit exceeded. Recorded threshold and window: ${rateLimitReq.resolution}.`
+                  : 'Rate limit exceeded: ' + rateLimitReq.text,
                 headers: rateLimitHeaders,
                 content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
               },
@@ -151,6 +158,8 @@ export function generateMultiServiceOpenApi(project: Project) {
           content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
         },
       },
+    ...(rateLimitReq?.resolution ? { 'x-voicearchitect-rate-limit-choice': rateLimitReq.resolution } : {}),
+    ...(redisFallbackReq?.resolution ? { 'x-voicearchitect-redis-outage-choice': redisFallbackReq.resolution } : {}),
     },
   };
 
@@ -239,7 +248,7 @@ export function detectContractDrift(project: Project): DriftReport {
   const rateLimitReq = reqs.find((r) => /rate.?limit/i.test(r.text));
   if (rateLimitReq) {
     // If rate limit is confirmed, check if threshold is resolved or vague
-    const isUnresolved = /threshold unresolved|unspecified/i.test(rateLimitReq.text);
+    const isUnresolved = !rateLimitReq.resolution;
     if (isUnresolved) {
       drifts.push({
         id: 'drift-rate-limit-headers',
@@ -266,7 +275,7 @@ export function detectContractDrift(project: Project): DriftReport {
   // 2. Check Redis Fallback requirement vs API error handling
   const redisFallbackReq = reqs.find((r) => /redis/i.test(r.text) && /(fallback|unavailable|resilien)/i.test(r.text));
   if (redisFallbackReq) {
-    if (/unresolved|unspecified/i.test(redisFallbackReq.text)) {
+    if (!redisFallbackReq.resolution) {
       drifts.push({
         id: 'drift-redis-fallback',
         requirementId: redisFallbackReq.id,

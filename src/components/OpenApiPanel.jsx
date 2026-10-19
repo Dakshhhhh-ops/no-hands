@@ -478,11 +478,11 @@ export default function OpenApiPanel({ project, onNotify }) {
         </div>
       )}
 
-      {/* VIEW 6: Raw Baseline YAML */}
+      {/* VIEW 6: Current Model YAML */}
       {viewTab === 'yaml' && (
         <div className="api-code-wrapper">
           <div className="api-code-header">
-            <span className="code-filename">openapi.yaml · 3.0.3 Baseline</span>
+            <span className="code-filename">openapi.yaml · 3.0.3 Current model</span>
             <span className="code-lines">{yaml.split('\n').length} lines</span>
           </div>
           <pre className="api-code">

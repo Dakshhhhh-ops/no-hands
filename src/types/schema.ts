@@ -67,6 +67,7 @@ export type RequirementStatus = z.infer<typeof RequirementStatusEnum>;
 export const RequirementSchema = z.object({
   id: z.string().regex(/^REQ-[A-Z0-9-]+$/, 'Requirement ID must follow REQ-* convention'),
   text: z.string().min(1, 'Requirement text cannot be empty'),
+  resolution: z.string().trim().min(1).optional(),
   status: RequirementStatusEnum.default('confirmed'),
   sourceChangeId: z.string().optional(),
   originalInstruction: z.string().optional(),
@@ -79,6 +80,7 @@ export const ChangeRecordSchema = z.object({
   originalInstruction: z.string().min(1),
   summary: z.string(),
   affectedArtifacts: z.array(z.string()).default([]),
+  timestamp: z.number().int().nonnegative().optional(),
 });
 export type ChangeRecord = z.infer<typeof ChangeRecordSchema>;
 

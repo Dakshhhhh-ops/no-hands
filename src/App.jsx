@@ -50,6 +50,7 @@ function isTypingTarget(target) {
 export default function App() {
   const [project, setProject] = useState(makeCommerceProject);
   const [command, setCommand] = useState('');
+  const [decisionDraft, setDecisionDraft] = useState({ rateLimitThreshold: '', redisFallback: '' });
   const [tab, setTab] = useState('diagram');
   const [proposal, setProposal] = useState(null);
   const [toast, setToast] = useState('');
@@ -59,6 +60,7 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [inspectedArtifacts, setInspectedArtifacts] = useState(() => new Set());
   const modalRef = useRef(null);
   const recognitionRef = useRef(null);
   const exportMenuRef = useRef(null);
@@ -263,10 +265,10 @@ export default function App() {
         return;
       }
       if (event.key !== 'Tab') return;
-      const buttons = [...(modalRef.current?.querySelectorAll('button:not(:disabled)') || [])];
-      if (!buttons.length) return;
-      const first = buttons[0];
-      const last = buttons.at(-1);
+      const focusable = [...(modalRef.current?.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [href], [tabindex]:not([tabindex="-1"])') || [])];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable.at(-1);
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
@@ -310,6 +312,9 @@ export default function App() {
   function handleTabChange(id) {
     sound.tab();
     setTab(id);
+    if (project?.changed && ['diagram', 'openapi', 'risk', 'tasks'].includes(id)) {
+      setInspectedArtifacts((current) => new Set(current).add(id));
+    }
   }
 
   function resetWorkspace(message) {
@@ -317,12 +322,14 @@ export default function App() {
     const fresh = makeCommerceProject();
     setProject(fresh);
     setCommand('');
+    setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
     setProposal(null);
     setTab('diagram');
     setCurrentBranchId('main');
     setBranches({ main: makeMainBranch(fresh) });
     setCanUndo(false);
     setCanRedo(false);
+    setInspectedArtifacts(new Set());
     notify(message);
   }
 
@@ -339,20 +346,29 @@ export default function App() {
       notify('Describe or dictate a change first.');
       return;
     }
+    setDecisionDraft((current) => ({
+      rateLimitThreshold: current.rateLimitThreshold || project.requirements.find((item) => item.id === 'REQ-AUTH-RATE')?.resolution || '',
+      redisFallback: current.redisFallback || project.requirements.find((item) => item.id === 'REQ-REDIS-FAIL')?.resolution || '',
+    }));
     setProposal(proposeChange(command.trim()));
   }
 
   function confirmChange() {
     if (!project || !proposal) return;
     sound.apply();
-    const nextProject = applyChange(project, proposal);
+    const nextProject = applyChange(project, proposal, decisionDraft);
     const history = getHistory();
     history.push(nextProject, proposal.text, nextProject.changes[0]?.id);
     setBranchProject(currentBranchId, nextProject);
     setProposal(null);
     setTab('impact');
+    setInspectedArtifacts(new Set());
     syncHistory(history);
-    notify('Change applied. Every view now reflects it.');
+    const recordedDecisionCount = Number(Boolean(decisionDraft.rateLimitThreshold.trim()))
+      + Number(Boolean(decisionDraft.redisFallback.trim()));
+    notify(recordedDecisionCount
+      ? `Change applied with ${recordedDecisionCount} recorded decision${recordedDecisionCount === 1 ? '' : 's'}. Implementation is still proposed.`
+      : 'Change applied. Any unanswered decisions remain open in every view.');
   }
 
   function downloadBundle(factory, suffix, label) {
@@ -409,6 +425,7 @@ export default function App() {
     setIsDictatingSim(true);
     sound.apply();
     setCommand('');
+    setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
     let i = 0;
     const timer = setInterval(() => {
       i += 3;
@@ -424,6 +441,7 @@ export default function App() {
   }
 
   function startDemo() {
+    resetWorkspace('Commerce Platform demo is ready.');
     document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' });
     setTimeout(playDemoDictation, 450);
   }
@@ -458,6 +476,57 @@ export default function App() {
 
   const syncStatus = getProjectSyncStatus(project);
   const isLive = isListening || isDictatingSim;
+  const instructionReady = Boolean(command.trim()) && !isDictatingSim && !isListening;
+  const journeyOutputs = [
+    { id: 'diagram', label: 'Diagram' },
+    { id: 'openapi', label: 'API contract' },
+    { id: 'risk', label: 'Risks' },
+    { id: 'tasks', label: 'Tasks' },
+  ];
+  const inspectedCount = journeyOutputs.filter((item) => inspectedArtifacts.has(item.id)).length;
+  const journeySteps = [
+    { title: 'Start with the sample', complete: Boolean(project) },
+    { title: 'Enter or dictate a change', complete: instructionReady },
+    { title: 'Preview the proposal', complete: Boolean(proposal || project?.changed) },
+    { title: 'Review open decisions', complete: Boolean(project?.changed) },
+    { title: 'Apply the change', complete: Boolean(project?.changed) },
+    { title: 'Explore the updated outputs', complete: Boolean(project?.changed) && inspectedCount === journeyOutputs.length },
+  ];
+  const currentJourneyStep = !project
+    ? 0
+    : !instructionReady
+      ? 1
+      : !proposal && !project.changed
+        ? 2
+        : proposal
+          ? 3
+          : inspectedCount < journeyOutputs.length
+            ? 5
+            : journeySteps.length;
+  const journeyGuidance = !project
+    ? 'Start by loading the Commerce Platform sample.'
+    : !instructionReady
+      ? isDictatingSim
+        ? 'The sample instruction is being entered. It will be ready to preview in a moment.'
+        : isListening
+          ? 'Listening now. Finish speaking, then preview the instruction when it is ready.'
+          : 'The sample is ready. Type a change below, use Wispr Flow in the text box, or play the sample dictation.'
+      : !proposal && !project.changed
+        ? 'Your instruction is ready. Preview it to see what the prototype understood before anything changes.'
+        : proposal
+          ? 'Review the proposed changes and the decisions that still need your team. Nothing changes until you apply it.'
+          : inspectedCount < journeyOutputs.length
+            ? `Your change is applied. Explore each output below (${inspectedCount} of ${journeyOutputs.length} viewed).`
+            : 'Walkthrough complete. You have reviewed every updated output.';
+  const proposalHasRateLimit = Boolean(proposal?.items.some((item) => item.key === 'rate-limit'));
+  const proposalHasRedisFallback = Boolean(proposal?.items.some((item) => item.key === 'redis-fallback'));
+  const proposalCaveats = proposal?.assumptions.filter((item) => /does not mean/i.test(item)) || [];
+  const unresolvedProposalAssumptions = proposal?.assumptions.filter((item) => {
+    if (/does not mean/i.test(item)) return false;
+    if (/rate-limit threshold/i.test(item) && decisionDraft.rateLimitThreshold.trim()) return false;
+    if (/redis outage fallback/i.test(item) && decisionDraft.redisFallback.trim()) return false;
+    return true;
+  }) || [];
 
   return (
     <main className="va-app">
@@ -514,7 +583,7 @@ export default function App() {
           </p>
           <div className="va-hero-actions">
             <button type="button" className="va-btn va-btn-primary va-btn-lg" onClick={startDemo}>
-              <Play size={15} /> Try the demo
+              <Play size={15} /> Start guided demo
             </button>
             <a className="va-btn va-btn-lg" href="#workspace">Open the workspace <ArrowRight size={15} /></a>
           </div>
@@ -560,15 +629,54 @@ export default function App() {
       <section className="va-section va-section-work" id="workspace" aria-labelledby="va-work-title">
         <div className="va-section-inner">
           <h2 id="va-work-title">Workspace</h2>
-          <p className="va-section-lead">Describe a change on the left. The results update on the right.</p>
+          <p className="va-section-lead">Follow the steps below. Use everyday language; the prototype shows what your request would affect.</p>
         </div>
+      <section className="va-journey" aria-label="Demo walkthrough progress">
+        <div className="va-journey-top">
+          <div>
+            <span className="va-journey-eyebrow">YOUR WALKTHROUGH</span>
+            <p aria-live="polite">{journeyGuidance}</p>
+          </div>
+          <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={loadSample}>
+            <RotateCcw size={14} /> Reload sample
+          </button>
+        </div>
+        <ol className="va-journey-steps">
+          {journeySteps.map((step, index) => {
+            const done = step.complete;
+            const current = !done && index === currentJourneyStep;
+            return (
+              <li key={step.title} data-state={done ? 'done' : current ? 'current' : 'upcoming'}>
+                <span className="va-journey-marker" aria-hidden="true">{done ? <Check size={13} /> : index + 1}</span>
+                <span>{step.title}</span>
+              </li>
+            );
+          })}
+        </ol>
+        {project?.changed && (
+          <div className="va-journey-outputs" aria-label="Updated output review progress">
+            {journeyOutputs.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                data-viewed={inspectedArtifacts.has(item.id)}
+                aria-pressed={tab === item.id}
+                aria-label={`View updated ${item.label}`}
+                onClick={() => handleTabChange(item.id)}
+              >
+                {inspectedArtifacts.has(item.id) && <Check size={12} />} {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
       <div className="va-layout">
         {/* ---------------- Composer ---------------- */}
         <section className="va-composer" aria-labelledby="va-composer-title">
           <div className="va-composer-head">
             <div>
-              <h1 id="va-composer-title">What should change?</h1>
-              <p>Say it like you would to a teammate. You review the interpretation before anything is applied.</p>
+              <h2 id="va-composer-title">What should change?</h2>
+              <p>Use your own words, or start with the sample instruction below. You review it before anything is applied.</p>
             </div>
             <button
               type="button"
@@ -594,7 +702,10 @@ export default function App() {
             <textarea
               id="architecture-command"
               value={command}
-              onChange={(event) => setCommand(event.target.value)}
+              onChange={(event) => {
+                setCommand(event.target.value);
+                setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
+              }}
               onKeyDown={(e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                   e.preventDefault();
@@ -604,7 +715,7 @@ export default function App() {
               placeholder="Move session storage to Redis, keep PostgreSQL as the source of truth, add login rate limiting, and keep login working if Redis is down."
             />
             <div className="va-field-hint">
-              <span>Click here and hold your Wispr Flow key to dictate.</span>
+              <span>Type here, or hold your Wispr Flow shortcut to dictate.</span>
               <span><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to preview</span>
             </div>
           </div>
@@ -624,7 +735,13 @@ export default function App() {
 
           <div>
             <p className="va-prompts-label">Or start from an example</p>
-            <CommandPresets onSelectPreset={(p) => setCommand(p)} currentCommand={command} />
+            <CommandPresets
+              onSelectPreset={(value) => {
+                setCommand(value);
+                setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
+              }}
+              currentCommand={command}
+            />
           </div>
 
           <div className="va-composer-actions">
@@ -634,15 +751,20 @@ export default function App() {
               disabled={!project || !command.trim()}
               onClick={showProposal}
             >
-              <ClipboardCheck size={16} /> Preview change
+              <ClipboardCheck size={16} /> Preview my change
             </button>
             <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={playDemoDictation} disabled={isDictatingSim}>
-              <Play size={13} /> Play demo
+              <Play size={13} /> Play sample instruction
             </button>
             <button
               type="button"
               className="va-btn va-btn-ghost va-btn-sm"
-              onClick={() => { sound.click(); setCommand(''); setProposal(null); }}
+              onClick={() => {
+                sound.click();
+                setCommand('');
+                setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
+                setProposal(null);
+              }}
               disabled={!command}
             >
               Clear
@@ -839,20 +961,93 @@ export default function App() {
                   <span className="va-change-mark"><Check size={13} /></span>
                   <div>
                     <b>{item.title}</b>
-                    <p>{item.detail}</p>
+                    <p>
+                      {item.key === 'rate-limit' && decisionDraft.rateLimitThreshold.trim()
+                        ? `Your chosen limit will be recorded: ${decisionDraft.rateLimitThreshold.trim()}.`
+                        : item.key === 'redis-fallback' && decisionDraft.redisFallback.trim()
+                          ? `Your chosen outage behavior will be recorded: ${decisionDraft.redisFallback.trim()}.`
+                          : item.detail}
+                    </p>
                   </div>
                 </article>
               ))}
             </div>
 
-            {proposal.assumptions.length > 0 && (
+            {(proposalHasRateLimit || proposalHasRedisFallback) && (
+              <section className="va-decision-review" aria-labelledby="decision-review-title">
+                <div className="va-decision-review-head">
+                  <div>
+                    <h3 id="decision-review-title">Your decisions</h3>
+                    <p>Enter only choices your team has made. Leave a field blank to keep that decision unresolved.</p>
+                  </div>
+                  <span className="va-decision-review-badge">OPTIONAL</span>
+                </div>
+
+                {proposalHasRateLimit && (
+                  <div className="va-decision-field">
+                    <label htmlFor="review-rate-limit">Authentication rate limit</label>
+                    <div className="va-decision-input-row">
+                      <input
+                        id="review-rate-limit"
+                        type="text"
+                        value={decisionDraft.rateLimitThreshold}
+                        onChange={(event) => setDecisionDraft((current) => ({ ...current, rateLimitThreshold: event.target.value }))}
+                        placeholder="Your chosen attempts and time window"
+                        aria-describedby="review-rate-limit-help review-rate-limit-impact"
+                      />
+                      <span data-entered={Boolean(decisionDraft.rateLimitThreshold.trim())}>
+                        {decisionDraft.rateLimitThreshold.trim() ? 'Choice entered' : 'Unresolved'}
+                      </span>
+                    </div>
+                    <small id="review-rate-limit-help">For example, enter the limit and time window your team selected. No value is prefilled.</small>
+                    <p className="va-decision-impact" id="review-rate-limit-impact">
+                      <b>Preview impact:</b> {decisionDraft.rateLimitThreshold.trim()
+                        ? 'The API contract and proposed task will show this choice; the audit will still say runtime enforcement is unverified.'
+                        : 'The threshold stays unresolved in the contract, risk/task views, and exported files.'}
+                    </p>
+                  </div>
+                )}
+
+                {proposalHasRedisFallback && (
+                  <div className="va-decision-field">
+                    <label htmlFor="review-redis-fallback">Login behavior if Redis is unavailable</label>
+                    <div className="va-decision-input-row">
+                      <input
+                        id="review-redis-fallback"
+                        type="text"
+                        value={decisionDraft.redisFallback}
+                        onChange={(event) => setDecisionDraft((current) => ({ ...current, redisFallback: event.target.value }))}
+                        placeholder="Describe the behavior your team selected"
+                        aria-describedby="review-redis-fallback-help review-redis-fallback-impact"
+                      />
+                      <span data-entered={Boolean(decisionDraft.redisFallback.trim())}>
+                        {decisionDraft.redisFallback.trim() ? 'Choice entered' : 'Unresolved'}
+                      </span>
+                    </div>
+                    <small id="review-redis-fallback-help">Describe what login should do during a Redis outage. No behavior is selected for you.</small>
+                    <p className="va-decision-impact" id="review-redis-fallback-impact">
+                      <b>Preview impact:</b> {decisionDraft.redisFallback.trim()
+                        ? 'The recorded choice will appear in the API contract, risk audit, and proposed task; implementation remains proposed.'
+                        : 'The fallback stays unresolved in the risk audit, proposed task, and exported files.'}
+                    </p>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {unresolvedProposalAssumptions.length > 0 && (
               <div className="va-open-questions">
                 <h3>Still undecided</h3>
-                <p>These stay open after you apply the change. Settle them before building.</p>
+                <p>These remain open if you apply without recording a choice.</p>
                 <ul>
-                  {proposal.assumptions.map((item) => <li key={item}>{item}</li>)}
+                  {unresolvedProposalAssumptions.map((item) => <li key={item}>{item}</li>)}
                 </ul>
               </div>
+            )}
+            {proposalCaveats.length > 0 && (
+              <p className="va-review-caveat">
+                <b>Important:</b> Recording a decision documents your team’s intent; it does not implement or verify the behavior.
+              </p>
             )}
 
             <div className="va-modal-actions">

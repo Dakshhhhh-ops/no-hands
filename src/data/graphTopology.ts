@@ -76,7 +76,7 @@ export function getDeploymentPlan(
     currentWave.sort((a, b) => {
       const typeRank = (id: string) => {
         const t = componentMap.get(id)?.type;
-        if (t === 'DATABASE' || t === 'STORAGE') return 1;
+        if (t === 'DATABASE') return 1;
         if (t === 'CACHE') return 2;
         if (t === 'QUEUE') return 3;
         if (t === 'SERVICE') return 4;

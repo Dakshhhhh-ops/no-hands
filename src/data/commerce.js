@@ -53,29 +53,42 @@ export function proposeChange(text) {
   const items = [];
   if (lower.includes('redis') && lower.includes('session')) items.push({ key: 'redis-session', title: 'Set Redis as the explicit session store', detail: 'Update the Auth Service → Redis relationship to identify Redis as session storage.' });
   if (lower.includes('postgres') && (lower.includes('source of truth') || lower.includes('persistent'))) items.push({ key: 'postgres-owner', title: 'Preserve PostgreSQL as the source of truth', detail: 'Record the stated data-ownership constraint; do not infer Redis persistence behavior.' });
-  if (lower.includes('rate limit') || lower.includes('rate-limit')) items.push({ key: 'rate-limit', title: 'Add an authentication rate-limiting requirement', detail: 'Attach a rate-limiting requirement to login. No threshold was specified.' });
-  if (lower.includes('resilien') || lower.includes('unavailable') || lower.includes('failure')) items.push({ key: 'redis-fallback', title: 'Add a Redis-unavailable resilience requirement', detail: 'Record login resilience as required; fallback behavior remains unresolved.' });
+  if (lower.includes('rate limit') || lower.includes('rate-limit')) items.push({ key: 'rate-limit', title: 'Add an authentication rate-limiting requirement', detail: 'Attach a rate-limiting requirement to login; the exact limit can be recorded during review.' });
+  if (lower.includes('resilien') || lower.includes('unavailable') || lower.includes('failure')) items.push({ key: 'redis-fallback', title: 'Add a Redis-unavailable resilience requirement', detail: 'Record login resilience as required; the team can specify outage behavior during review.' });
   if (!items.length) items.push({ key: 'unresolved', title: 'Record this as an unresolved architecture request', detail: 'No demo rule matched. No component or relationship will change automatically.' });
   const assumptions = [];
-  if (items.some((item) => item.key === 'rate-limit')) assumptions.push('No rate-limit threshold or time window was provided.');
-  if (items.some((item) => item.key === 'redis-session' || item.key === 'redis-fallback')) assumptions.push('Redis outage fallback and session persistence behavior are unspecified.');
+  if (items.some((item) => item.key === 'rate-limit')) assumptions.push('The rate-limit threshold and time window are still undecided.');
+  if (items.some((item) => item.key === 'redis-fallback')) assumptions.push('Redis outage fallback behavior is still undecided.');
+  if (items.some((item) => item.key === 'redis-session')) assumptions.push('Redis session persistence behavior is still unspecified.');
   assumptions.push(items[0].key === 'unresolved' ? 'No architecture facts will be added until the request is clarified.' : 'A recorded requirement does not mean the behavior is implemented.');
 
   return validateProposal({ text, items, assumptions });
 }
 
-export function applyChange(project, proposal) {
+export function applyChange(project, proposal, decisions = {}) {
   const next = structuredClone(project);
   const lower = proposal.text.toLowerCase();
   const changes = [];
   const changeId = `CHG-${String(next.version + 1).padStart(4, '0')}`;
   const provenance = { sourceChangeId: changeId, originalInstruction: proposal.text };
   const affectedArtifacts = new Set();
+  const existingResolution = (id) => next.requirements.find((item) => item.id === id)?.resolution || '';
+  const chosenRateLimitThreshold = Object.hasOwn(decisions, 'rateLimitThreshold')
+    ? decisions.rateLimitThreshold?.trim() || ''
+    : existingResolution('REQ-AUTH-RATE');
+  const chosenRedisFallback = Object.hasOwn(decisions, 'redisFallback')
+    ? decisions.redisFallback?.trim() || ''
+    : existingResolution('REQ-REDIS-FAIL');
 
-  const addRequirement = (id, text) => {
-    if (!next.requirements.some((item) => item.id === id)) {
-      next.requirements.push({ id, text, status: 'confirmed', ...provenance });
-    }
+  const addRequirement = (id, text, resolution) => {
+    const existingIndex = next.requirements.findIndex((item) => item.id === id);
+    const existing = existingIndex >= 0 ? next.requirements[existingIndex] : null;
+    const requirement = { ...existing, id, text, status: 'confirmed', ...provenance };
+    const chosenResolution = resolution?.trim() || existing?.resolution;
+    if (chosenResolution) requirement.resolution = chosenResolution;
+    else delete requirement.resolution;
+    if (existingIndex >= 0) next.requirements[existingIndex] = requirement;
+    else next.requirements.push(requirement);
     affectedArtifacts.add('requirements');
   };
 
@@ -98,20 +111,38 @@ export function applyChange(project, proposal) {
   }
 
   if (lower.includes('rate limit') || lower.includes('rate-limit')) {
-    addRequirement('REQ-AUTH-RATE', 'Authentication endpoint requires rate limiting; threshold unresolved');
+    const threshold = chosenRateLimitThreshold;
+    addRequirement(
+      'REQ-AUTH-RATE',
+      threshold
+        ? `Authentication endpoint requires rate limiting; configured threshold: ${threshold}`
+        : 'Authentication endpoint requires rate limiting; threshold unresolved',
+      threshold,
+    );
     const operation = next.apiOperations.find((item) => item.id === 'api-login');
     if (operation) Object.assign(operation, provenance);
     affectedArtifacts.add('apiOperations');
     affectedArtifacts.add('risks');
     affectedArtifacts.add('tasks');
-    changes.push('Authentication rate-limiting requirement recorded');
+    changes.push(threshold
+      ? `Authentication rate-limit choice recorded: ${threshold}`
+      : 'Authentication rate-limiting requirement recorded; threshold unresolved');
   }
 
   if (lower.includes('resilien') || lower.includes('unavailable') || lower.includes('failure')) {
-    addRequirement('REQ-REDIS-FAIL', 'Login must remain resilient when Redis is unavailable; fallback unresolved');
+    const fallback = chosenRedisFallback;
+    addRequirement(
+      'REQ-REDIS-FAIL',
+      fallback
+        ? `Login must remain resilient when Redis is unavailable; selected fallback: ${fallback}`
+        : 'Login must remain resilient when Redis is unavailable; fallback unresolved',
+      fallback,
+    );
     affectedArtifacts.add('risks');
     affectedArtifacts.add('tasks');
-    changes.push('Redis outage resilience requirement recorded');
+    changes.push(fallback
+      ? `Redis outage choice recorded: ${fallback}`
+      : 'Redis outage resilience requirement recorded; fallback unresolved');
   }
 
   if (lower.includes('postgres') && (lower.includes('source of truth') || lower.includes('persistent'))) {

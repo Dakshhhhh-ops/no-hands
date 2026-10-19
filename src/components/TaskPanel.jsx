@@ -24,7 +24,10 @@ export default function TaskPanel({ project }) {
     sound.click();
     const md = tasks.map((t) => {
       const criteria = t.acceptance.map((a) => `  - [ ] ${a}`).join('\n');
-      return `### [${t.priority}] ${t.id}: ${t.title}\n**Epic:** ${t.epic}\n**Rationale:** ${t.requirement.text}\n**Acceptance Criteria:**\n${criteria}\n**Unresolved Decision:** ${t.unresolved}\n`;
+      const decisionStatus = t.requirement.resolution
+        ? `Recorded choice: ${t.requirement.resolution}. Implementation remains proposed.`
+        : `Unresolved: ${t.unresolved}`;
+      return `### [${t.priority}] ${t.id}: ${t.title}\n**Epic:** ${t.epic}\n**Rationale:** ${t.requirement.text}\n**Acceptance Criteria:**\n${criteria}\n**Decision status:** ${decisionStatus}\n`;
     }).join('\n---\n\n');
 
     navigator.clipboard?.writeText?.(md);
@@ -116,12 +119,16 @@ export default function TaskPanel({ project }) {
                   </ul>
                 </div>
 
-                <div className="decision-box">
+                <div className={`decision-box ${task.requirement.resolution ? 'is-resolved' : ''}`}>
                   <div className="decision-header">
-                    <span className="decision-tag">[UNRESOLVED_DECISION]</span>
+                    <span className="decision-tag" data-resolved={Boolean(task.requirement.resolution)}>
+                      {task.requirement.resolution ? '[DECISION_RECORDED]' : '[UNRESOLVED_DECISION]'}
+                    </span>
                   </div>
                   <p className="decision-desc">{task.unresolved}</p>
-                  <small className="decision-hint">Team consensus required before PR merge</small>
+                  <small className="decision-hint">
+                    {task.requirement.resolution ? 'The choice is recorded; implementation is still proposed.' : 'Team decision needed before implementation.'}
+                  </small>
                 </div>
               </div>
 

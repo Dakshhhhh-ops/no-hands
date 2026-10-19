@@ -32,13 +32,14 @@ export function deriveRiskFindings(project) {
   const resilience = requirements.find((item) => /redis/i.test(item.text) && /(unavailable|resilien|fallback)/i.test(item.text));
   if (resilience) {
     findings.push({
-      kind: 'Unresolved decision',
-      title: 'Redis outage behavior needs a decision',
-      description: 'Login resilience is required, but fallback behavior is not defined. The requirement is not evidence that resilience is implemented.',
-      evidence: [
-        `${resilience.id}: “${resilience.text}”`,
-        'No confirmed fallback behavior or session persistence policy is recorded.',
-      ],
+      kind: resilience.resolution ? 'Requirement coverage' : 'Unresolved decision',
+      title: resilience.resolution ? 'Redis outage behavior choice is recorded' : 'Redis outage behavior needs a decision',
+      description: resilience.resolution
+        ? `The team recorded this Redis outage behavior: ${resilience.resolution}. This is a requirement, not evidence that the behavior is implemented.`
+        : 'Login resilience is required, but fallback behavior is not defined. The requirement is not evidence that resilience is implemented.',
+      evidence: resilience.resolution
+        ? [`${resilience.id}: ${resilience.text}`, `Recorded choice: ${resilience.resolution}`, 'Implementation and session persistence behavior are not verified by this model.']
+        : [`${resilience.id}: “${resilience.text}”`, 'No confirmed fallback behavior or session persistence policy is recorded.'],
       // Direct foreign keys (Phase 1)
       requirementId: resilience.id,
       sourceChangeId: resilience.sourceChangeId,
@@ -65,11 +66,12 @@ export function deriveRiskFindings(project) {
     findings.push({
       kind: 'Requirement coverage',
       title: 'Rate limiting is required; contract coverage is unverified',
-      description: 'The requirement is recorded, but the demo has no API implementation entities to verify enforcement.',
-      evidence: [
-        `${rateLimit.id}: “${rateLimit.text}”`,
-        'The project model does not represent a running API implementation.',
-      ],
+      description: rateLimit.resolution
+        ? `The team recorded this rate-limit threshold and window: ${rateLimit.resolution}. The demo cannot verify runtime enforcement.`
+        : 'The requirement is recorded, but its threshold and time window remain unspecified; the demo also cannot verify runtime enforcement.',
+      evidence: rateLimit.resolution
+        ? [`${rateLimit.id}: ${rateLimit.text}`, `Recorded threshold and window: ${rateLimit.resolution}`, 'The project model does not represent a running API implementation.']
+        : [`${rateLimit.id}: “${rateLimit.text}”`, 'The project model does not represent a running API implementation.'],
       // Direct foreign keys (Phase 1)
       requirementId: rateLimit.id,
       sourceChangeId: rateLimit.sourceChangeId,
@@ -117,8 +119,7 @@ export function getProjectSyncStatus(project) {
   if (!project) return 'Ready';
   const rateLimit = project.requirements.find((item) => /rate.?limit/i.test(item.text));
   const redisResilience = project.requirements.find((item) => /redis/i.test(item.text) && /(unavailable|resilien|fallback)/i.test(item.text));
-  const unresolved = !rateLimit || /threshold unresolved/i.test(rateLimit.text)
-    || !redisResilience || /fallback unresolved/i.test(redisResilience.text);
+  const unresolved = !rateLimit?.resolution || !redisResilience?.resolution;
   if (project.changed) return unresolved ? 'Change applied · unresolved decisions remain' : 'Change applied';
   return unresolved ? 'Baseline loaded · unresolved decisions remain' : 'Baseline loaded';
 }
@@ -134,11 +135,15 @@ export function deriveTasks(project) {
         priority: 'High',
         requirement,
         acceptance: [
-          'Requests above the configured threshold receive HTTP 429.',
+          requirement.resolution
+            ? `Apply the recorded limit: ${requirement.resolution}.`
+            : 'Requests above the configured threshold receive HTTP 429.',
           'Rate-limit headers describe the current limit and retry window.',
           'The threshold and window are explicitly configured and documented.',
         ],
-        unresolved: 'The product owner must choose the limit and time window.',
+        unresolved: requirement.resolution
+          ? `Decision recorded: ${requirement.resolution}. Implementation remains proposed.`
+          : 'The product owner must choose the limit and time window.',
         // Direct foreign keys (Phase 1)
         requirementId: requirement.id,
         sourceChangeId: requirement.sourceChangeId,
@@ -153,11 +158,15 @@ export function deriveTasks(project) {
         priority: 'High',
         requirement,
         acceptance: [
-          'Redis outage behavior is explicitly selected and documented.',
+          requirement.resolution
+            ? `Implement the recorded outage behavior: ${requirement.resolution}.`
+            : 'Redis outage behavior is explicitly selected and documented.',
           'Login follows the selected behavior when Redis is unavailable.',
           'Automated tests cover the Redis failure path.',
         ],
-        unresolved: 'Choose fail-open or fail-closed behavior and define any session fallback.',
+        unresolved: requirement.resolution
+          ? `Decision recorded: ${requirement.resolution}. Implementation remains proposed.`
+          : 'Choose and document the login behavior when Redis is unavailable.',
         // Direct foreign keys (Phase 1)
         requirementId: requirement.id,
         sourceChangeId: requirement.sourceChangeId,

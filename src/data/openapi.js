@@ -13,6 +13,7 @@ export function toYaml(value, indent = 0) {
 
 export function makeOpenApi(project) {
   const rateLimit = project.requirements.find((item) => /rate.?limit/i.test(item.text));
+  const redisFallback = project.requirements.find((item) => /redis/i.test(item.text) && /(fallback|unavailable|resilien)/i.test(item.text));
   const paths = {};
   for (const operation of project.apiOperations) {
     const component = project.components.find((item) => item.id === operation.componentId);
@@ -22,22 +23,36 @@ export function makeOpenApi(project) {
       '500': { description: 'Unexpected server error.' },
     };
     if (rateLimit) responses['429'] = {
-      description: 'Request rejected by the configured authentication rate limit.',
+      description: rateLimit.resolution
+        ? `Request rejected by the configured authentication rate limit. Recorded threshold and window: ${rateLimit.resolution}.`
+        : 'Request rejected by the configured authentication rate limit; the exact threshold and window remain unresolved.',
       headers: {
-        'X-RateLimit-Limit': { description: 'Configured request limit; exact value remains unresolved.', schema: { type: 'integer' } },
+        'X-RateLimit-Limit': {
+          description: rateLimit.resolution ? `Configured request limit. Recorded choice: ${rateLimit.resolution}.` : 'Configured request limit; exact value remains unresolved.',
+          schema: { type: 'integer' },
+        },
         'X-RateLimit-Remaining': { description: 'Requests remaining in the current window.', schema: { type: 'integer' } },
-        'Retry-After': { description: 'Seconds until another request may be attempted.', schema: { type: 'integer' } },
+        'Retry-After': {
+          description: rateLimit.resolution ? `Seconds until another request may be attempted; recorded threshold/window choice: ${rateLimit.resolution}.` : 'Seconds until another request may be attempted; the window remains unresolved.',
+          schema: { type: 'integer' },
+        },
       },
       content: { 'application/json': { schema: { type: 'object', properties: { error: { type: 'string' } } } } },
     };
+    const decisionNotes = [
+      rateLimit?.resolution ? `Recorded rate-limit threshold and window: ${rateLimit.resolution}.` : '',
+      redisFallback?.resolution ? `Recorded Redis outage behavior: ${redisFallback.resolution}.` : '',
+    ].filter(Boolean);
     paths[operation.path] = { [operation.method]: {
       operationId: operation.id,
       summary: operation.summary,
-      description: `Derived from ${component.name}. Request credential fields and successful response fields are not defined in the current model.`,
+      description: [`Derived from ${component.name}. Request credential fields and successful response fields are not defined in the current model.`, ...decisionNotes].join(' '),
       tags: [component.name],
       requestBody: { required: true, description: 'Request properties are intentionally unspecified until the architecture defines them.', content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } } },
       responses,
       'x-voicearchitect-source-component': component.id,
+      ...(rateLimit?.resolution ? { 'x-voicearchitect-rate-limit-choice': rateLimit.resolution } : {}),
+      ...(redisFallback?.resolution ? { 'x-voicearchitect-redis-outage-choice': redisFallback.resolution } : {}),
     } };
   }
   return { openapi: '3.0.3', info: { title: `${project.name} API`, version: `${project.version}.0.0`, description: 'Generated from the current VoiceArchitect demo model. Unspecified details are called out rather than inferred.' }, paths };
