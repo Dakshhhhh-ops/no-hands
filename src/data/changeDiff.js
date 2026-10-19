@@ -101,8 +101,8 @@ function diffRecords({ category, beforeItems, afterItems, key, label, project, l
   });
 }
 
-export function deriveChangeDiff(project) {
-  const baseline = project.baseline;
+export function deriveChangeDiff(project, comparisonBase = project.baseline) {
+  const baseline = comparisonBase;
   if (!baseline) return [];
   const latestChange = project.changes?.[0];
   const categories = [

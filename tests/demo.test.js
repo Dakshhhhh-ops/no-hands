@@ -50,6 +50,20 @@ test('before-and-after diff covers all artifact types with instruction provenanc
   assert.equal(project.changes[0].id, 'CHG-0002');
 });
 
+test('preview diff compares a new proposal with the latest model instead of the original baseline', () => {
+  const baseline = makeCommerceProject();
+  const current = applyChange(baseline, proposeChange('Move session storage to Redis'));
+  const proposal = proposeChange('Add rate limiting to the authentication endpoint');
+  const proposed = applyChange(current, proposal);
+  const groups = deriveChangeDiff(proposed, current);
+
+  assert.equal(groups.find(({ id }) => id === 'components').entries.length, 0);
+  assert.equal(groups.find(({ id }) => id === 'relationships').entries.length, 0);
+  for (const id of ['requirements', 'apiOperations', 'risks', 'tasks']) {
+    assert.ok(groups.find((group) => group.id === id).entries.length > 0, `${id} should show only this proposal's changes`);
+  }
+});
+
 test('diagram selection finds direct relationships and transitive downstream impact', () => {
   const project = makeCommerceProject();
   const neighborhood = getDiagramNeighborhood(project.components, project.relationships, 'web');

@@ -15,6 +15,7 @@ import ScenarioBranchingBar from './components/ScenarioBranchingBar.jsx';
 import ScenarioComparisonModal from './components/ScenarioComparisonModal.jsx';
 import MergeConflictModal from './components/MergeConflictModal.jsx';
 import { applyChange, DEMO_COMMAND, makeCommerceProject, proposeChange } from './data/commerce.js';
+import { deriveChangeDiff } from './data/changeDiff.js';
 import { createVerifiedExportZip, createVerifiedDevOpsZip } from './data/export.js';
 import { getProjectSyncStatus } from './data/analysis.js';
 import { sound } from './utils/sound.js';
@@ -31,6 +32,17 @@ const tabs = [
   { id: 'impact', label: 'What changed', icon: Activity },
   { id: 'telemetry', label: 'Telemetry', icon: Layers },
 ];
+
+function describeProposalValue(value) {
+  if (!value) return 'No existing value';
+  if (value.name && value.type) return `${value.type}: ${value.name}${value.sub ? ` — ${value.sub}` : ''}`;
+  if (value.from && value.to) return `${value.from} → ${value.to}${value.label ? ` · ${value.label}` : ''}`;
+  if (value.method && value.path) return `${value.method.toUpperCase()} ${value.path} · responses ${Object.keys(value.responses || {}).join(', ') || 'none'}`;
+  if (value.kind && value.title) return `${value.kind}: ${value.description || value.title}`;
+  if (value.acceptance) return `${value.title} · ${value.priority} priority`;
+  if (value.id && value.text) return `${value.id}: ${value.text}`;
+  return value.title || JSON.stringify(value);
+}
 
 function makeMainBranch(project) {
   return {
@@ -251,6 +263,15 @@ export default function App() {
   }, [exportOpen]);
 
   const preview = useMemo(() => (command.trim() ? proposeChange(command.trim()) : null), [command]);
+  const proposedProject = useMemo(
+    () => (project && proposal ? applyChange(project, proposal, decisionDraft) : null),
+    [project, proposal, decisionDraft],
+  );
+  const proposedDiff = useMemo(
+    () => (project && proposedProject ? deriveChangeDiff(proposedProject, project) : []),
+    [project, proposedProject],
+  );
+  const proposedDiffGroups = proposedDiff.filter((group) => group.entries.length > 0);
   const activeTab = tabs.find((item) => item.id === tab) || tabs[0];
 
   // Focus trap and Escape for the review dialog
@@ -972,6 +993,45 @@ export default function App() {
                 </article>
               ))}
             </div>
+
+            <section className="va-proposal-diff" aria-labelledby="proposal-diff-title">
+              <div className="va-proposal-diff-head">
+                <div>
+                  <h3 id="proposal-diff-title">What would change</h3>
+                  <p>Compared with the current v{project?.version} model. Nothing here is applied yet.</p>
+                </div>
+                <span className="va-proposal-diff-legend" aria-label="Change colors: green added, amber modified, red removed">
+                  <i className="is-added" /> Added
+                  <i className="is-modified" /> Modified
+                  <i className="is-removed" /> Removed
+                </span>
+              </div>
+              {proposedDiffGroups.length ? (
+                <div className="va-proposal-diff-groups">
+                  {proposedDiffGroups.map((group) => (
+                    <section className="va-proposal-diff-group" key={group.id} aria-label={group.label}>
+                      <h4>{group.label}</h4>
+                      {group.entries.map((entry) => (
+                        <article className={`va-proposal-diff-entry is-${entry.status}`} key={entry.id}>
+                          <div className="va-proposal-diff-entry-head">
+                            <span className={`va-proposal-diff-status is-${entry.status}`}>{entry.status}</span>
+                            <b>{entry.label}</b>
+                          </div>
+                          {entry.status !== 'added' && (
+                            <p><span>Before</span>{describeProposalValue(entry.before)}</p>
+                          )}
+                          {entry.status !== 'removed' && (
+                            <p><span>Proposed</span>{describeProposalValue(entry.after)}</p>
+                          )}
+                        </article>
+                      ))}
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <p className="va-proposal-diff-empty">No component, relationship, contract, risk, or task deltas were detected for this instruction.</p>
+              )}
+            </section>
 
             {(proposalHasRateLimit || proposalHasRedisFallback) && (
               <section className="va-decision-review" aria-labelledby="decision-review-title">

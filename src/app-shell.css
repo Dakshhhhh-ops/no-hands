@@ -259,6 +259,29 @@ body { margin: 0; overflow-x: visible; background: var(--va-bg); }
 .va-change-mark { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: color-mix(in srgb, var(--va-ok) 18%, transparent); color: var(--va-ok); }
 .va-change b { display: block; font-weight: 600; }
 .va-change p { margin: 2px 0 0; color: var(--va-muted); }
+.va-proposal-diff { display: grid; gap: 12px; margin: 0 0 16px; padding: 14px; border: 1px solid var(--va-line-strong); border-radius: 12px; background: var(--va-bg); }
+.va-proposal-diff-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 14px; }
+.va-proposal-diff-head h3 { margin: 0 0 3px; font-size: var(--va-fs-md); }
+.va-proposal-diff-head p { margin: 0; color: var(--va-muted); font-size: var(--va-fs-sm); }
+.va-proposal-diff-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; color: var(--va-muted); font-size: var(--va-fs-xs); }
+.va-proposal-diff-legend i { width: 8px; height: 8px; margin-left: 5px; border-radius: 50%; background: var(--va-warn); }
+.va-proposal-diff-legend i:first-child { margin-left: 0; }
+.va-proposal-diff-legend i.is-added { background: var(--va-ok); }
+.va-proposal-diff-legend i.is-removed { background: #fb7185; }
+.va-proposal-diff-groups { display: grid; gap: 10px; max-height: 270px; overflow: auto; padding-right: 2px; }
+.va-proposal-diff-group { display: grid; gap: 6px; }
+.va-proposal-diff-group h4 { margin: 0; color: var(--va-muted); font-size: var(--va-fs-xs); font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+.va-proposal-diff-entry { display: grid; gap: 5px; padding: 9px 10px; border: 1px solid var(--va-line); border-left: 3px solid var(--va-warn); border-radius: 8px; background: var(--va-panel); }
+.va-proposal-diff-entry.is-added { border-left-color: var(--va-ok); }
+.va-proposal-diff-entry.is-removed { border-left-color: #fb7185; }
+.va-proposal-diff-entry-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.va-proposal-diff-entry-head b { font-size: var(--va-fs-sm); }
+.va-proposal-diff-status { color: var(--va-warn); font-size: var(--va-fs-xs); font-weight: 700; text-transform: capitalize; }
+.va-proposal-diff-status.is-added { color: var(--va-ok); }
+.va-proposal-diff-status.is-removed { color: #fb7185; }
+.va-proposal-diff-entry p { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 6px; margin: 0; color: var(--va-muted); font-size: var(--va-fs-xs); overflow-wrap: anywhere; }
+.va-proposal-diff-entry p span { color: var(--va-faint); font-weight: 600; }
+.va-proposal-diff-empty { margin: 0; color: var(--va-muted); font-size: var(--va-fs-sm); }
 .va-open-questions { margin-bottom: 18px; padding: 12px 14px; border-left: 3px solid var(--va-warn); border-radius: 10px; background: color-mix(in srgb, var(--va-warn) 9%, transparent); }
 .va-open-questions h3 { margin: 0 0 2px; font-size: var(--va-fs-md); font-weight: 600; }
 .va-open-questions > p { margin: 0 0 8px; color: var(--va-muted); font-size: var(--va-fs-sm); }
