@@ -1,5 +1,6 @@
 import { Check, Sparkles, Terminal } from 'lucide-react';
 import { DEMO_COMMAND } from '../data/commerce.js';
+import { FOOD_DELIVERY_DEMO_COMMAND } from '../data/foodDelivery.js';
 import { sound } from '../utils/sound.js';
 
 export const PRESET_COMMANDS = [
@@ -37,7 +38,17 @@ export const PRESET_COMMANDS = [
   },
 ];
 
-export default function CommandPresets({ onSelectPreset, currentCommand }) {
+const FOOD_PRESETS = [{
+  id: 'food-delivery-demo',
+  tag: 'DEMO',
+  category: 'ORDERS & DELIVERY',
+  title: 'Food Delivery Data Ownership',
+  command: FOOD_DELIVERY_DEMO_COMMAND,
+  highlights: ['PostgreSQL Ownership', 'Checkout Rate Limit', 'Manual Decisions'],
+}];
+
+export default function CommandPresets({ onSelectPreset, currentCommand, sampleKind = 'commerce' }) {
+  const presets = sampleKind === 'food' ? FOOD_PRESETS : PRESET_COMMANDS;
   return (
     <div className="presets-container" aria-label="Architecture command presets">
       <div className="presets-header">
@@ -49,7 +60,7 @@ export default function CommandPresets({ onSelectPreset, currentCommand }) {
       </div>
 
       <div className="presets-grid">
-        {PRESET_COMMANDS.map((preset) => {
+        {presets.map((preset) => {
           const isActive = currentCommand.trim() === preset.command.trim();
           return (
             <button

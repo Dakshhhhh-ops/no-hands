@@ -4,6 +4,11 @@ import { makeCommerceProject, DEMO_COMMAND, proposeChange, applyChange } from '.
 import { generateJsonPatch, applyJsonPatch } from '../src/data/jsonPatch.ts';
 import { HistoryTimeline } from '../src/data/historyManager.ts';
 import { normalizeArchitectureCommand } from '../src/data/commandParser.js';
+import { FOOD_DELIVERY_DEMO_COMMAND, makeFoodDeliveryProject } from '../src/data/foodDelivery.js';
+import { deriveRiskFindings, deriveTasks } from '../src/data/analysis.js';
+import { makeOpenApi } from '../src/data/openapi.js';
+import { generateMultiServiceOpenApi } from '../src/data/openapiSynth.ts';
+import { makeExportFiles } from '../src/data/export.js';
 import {
   createServerlessBranch,
   createKubernetesBranch,
@@ -164,6 +169,34 @@ test('ambiguous or unsupported dictation is called out instead of guessed', () =
   const unsupported = proposeChange('Move the widgets into supercluster mode');
   assert.ok(unsupported.assumptions.some((item) => item.includes('No supported architecture change')));
   assert.ok(unsupported.items.some((item) => item.key === 'unresolved'));
+});
+
+test('Food Delivery sample feeds the diagram model, contracts, risks, tasks, and export', () => {
+  const food = makeFoodDeliveryProject();
+  const componentNames = food.components.map((item) => item.name);
+  for (const expected of ['Order Service', 'Restaurant Service', 'Courier Service', 'Payment Provider', 'Notification Service']) {
+    assert.ok(componentNames.includes(expected), `Missing ${expected}`);
+  }
+  assert.match(FOOD_DELIVERY_DEMO_COMMAND, /rate limiting/i);
+  assert.ok(deriveRiskFindings(food).length > 0);
+  assert.equal(deriveTasks(food).length, food.requirements.length);
+  assert.ok(makeOpenApi(food).paths['/orders']);
+  const multiSpec = generateMultiServiceOpenApi(food);
+  assert.equal(multiSpec.openapi, '3.1.0');
+  assert.ok(multiSpec.paths['/restaurants']?.get);
+  assert.ok(multiSpec.paths['/couriers/assignments']?.post);
+  const files = makeExportFiles(food, '2026-10-20T00:00:00.000Z');
+  assert.match(files['architecture.json'], /Food Delivery Platform/);
+  assert.match(files['openapi.yaml'], /\/restaurants/);
+  assert.match(files['risk-audit.json'], /PostgreSQL/);
+  assert.match(files['engineering-tasks.json'], /TASK-DELIVERY-ASSIGN/);
+
+  const updated = applyChange(food, proposeChange(FOOD_DELIVERY_DEMO_COMMAND));
+  assert.equal(updated.version, 2);
+  assert.ok(makeOpenApi(updated).paths['/auth/login'].post.responses['429']);
+  assert.ok(deriveRiskFindings(updated).some((finding) => /rate limiting/i.test(finding.title)));
+  assert.ok(deriveTasks(updated).some((task) => task.id === 'TASK-AUTH-RATE'));
+  assert.match(makeExportFiles(updated)['architecture.json'], /Food Delivery Platform/);
 });
 
 test('Scenario Branching: creates Serverless & K8s scenario branches with distinct metrics', () => {

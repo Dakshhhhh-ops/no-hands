@@ -375,3 +375,9 @@ body { margin: 0; overflow-x: visible; background: var(--va-bg); }
   .va-journey-top { align-items: flex-start; }
   .va-journey-steps { grid-template-columns: minmax(0, 1fr); }
 }
+.va-sample-picker { display: flex; align-items: center; gap: 8px; }
+.va-sample-picker select { min-height: 36px; max-width: 190px; padding: 0 10px; color: var(--va-ink); background: var(--va-panel); border: 1px solid var(--va-line-strong); border-radius: 9px; font: inherit; }
+@media (max-width: 640px) {
+  .va-sample-picker { width: 100%; }
+  .va-sample-picker select { flex: 1; max-width: none; min-width: 0; }
+}

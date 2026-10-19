@@ -192,6 +192,27 @@ export function deriveTasks(project) {
         originalInstruction: requirement.originalInstruction,
       });
     }
+    if (!['REQ-AUTH-RATE', 'REQ-REDIS-FAIL', 'REQ-DATA-OWNER'].includes(requirement.id)) {
+      const slug = requirement.id.replace(/^REQ-/, '').replace(/[^A-Z0-9]+/g, '-');
+      tasks.push({
+        id: `TASK-${slug}`,
+        epic: `${project.name} requirements`,
+        title: `Implement: ${requirement.text}`,
+        priority: /payment|courier|security|duplicate/i.test(requirement.text) ? 'High' : 'Medium',
+        requirement,
+        acceptance: [
+          `The system satisfies the requirement: ${requirement.text}`,
+          'Document behavior for retries, unavailable dependencies, and invalid input where applicable.',
+          'Add automated coverage and update the architecture contract before release.',
+        ],
+        unresolved: requirement.resolution
+          ? `Recorded choice: ${requirement.resolution}. Implementation remains proposed.`
+          : 'Implementation details and verification remain proposed; the model does not claim completion.',
+        requirementId: requirement.id,
+        sourceChangeId: requirement.sourceChangeId,
+        originalInstruction: requirement.originalInstruction,
+      });
+    }
   }
   // Validate all tasks against Zod schema
   return tasks.map((t) => TaskSchema.parse(t));

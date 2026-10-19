@@ -155,7 +155,7 @@ export default function OpenApiPanel({ project, onNotify }) {
             <div>
               <h4>OpenAPI 3.1 Multi-Service Synthesis</h4>
               <p>
-                Generated across all modeled services (Auth Service, Catalog Service, Order Service).
+                Generated from the current project’s modeled API operations and services.
                 Response schemas and headers reflect confirmed architecture requirements.
               </p>
             </div>

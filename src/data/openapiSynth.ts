@@ -24,6 +24,55 @@ export interface DriftReport {
  * microservices in the architecture graph (Auth, Catalog, Orders, Payment, etc.).
  */
 export function generateMultiServiceOpenApi(project: Project) {
+  if (project.name !== 'Commerce Platform') {
+    const rateLimitReq = project.requirements.find((r) => /rate.?limit/i.test(r.text));
+    const paths: Record<string, any> = {};
+    for (const operation of project.apiOperations) {
+      const component = project.components.find((item) => item.id === operation.componentId);
+      if (!component) continue;
+      const responses: Record<string, any> = {
+        '200': { description: `Successful response from ${component.name}. Payload fields remain unspecified unless modeled.` },
+        '500': { description: 'Unexpected service error.' },
+      };
+      if (rateLimitReq) responses['429'] = {
+        description: rateLimitReq.resolution
+          ? `Rate limit exceeded. Recorded choice: ${rateLimitReq.resolution}.`
+          : 'Rate limit exceeded; threshold and window remain unresolved.',
+        headers: {
+          'X-RateLimit-Limit': { schema: { type: 'integer' }, description: rateLimitReq.resolution || 'Limit value remains unresolved.' },
+          'X-RateLimit-Remaining': { schema: { type: 'integer' }, description: 'Requests remaining in the active window.' },
+          'Retry-After': { schema: { type: 'integer' }, description: 'Seconds before retry; window remains model-defined.' },
+        },
+      };
+      paths[operation.path] = {
+        [operation.method]: {
+          operationId: operation.id,
+          tags: [component.name],
+          summary: operation.summary,
+          description: `Derived from the ${component.name} API operation in the current architecture model.`,
+          ...(operation.method === 'get' || operation.method === 'delete' ? {} : {
+            requestBody: {
+              required: true,
+              description: 'Request fields are not specified in the model.',
+              content: { 'application/json': { schema: { type: 'object', additionalProperties: true } } },
+            },
+          }),
+          responses,
+        },
+      };
+    }
+    return {
+      openapi: '3.1.0',
+      info: {
+        title: `${project.name} Multi-Service API Specification`,
+        version: `${project.version}.0.0`,
+        description: 'Generated from the current project API operations. Unspecified request and response fields are not inferred.',
+      },
+      servers: [{ url: `https://api.${project.name.toLowerCase().replace(/[^a-z0-9]+/g, '')}.local/v1`, description: 'API Gateway ingress' }],
+      paths,
+      components: { schemas: { ErrorResponse: { type: 'object', properties: { error: { type: 'string' } } } } },
+    };
+  }
   const rateLimitReq = project.requirements.find((r) => /rate.?limit/i.test(r.text));
   const redisFallbackReq = project.requirements.find((r) => /redis/i.test(r.text) && /(fallback|unavailable|resilien)/i.test(r.text));
   const postgresOwnerReq = project.requirements.find((r) => /postgres/i.test(r.text) && /source of truth/i.test(r.text));
@@ -243,6 +292,22 @@ export function generateMultiServiceOpenApi(project: Project) {
 export function detectContractDrift(project: Project): DriftReport {
   const drifts: SchemaDriftItem[] = [];
   const reqs = project.requirements;
+
+  if (project.name !== 'Commerce Platform') {
+    for (const requirement of reqs) {
+      drifts.push({
+        id: `drift-${requirement.id.toLowerCase()}`,
+        requirementId: requirement.id,
+        requirementText: requirement.text,
+        severity: 'WARNING',
+        expectedInContract: 'Explicit request/response contract coverage linked to this requirement',
+        actualStatus: 'PARTIAL',
+        remediationAdvice: 'Review the generated operation schemas and add explicit fields or acceptance details; generic request bodies are intentionally not inferred.',
+      });
+    }
+    const warningCount = drifts.length;
+    return { timestamp: Date.now(), totalDrifts: drifts.length, criticalCount: 0, warningCount, drifts, isFullyCompliant: warningCount === 0 };
+  }
 
   // 1. Check Rate-Limiting requirement vs OpenAPI responses
   const rateLimitReq = reqs.find((r) => /rate.?limit/i.test(r.text));

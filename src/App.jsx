@@ -15,6 +15,7 @@ import ScenarioBranchingBar from './components/ScenarioBranchingBar.jsx';
 import ScenarioComparisonModal from './components/ScenarioComparisonModal.jsx';
 import MergeConflictModal from './components/MergeConflictModal.jsx';
 import { applyChange, DEMO_COMMAND, makeCommerceProject, proposeChange } from './data/commerce.js';
+import { FOOD_DELIVERY_DEMO_COMMAND, makeFoodDeliveryProject } from './data/foodDelivery.js';
 import { deriveChangeDiff } from './data/changeDiff.js';
 import { createVerifiedExportZip, createVerifiedDevOpsZip } from './data/export.js';
 import { getProjectSyncStatus } from './data/analysis.js';
@@ -48,7 +49,7 @@ function makeMainBranch(project) {
   return {
     id: 'main',
     name: 'Main Branch',
-    description: 'Commerce Platform primary architecture',
+    description: `${project.name} primary architecture`,
     project,
     history: new HistoryTimeline(project),
   };
@@ -61,6 +62,7 @@ function isTypingTarget(target) {
 
 export default function App() {
   const [project, setProject] = useState(makeCommerceProject);
+  const [sampleChoice, setSampleChoice] = useState('commerce');
   const [command, setCommand] = useState('');
   const [decisionDraft, setDecisionDraft] = useState({ rateLimitThreshold: '', redisFallback: '' });
   const [tab, setTab] = useState('diagram');
@@ -338,9 +340,10 @@ export default function App() {
     }
   }
 
-  function resetWorkspace(message) {
+  function resetWorkspace(message, kind = sampleChoice) {
     sound.click();
-    const fresh = makeCommerceProject();
+    const fresh = kind === 'food' ? makeFoodDeliveryProject() : makeCommerceProject();
+    setSampleChoice(kind);
     setProject(fresh);
     setCommand('');
     setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
@@ -354,8 +357,11 @@ export default function App() {
     notify(message);
   }
 
-  const loadSample = () => resetWorkspace('Commerce Platform sample loaded.');
-  const reset = () => resetWorkspace('Workspace reset to the Commerce Platform baseline.');
+  const loadSample = () => resetWorkspace(`${sampleChoice === 'food' ? 'Food Delivery' : 'Commerce Platform'} sample loaded.`, sampleChoice);
+  const reset = () => {
+    const kind = project?.name === 'Food Delivery Platform' ? 'food' : sampleChoice;
+    resetWorkspace(`Workspace reset to the ${kind === 'food' ? 'Food Delivery' : 'Commerce Platform'} baseline.`, kind);
+  };
 
   function showProposal() {
     sound.click();
@@ -442,6 +448,7 @@ export default function App() {
   }
 
   function playDemoDictation() {
+    const demoCommand = project?.name === 'Food Delivery Platform' ? FOOD_DELIVERY_DEMO_COMMAND : DEMO_COMMAND;
     if (isDictatingSim) return;
     setIsDictatingSim(true);
     sound.apply();
@@ -450,19 +457,19 @@ export default function App() {
     let i = 0;
     const timer = setInterval(() => {
       i += 3;
-      if (i >= DEMO_COMMAND.length) {
-        setCommand(DEMO_COMMAND);
+      if (i >= demoCommand.length) {
+        setCommand(demoCommand);
         clearInterval(timer);
         setIsDictatingSim(false);
         notify('Demo dictation finished. Review it, then preview the change.');
       } else {
-        setCommand(DEMO_COMMAND.slice(0, i));
+        setCommand(demoCommand.slice(0, i));
       }
     }, 18);
   }
 
   function startDemo() {
-    resetWorkspace('Commerce Platform demo is ready.');
+    resetWorkspace(`${sampleChoice === 'food' ? 'Food Delivery' : 'Commerce Platform'} demo is ready.`, sampleChoice);
     document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' });
     setTimeout(playDemoDictation, 450);
   }
@@ -548,6 +555,7 @@ export default function App() {
     if (/redis outage fallback/i.test(item) && decisionDraft.redisFallback.trim()) return false;
     return true;
   }) || [];
+  const activeDemoCommand = project?.name === 'Food Delivery Platform' ? FOOD_DELIVERY_DEMO_COMMAND : DEMO_COMMAND;
 
   return (
     <main className="va-app">
@@ -611,7 +619,7 @@ export default function App() {
         </div>
         <figure className="va-hero-card">
           <figcaption>You say</figcaption>
-          <blockquote>{DEMO_COMMAND}</blockquote>
+            <blockquote>{activeDemoCommand}</blockquote>
           <div className="va-hero-results">
             <span>You get</span>
             <ul>
@@ -658,9 +666,15 @@ export default function App() {
             <span className="va-journey-eyebrow">YOUR WALKTHROUGH</span>
             <p aria-live="polite">{journeyGuidance}</p>
           </div>
-          <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={loadSample}>
-            <RotateCcw size={14} /> Reload sample
-          </button>
+          <div className="va-sample-picker">
+            <select id="va-sample-choice" aria-label="Sample architecture" value={sampleChoice} onChange={(event) => setSampleChoice(event.target.value)}>
+              <option value="commerce">Commerce Platform</option>
+              <option value="food">Food Delivery</option>
+            </select>
+            <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={loadSample}>
+              <RotateCcw size={14} /> Load sample
+            </button>
+          </div>
         </div>
         <ol className="va-journey-steps">
           {journeySteps.map((step, index) => {
@@ -757,6 +771,7 @@ export default function App() {
           <div>
             <p className="va-prompts-label">Or start from an example</p>
             <CommandPresets
+              sampleKind={sampleChoice}
               onSelectPreset={(value) => {
                 setCommand(value);
                 setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
