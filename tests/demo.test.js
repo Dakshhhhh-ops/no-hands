@@ -116,17 +116,25 @@ test('risk findings and proposed tasks follow the applied requirements', () => {
   assert.ok(tasks.every((task) => task.requirement.status === 'confirmed' && task.acceptance.length > 0 && task.unresolved));
 });
 
-test('Export All ZIP contains the current model and all expected artifacts', () => {
+test('Export All ZIP contains current artifacts and verifies its diagram entries', () => {
   const project = applyChange(makeCommerceProject(), proposeChange(DEMO_COMMAND));
   const timestamp = '2026-10-19T00:00:00.000Z';
   const expected = makeExportFiles(project, timestamp);
-  const { data, files } = createVerifiedExportZip(project, timestamp);
+  const diagramPng = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jv9sAAAAASUVORK5CYII=', 'base64'));
+  const { data, files } = createVerifiedExportZip(project, timestamp, diagramPng);
   const contents = unzipSync(data);
-  assert.deepEqual(files.sort(), Object.keys(expected).sort());
+  assert.deepEqual(files.sort(), [...Object.keys(expected), 'architecture.png'].sort());
   assert.ok(files.includes('risk-audit.json'));
   assert.ok(files.includes('risk-audit.md'));
-  assert.equal(Object.keys(contents).length, 9);
+  assert.ok(files.includes('architecture.svg'));
+  assert.ok(files.includes('architecture.mmd'));
+  assert.equal(Object.keys(contents).length, 11);
   for (const [name, text] of Object.entries(expected)) assert.equal(strFromU8(contents[name]), text, `${name} should match current export content`);
+  assert.deepEqual(contents['architecture.png'], diagramPng);
+  assert.match(strFromU8(contents['architecture.svg']), /<svg[^>]+viewBox=/);
+  assert.match(strFromU8(contents['architecture.svg']), /Auth Service/);
+  assert.match(strFromU8(contents['architecture.mmd']), /flowchart LR/);
+  assert.throws(() => createVerifiedExportZip(project, timestamp), /rendered architecture PNG is required/);
   const architecture = JSON.parse(strFromU8(contents['architecture.json']));
   assert.equal(architecture.version, 2);
   const changeLog = JSON.parse(strFromU8(contents['change-log.json']));

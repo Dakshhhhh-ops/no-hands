@@ -18,6 +18,7 @@ import { applyChange, DEMO_COMMAND, makeCommerceProject, proposeChange } from '.
 import { FOOD_DELIVERY_DEMO_COMMAND, makeFoodDeliveryProject } from './data/foodDelivery.js';
 import { deriveChangeDiff } from './data/changeDiff.js';
 import { createVerifiedExportZip, createVerifiedDevOpsZip } from './data/export.js';
+import { makeArchitectureMermaid, makeArchitectureSvg, renderArchitecturePng } from './data/diagramExport.js';
 import { getProjectSyncStatus } from './data/analysis.js';
 import { sound } from './utils/sound.js';
 import { HistoryTimeline } from './data/historyManager.ts';
@@ -398,7 +399,7 @@ export default function App() {
       : 'Change applied. Any unanswered decisions remain open in every view.');
   }
 
-  function downloadBundle(factory, suffix, label) {
+  async function downloadBundle(factory, suffix, label) {
     if (!project) {
       notify('Load a project before exporting.');
       return;
@@ -406,7 +407,7 @@ export default function App() {
     sound.export();
     setExportOpen(false);
     try {
-      const { data, files } = factory(project);
+      const { data, files } = await factory(project);
       const url = URL.createObjectURL(new Blob([data], { type: 'application/zip' }));
       const anchor = document.createElement('a');
       const slug = project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -422,8 +423,36 @@ export default function App() {
     }
   }
 
-  const exportAll = () => downloadBundle(createVerifiedExportZip, '', 'Engineering artifacts');
+  const exportAll = () => downloadBundle(async (model) => {
+    const png = await renderArchitecturePng(model);
+    return createVerifiedExportZip(model, undefined, png);
+  }, '', 'Engineering artifacts');
   const exportDevOps = () => downloadBundle(createVerifiedDevOpsZip, '-devops', 'DevOps bundle');
+
+  async function exportDiagram(format) {
+    if (!project) return notify('Load a project before exporting its diagram.');
+    try {
+      sound.export();
+      setExportOpen(false);
+      const slug = project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const extension = format === 'mermaid' ? 'mmd' : format;
+      const content = format === 'svg' ? makeArchitectureSvg(project)
+        : format === 'mermaid' ? makeArchitectureMermaid(project)
+          : await renderArchitecturePng(project);
+      const blob = new Blob([content], { type: format === 'svg' ? 'image/svg+xml' : format === 'png' ? 'image/png' : 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${slug}-architecture-v${project.version}.${extension}`;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      notify(`${format === 'mermaid' ? 'Mermaid' : format.toUpperCase()} diagram downloaded.`);
+    } catch (error) {
+      notify(`Diagram export failed: ${error instanceof Error ? error.message : 'could not render the diagram.'}`);
+    }
+  }
 
   function toggleLiveVoice() {
     const recog = recognitionRef.current;
@@ -596,6 +625,18 @@ export default function App() {
                 <button type="button" role="menuitem" className="va-menu-item" onClick={exportDevOps}>
                   <Server size={16} />
                   <span><b>DevOps bundle</b><small>Terraform, Kubernetes manifests, SDK, OpenAPI 3.1</small></span>
+                </button>
+                <button type="button" role="menuitem" className="va-menu-item" onClick={() => exportDiagram('svg')}>
+                  <FileCode2 size={16} />
+                  <span><b>Architecture SVG</b><small>Current model as a scalable vector diagram</small></span>
+                </button>
+                <button type="button" role="menuitem" className="va-menu-item" onClick={() => exportDiagram('png')}>
+                  <FileCode2 size={16} />
+                  <span><b>Architecture PNG</b><small>Current model as a rendered image</small></span>
+                </button>
+                <button type="button" role="menuitem" className="va-menu-item" onClick={() => exportDiagram('mermaid')}>
+                  <FileCode2 size={16} />
+                  <span><b>Mermaid source</b><small>Editable architecture flowchart text</small></span>
                 </button>
               </div>
             )}

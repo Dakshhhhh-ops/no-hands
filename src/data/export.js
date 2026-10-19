@@ -4,17 +4,9 @@ import { checkOpenApiStructure, makeOpenApi, toYaml } from './openapi.js';
 import { generateTerraform, generateKubernetes } from './iacGenerator.ts';
 import { generateTypeScriptSdk } from './sdkGenerator.ts';
 import { generateMultiServiceOpenApi, detectContractDrift } from './openapiSynth.ts';
+import { makeArchitectureMermaid, makeArchitectureSvg } from './diagramExport.js';
 
-function mermaidQuote(value) {
-  return JSON.stringify(String(value).replaceAll('"', "'")).replaceAll('\\n', '<br/>');
-}
-
-function architectureDiagram(project) {
-  const lines = ['flowchart LR'];
-  for (const component of project.components) lines.push(`  ${component.id}[${mermaidQuote(`${component.name}<br/>${component.type}`)}]`);
-  for (const edge of project.relationships) lines.push(`  ${edge.from} -->|${mermaidQuote(edge.label)}| ${edge.to}`);
-  return `${lines.join('\n')}\n`;
-}
+const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
 
 function riskMarkdown(project, findings, generatedAt) {
   return `# Risk findings — ${project.name}\n\nModel version: ${project.version}  \nGenerated: ${generatedAt}\n\n${findings.length ? findings.map((finding) => `## ${finding.kind}: ${finding.title}\n\n${finding.description}\n\nEvidence:\n${finding.evidence.map((item) => `- ${item}`).join('\n')}`).join('\n\n') : 'No findings were derived from the current model.'}\n`;
@@ -26,7 +18,7 @@ function taskMarkdown(project, tasks, generatedAt) {
 
 function exportReadme(project, generatedAt, unresolved, validationStatus) {
   const recorded = project.requirements.filter((requirement) => requirement.resolution).map((requirement) => `${requirement.id}: ${requirement.resolution}`);
-  return `# ${project.name} — VoiceArchitect export\n\n- Model version: ${project.version}\n- Generated at: ${generatedAt}\n- Status: ${project.changed ? 'Updated from reviewed changes' : 'Baseline sample'}\n- Validation status: ${validationStatus}\n\n## Files\n\n- \`architecture.json\`: current canonical demo model\n- \`architecture.mmd\`: current component and relationship diagram\n- \`openapi.yaml\`: generated OpenAPI 3.0.3 contract\n- \`risk-audit.json\` and \`risk-audit.md\`: deterministic findings with model evidence\n- \`engineering-tasks.json\` and \`engineering-tasks.md\`: proposed work derived from requirements\n- \`change-log.json\`: accepted changes in this project session\n\n## Recorded decisions\n\n${recorded.length ? recorded.map((item) => `- ${item}`).join('\n') : 'No choices have been recorded.'}\n\n## Known unresolved decisions\n\n${unresolved.length ? unresolved.map((item) => `- ${item}`).join('\n') : 'No tracked decisions remain unresolved.'}\n\n## Limitations\n\nThis is a synthetic, deterministic demo. Requirements and generated tasks do not imply implementation. Risk findings are not calibrated probabilities. OpenAPI request and successful-response payload details are not specified where absent from the model.\n`;
+  return `# ${project.name} — VoiceArchitect export\n\n- Model version: ${project.version}\n- Generated at: ${generatedAt}\n- Status: ${project.changed ? 'Updated from reviewed changes' : 'Baseline sample'}\n- Validation status: ${validationStatus}\n\n## Files\n\n- \`architecture.json\`: current canonical demo model\n- \`architecture.svg\` and \`architecture.png\`: current architecture diagram in vector and raster formats\n- \`architecture.mmd\`: editable Mermaid source for the current diagram\n- \`openapi.yaml\`: generated OpenAPI 3.0.3 contract\n- \`risk-audit.json\` and \`risk-audit.md\`: deterministic findings with model evidence\n- \`engineering-tasks.json\` and \`engineering-tasks.md\`: proposed work derived from requirements\n- \`change-log.json\`: accepted changes in this project session\n\n## Recorded decisions\n\n${recorded.length ? recorded.map((item) => `- ${item}`).join('\n') : 'No choices have been recorded.'}\n\n## Known unresolved decisions\n\n${unresolved.length ? unresolved.map((item) => `- ${item}`).join('\n') : 'No tracked decisions remain unresolved.'}\n\n## Limitations\n\nThis is a synthetic, deterministic demo. Requirements and generated tasks do not imply implementation. Risk findings are not calibrated probabilities. OpenAPI request and successful-response payload details are not specified where absent from the model.\n`;
 }
 
 export function makeExportFiles(project, generatedAt = new Date().toISOString()) {
@@ -49,7 +41,8 @@ export function makeExportFiles(project, generatedAt = new Date().toISOString())
   const changeLog = { project: project.name, ...metadata, entries: project.changes || project.activity || [] };
   return {
     'architecture.json': `${JSON.stringify(exportedModel, null, 2)}\n`,
-    'architecture.mmd': architectureDiagram(project),
+    'architecture.mmd': makeArchitectureMermaid(project),
+    'architecture.svg': makeArchitectureSvg(project),
     'openapi.yaml': `${toYaml(makeOpenApi(project))}\n`,
     'risk-audit.json': `${JSON.stringify({ ...metadata, findings }, null, 2)}\n`,
     'risk-audit.md': riskMarkdown(project, findings, generatedAt),
@@ -60,16 +53,24 @@ export function makeExportFiles(project, generatedAt = new Date().toISOString())
   };
 }
 
-export function createVerifiedExportZip(project, generatedAt = new Date().toISOString()) {
-  const files = makeExportFiles(project, generatedAt);
-  const packed = zipSync(Object.fromEntries(Object.entries(files).map(([name, text]) => [name, strToU8(text)])), { level: 6 });
-  const unpacked = unzipSync(packed);
-  for (const [name, expected] of Object.entries(files)) {
-    const actual = unpacked[name] && strFromU8(unpacked[name]);
-    if (actual !== expected) throw new Error(`ZIP verification failed for ${name}.`);
+export function createVerifiedExportZip(project, generatedAt = new Date().toISOString(), diagramPngBytes) {
+  if (!(diagramPngBytes instanceof Uint8Array) || PNG_SIGNATURE.some((byte, index) => diagramPngBytes[index] !== byte)) {
+    throw new Error('A rendered architecture PNG is required to create the verified Export All ZIP.');
   }
-  if (Object.keys(unpacked).length !== Object.keys(files).length) throw new Error('ZIP contains unexpected or missing entries.');
-  return { data: packed, files: Object.keys(files) };
+  const files = makeExportFiles(project, generatedAt);
+  const expectedEntries = { ...files, 'architecture.png': diagramPngBytes };
+  const packed = zipSync(Object.fromEntries(Object.entries(expectedEntries).map(([name, value]) => [name, typeof value === 'string' ? strToU8(value) : value])), { level: 6 });
+  const unpacked = unzipSync(packed);
+  for (const [name, expected] of Object.entries(expectedEntries)) {
+    const actual = unpacked[name];
+    if (typeof expected === 'string') {
+      if (!actual || strFromU8(actual) !== expected) throw new Error(`ZIP verification failed for ${name}.`);
+    } else if (!actual || actual.length !== expected.length || actual.some((byte, index) => byte !== expected[index])) {
+      throw new Error(`ZIP verification failed for ${name}.`);
+    }
+  }
+  if (Object.keys(unpacked).length !== Object.keys(expectedEntries).length) throw new Error('ZIP contains unexpected or missing entries.');
+  return { data: packed, files: Object.keys(expectedEntries) };
 }
 
 /**

@@ -187,6 +187,9 @@ test('Food Delivery sample feeds the diagram model, contracts, risks, tasks, and
   assert.ok(multiSpec.paths['/couriers/assignments']?.post);
   const files = makeExportFiles(food, '2026-10-20T00:00:00.000Z');
   assert.match(files['architecture.json'], /Food Delivery Platform/);
+  assert.match(files['architecture.svg'], /Food Delivery Platform/);
+  assert.match(files['architecture.svg'], /Courier Service/);
+  assert.match(files['architecture.mmd'], /Restaurant Service/);
   assert.match(files['openapi.yaml'], /\/restaurants/);
   assert.match(files['risk-audit.json'], /PostgreSQL/);
   assert.match(files['engineering-tasks.json'], /TASK-DELIVERY-ASSIGN/);
