@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { makeCommerceProject, DEMO_COMMAND, proposeChange, applyChange } from '../src/data/commerce.js';
 import { generateJsonPatch, applyJsonPatch } from '../src/data/jsonPatch.ts';
 import { HistoryTimeline } from '../src/data/historyManager.ts';
+import { normalizeArchitectureCommand } from '../src/data/commandParser.js';
 import {
   createServerlessBranch,
   createKubernetesBranch,
@@ -145,6 +146,24 @@ test('sequential commands propose against the latest applied model', () => {
   assert.equal(second.version, 3);
   assert.equal(second.changes.length, 2);
   assert.ok(second.relationships.some((edge) => edge.from === 'payment-service' && edge.to === 'payment'));
+});
+
+test('Wispr dictation normalizes common transcription errors without changing source text', () => {
+  const raw = 'Please, move session storage to red is and keep post gress as the source of truth';
+  const parsed = proposeChange(raw);
+  assert.deepEqual(parsed.items.map((item) => item.key), ['redis-session', 'postgres-owner']);
+  const updated = applyChange(makeCommerceProject(), parsed);
+  assert.equal(updated.changes[0].originalInstruction, raw);
+  assert.equal(normalizeArchitectureCommand('Use the Kafka cue').normalized, 'use the kafka queue');
+});
+
+test('ambiguous or unsupported dictation is called out instead of guessed', () => {
+  const ambiguous = proposeChange('Add a cue');
+  assert.ok(ambiguous.assumptions.some((item) => item.includes('“cue” is ambiguous')));
+  assert.ok(ambiguous.items.some((item) => item.key === 'unresolved'));
+  const unsupported = proposeChange('Move the widgets into supercluster mode');
+  assert.ok(unsupported.assumptions.some((item) => item.includes('No supported architecture change')));
+  assert.ok(unsupported.items.some((item) => item.key === 'unresolved'));
 });
 
 test('Scenario Branching: creates Serverless & K8s scenario branches with distinct metrics', () => {

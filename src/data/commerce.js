@@ -1,4 +1,5 @@
 import { validateProject, validateProposal } from '../types/schema.ts';
+import { normalizeArchitectureCommand } from './commandParser.js';
 
 export const makeCommerceProject = () => {
   const project = {
@@ -49,7 +50,7 @@ export const makeCommerceProject = () => {
 export const DEMO_COMMAND = 'Move session storage to Redis, keep PostgreSQL as the source of truth, add rate limiting to the authentication endpoint, and make login resilient if Redis becomes unavailable.';
 
 export function proposeChange(text) {
-  const lower = text.toLowerCase();
+  const { normalized: lower, unresolvedTerms } = normalizeArchitectureCommand(text);
   const items = [];
   if (lower.includes('redis') && lower.includes('session')) items.push({ key: 'redis-session', title: 'Set Redis as the explicit session store', detail: 'Update the Auth Service → Redis relationship to identify Redis as session storage.' });
   if (lower.includes('postgres') && (lower.includes('source of truth') || lower.includes('persistent'))) items.push({ key: 'postgres-owner', title: 'Preserve PostgreSQL as the source of truth', detail: 'Record the stated data-ownership constraint; do not infer Redis persistence behavior.' });
@@ -61,19 +62,26 @@ export function proposeChange(text) {
   if (/\b(split|separate|extract)\b/.test(lower) && /\b(payment|payments)\b/.test(lower) && /\b(service|services)\b/.test(lower)) {
     items.push({ key: 'payment-split', title: 'Separate payment processing into a service', detail: 'Add an internal Payment Service between order events and the external Payment Provider.' });
   }
-  if (!items.length) items.push({ key: 'unresolved', title: 'Record this as an unresolved architecture request', detail: 'No demo rule matched. No component or relationship will change automatically.' });
+  if (!items.length) {
+    items.push({ key: 'unresolved', title: 'Clarify this architecture request', detail: 'No supported demo rule matched, so no component or relationship will change automatically.' });
+    unresolvedTerms.push(`No supported architecture change could be matched to “${String(text).trim()}”. Clarify the intended component and behavior.`);
+  }
+  if (unresolvedTerms.length && items[0].key !== 'unresolved') {
+    items.push({ key: 'unresolved', title: 'Resolve an ambiguous term', detail: unresolvedTerms.join(' ') });
+  }
   const assumptions = [];
   if (items.some((item) => item.key === 'rate-limit')) assumptions.push('The rate-limit threshold and time window are still undecided.');
   if (items.some((item) => item.key === 'redis-fallback')) assumptions.push('Redis outage fallback behavior is still undecided.');
   if (items.some((item) => item.key === 'redis-session')) assumptions.push('Redis session persistence behavior is still unspecified.');
-  assumptions.push(items[0].key === 'unresolved' ? 'No architecture facts will be added until the request is clarified.' : 'A recorded requirement does not mean the behavior is implemented.');
+  assumptions.push(...unresolvedTerms);
+  assumptions.push(items.some((item) => item.key === 'unresolved') ? 'No architecture facts will be added for unresolved portions until the request is clarified.' : 'A recorded requirement does not mean the behavior is implemented.');
 
   return validateProposal({ text, items, assumptions });
 }
 
 export function applyChange(project, proposal, decisions = {}) {
   const next = structuredClone(project);
-  const lower = proposal.text.toLowerCase();
+  const { normalized: lower } = normalizeArchitectureCommand(proposal.text);
   const changes = [];
   const changeId = `CHG-${String(next.version + 1).padStart(4, '0')}`;
   const timestamp = Date.now();
