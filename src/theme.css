@@ -1584,6 +1584,17 @@ body {
   filter: drop-shadow(0 0 10px rgba(181, 162, 255, 0.3));
 }
 
+.node.upstream rect {
+  stroke: var(--amber-warn);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.35));
+}
+
+.diagram-relationship.upstream path.edge {
+  stroke: var(--amber-warn);
+  stroke-width: 1.8;
+}
+
 .node.changed rect {
   stroke: var(--cyan);
   stroke-width: 2.2;
@@ -1647,8 +1658,41 @@ body {
 
 .legend-direct { background: var(--cyan); }
 .legend-downstream { background: var(--violet-downstream); }
-.legend-changed { background: var(--amber-warn); }
+.legend-upstream { background: var(--amber-warn); }
+.legend-changed { background: #38bdf8; }
 .legend-flow { color: var(--text-pure); }
+
+.hop-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-mid);
+  margin-left: 6px;
+}
+.hop-tag.upstream {
+  color: var(--amber-warn);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.hop-tag.downstream {
+  color: var(--violet-downstream);
+  border-color: rgba(181, 162, 255, 0.4);
+}
+
+.diagram-cycle-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  color: #fca5a5;
+  font-size: 12px;
+}
 
 /* Component Inspector */
 .component-inspector {
