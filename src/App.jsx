@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { Activity, ArrowRight, AudioLines, Check, CircleHelp, ClipboardCheck, ClipboardList, Code2, Cpu, FileArchive, FileCode2, Layers, LayoutDashboard, Mic, Mic2, Network, Radio, RotateCcw, ShieldAlert, Sparkles, Terminal, X, Zap } from 'lucide-react';
+import { Activity, ArrowRight, AudioLines, Check, CircleHelp, ClipboardCheck, ClipboardList, Code2, Cpu, FileArchive, FileCode2, Layers, LayoutDashboard, Mic, Mic2, Network, Radio, RotateCcw, Server, ShieldAlert, Sparkles, Terminal, X, Zap } from 'lucide-react';
 import ArchitectureDiagram from './components/ArchitectureDiagram.jsx';
 import OpenApiPanel from './components/OpenApiPanel.jsx';
 import RiskPanel from './components/RiskPanel.jsx';
@@ -14,7 +14,7 @@ import ScenarioBranchingBar from './components/ScenarioBranchingBar.jsx';
 import ScenarioComparisonModal from './components/ScenarioComparisonModal.jsx';
 import MergeConflictModal from './components/MergeConflictModal.jsx';
 import { applyChange, DEMO_COMMAND, makeCommerceProject, proposeChange } from './data/commerce.js';
-import { createVerifiedExportZip } from './data/export.js';
+import { createVerifiedExportZip, createVerifiedDevOpsZip } from './data/export.js';
 import { getProjectSyncStatus } from './data/analysis.js';
 import { sound } from './utils/sound.js';
 import { HistoryTimeline } from './data/historyManager.ts';
@@ -363,6 +363,28 @@ export default function App() {
     }
   }
 
+  function exportDevOps() {
+    if (!project) {
+      notify('Load a project before exporting DevOps IaC.');
+      return;
+    }
+    sound.export();
+    try {
+      const { data, files } = createVerifiedDevOpsZip(project);
+      const url = URL.createObjectURL(new Blob([data], { type: 'application/zip' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-devops-v${project.version}.zip`;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      notify(`DevOps bundle exported with ${files.length} files (Terraform HCL, K8s manifests, SDK, OpenAPI 3.1).`);
+    } catch (error) {
+      notify(`DevOps export failed: ${error instanceof Error ? error.message : 'Could not create ZIP.'}`);
+    }
+  }
+
   function toggleLiveVoice() {
     if (recognitionRef.current) {
       if (isListening) {
@@ -474,6 +496,11 @@ export default function App() {
           <button className="button subtle" onClick={reset}>
             <RotateCcw size={13} />
             <span className="btn-label">Reset Demo</span>
+          </button>
+
+          <button className="button" onClick={exportDevOps} title="Export Terraform, Kubernetes, SDK, and Multi-Service specs">
+            <Server size={14} />
+            <span className="btn-label">Export DevOps IaC</span>
           </button>
 
           <button className="button primary export-button" onClick={exportAll}>

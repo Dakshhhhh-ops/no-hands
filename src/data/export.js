@@ -1,6 +1,9 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { deriveRiskFindings, deriveTasks } from './analysis.js';
 import { checkOpenApiStructure, makeOpenApi, toYaml } from './openapi.js';
+import { generateTerraform, generateKubernetes } from './iacGenerator.ts';
+import { generateTypeScriptSdk } from './sdkGenerator.ts';
+import { generateMultiServiceOpenApi, detectContractDrift } from './openapiSynth.ts';
 
 function mermaidQuote(value) {
   return JSON.stringify(String(value).replaceAll('"', "'")).replaceAll('\\n', '<br/>');
@@ -66,3 +69,27 @@ export function createVerifiedExportZip(project, generatedAt = new Date().toISOS
   if (Object.keys(unpacked).length !== Object.keys(files).length) throw new Error('ZIP contains unexpected or missing entries.');
   return { data: packed, files: Object.keys(files) };
 }
+
+/**
+ * Creates full production DevOps package containing Terraform HCL, Kubernetes YAML,
+ * TypeScript Client SDK, and Multi-Service OpenAPI 3.1 specifications.
+ */
+export function createVerifiedDevOpsZip(project, generatedAt = new Date().toISOString()) {
+  const baseFiles = makeExportFiles(project, generatedAt);
+  const driftReport = detectContractDrift(project);
+  const devOpsFiles = {
+    ...baseFiles,
+    'infrastructure/main.tf': generateTerraform(project),
+    'infrastructure/k8s-manifests.yaml': generateKubernetes(project),
+    'sdk/client.ts': generateTypeScriptSdk(project),
+    'openapi-3.1-multiservice.json': `${JSON.stringify(generateMultiServiceOpenApi(project), null, 2)}\n`,
+    'contract-drift-report.json': `${JSON.stringify(driftReport, null, 2)}\n`,
+  };
+
+  const packed = zipSync(
+    Object.fromEntries(Object.entries(devOpsFiles).map(([name, text]) => [name, strToU8(text)])),
+    { level: 6 }
+  );
+  return { data: packed, files: Object.keys(devOpsFiles) };
+}
+

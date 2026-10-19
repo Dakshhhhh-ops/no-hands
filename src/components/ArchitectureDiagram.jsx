@@ -19,8 +19,20 @@ import {
   Workflow,
   ListOrdered,
   X,
+  Flame,
+  Users,
+  FileCheck2,
+  CheckCircle2,
+  Clock,
+  ShieldCheck,
+  Download,
+  Copy,
+  Zap,
 } from 'lucide-react';
 import { sound } from '../utils/sound.js';
+import { simulateChaosAndTelemetry } from '../data/chaosSimulator.ts';
+import { CollaborativeStudioRoom } from '../data/crdtStudio.ts';
+import { generateAdrFromChange, formatAdrMarkdown } from '../data/adrWorkflow.ts';
 
 export default function ArchitectureDiagram({ project }) {
   const [selectedId, setSelectedId] = useState(null);
@@ -29,6 +41,18 @@ export default function ArchitectureDiagram({ project }) {
   const [gridStyle, setGridStyle] = useState('blueprint'); // blueprint, dots, clean
   const [layoutEngine, setLayoutEngine] = useState('auto'); // auto (Dagre) vs manual (fixed coordinates)
   const [showDeploymentModal, setShowDeploymentModal] = useState(false);
+  const [chaosInjections, setChaosInjections] = useState([]);
+  const [collaborativeMode, setCollaborativeMode] = useState(false);
+  const [showAdrModal, setShowAdrModal] = useState(false);
+  const [adrSignoffOverrides, setAdrSignoffOverrides] = useState({});
+  const [copiedAdr, setCopiedAdr] = useState(false);
+
+  // Phase 5 CRDT Collaborative Studio Room
+  const studioRoom = useMemo(() => {
+    const room = new CollaborativeStudioRoom('studio-collab-1');
+    room.simulateRemotePeers();
+    return room;
+  }, []);
 
   const model = viewMode === 'baseline' && project.baseline ? project.baseline : project;
 
@@ -70,6 +94,32 @@ export default function ArchitectureDiagram({ project }) {
     [model.components, model.relationships]
   );
 
+  // Phase 5: Chaos Simulation & Telemetry Stream
+  const telemetry = useMemo(
+    () => simulateChaosAndTelemetry(model, chaosInjections, 1500),
+    [model, chaosInjections]
+  );
+
+  // Phase 5: Architecture Decision Record (ADR)
+  const baseAdr = useMemo(() => generateAdrFromChange(project), [project]);
+  const currentAdr = useMemo(() => {
+    const updatedSignoffs = baseAdr.complianceSignoffs.map((s) => ({
+      ...s,
+      approved:
+        adrSignoffOverrides[s.role] !== undefined ? adrSignoffOverrides[s.role] : s.approved,
+      timestamp:
+        (adrSignoffOverrides[s.role] !== undefined ? adrSignoffOverrides[s.role] : s.approved)
+          ? s.timestamp || new Date().toISOString()
+          : undefined,
+    }));
+    return {
+      ...baseAdr,
+      complianceSignoffs: updatedSignoffs,
+    };
+  }, [baseAdr, adrSignoffOverrides]);
+
+  const allSignedOff = currentAdr.complianceSignoffs.every((s) => s.approved);
+
   const selected = byId.get(selectedId);
   const connectedRelationships = selected
     ? model.relationships.filter((item) => item.from === selected.id || item.to === selected.id)
@@ -105,6 +155,55 @@ export default function ArchitectureDiagram({ project }) {
   function resetZoom() {
     sound.click();
     setZoom(1);
+  }
+
+  function toggleChaos(targetComponentId, type, label, extra = {}) {
+    sound.click();
+    setChaosInjections((current) => {
+      const exists = current.some((c) => c.targetComponentId === targetComponentId);
+      if (exists) {
+        return current.filter((c) => c.targetComponentId !== targetComponentId);
+      }
+      return [...current, { targetComponentId, type, label, ...extra }];
+    });
+  }
+
+  function restoreAllChaos() {
+    sound.apply();
+    setChaosInjections([]);
+  }
+
+  function toggleSignoff(role) {
+    sound.click();
+    setAdrSignoffOverrides((prev) => {
+      const currentVal =
+        prev[role] !== undefined
+          ? prev[role]
+          : currentAdr.complianceSignoffs.find((s) => s.role === role)?.approved;
+      return { ...prev, [role]: !currentVal };
+    });
+  }
+
+  function copyAdrMarkdown() {
+    sound.apply();
+    const md = formatAdrMarkdown(currentAdr);
+    navigator.clipboard?.writeText(md);
+    setCopiedAdr(true);
+    setTimeout(() => setCopiedAdr(false), 2000);
+  }
+
+  function downloadAdrMarkdown() {
+    sound.export();
+    const md = formatAdrMarkdown(currentAdr);
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentAdr.id.toLowerCase()}-decision-record.md`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
   return (
@@ -159,7 +258,34 @@ export default function ArchitectureDiagram({ project }) {
             }}
             title="View Topological Boot and Deployment Order"
           >
-            <ListOrdered size={13} style={{ marginRight: 4 }} /> Deployment Sequence
+            <ListOrdered size={13} style={{ marginRight: 4 }} /> Deployment
+          </button>
+
+          {/* CRDT Collaborative Pairing Toggle */}
+          <button
+            type="button"
+            className={`button compact outline ${collaborativeMode ? 'active' : ''}`}
+            onClick={() => {
+              sound.click();
+              setCollaborativeMode((v) => !v);
+            }}
+            title="Toggle Real-Time Multi-User Collaborative Pairing"
+          >
+            <Users size={13} style={{ marginRight: 4 }} />
+            {collaborativeMode ? 'Pairing (3)' : 'Pairing'}
+          </button>
+
+          {/* ADR Governance Sign-Off Trigger */}
+          <button
+            type="button"
+            className="button compact outline"
+            onClick={() => {
+              sound.click();
+              setShowAdrModal(true);
+            }}
+            title="View Architecture Decision Record & Governance Sign-Off"
+          >
+            <FileCheck2 size={13} style={{ marginRight: 4 }} /> ADR Sign-Off
           </button>
 
           {/* Grid Style Toggle */}
@@ -232,6 +358,79 @@ export default function ArchitectureDiagram({ project }) {
               Current (v{project.version})
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Phase 5: Chaos Engineering & Live Telemetry Stream Bar */}
+      <div className="diagram-chaos-bar">
+        <div className="chaos-actions">
+          <span className="chaos-label">
+            <Flame size={13} style={{ color: '#ef4444' }} /> Chaos Simulator:
+          </span>
+          <button
+            type="button"
+            className={`chaos-btn ${chaosInjections.some((c) => c.targetComponentId === 'redis') ? 'active-kill' : ''}`}
+            onClick={() => toggleChaos('redis', 'NODE_OUTAGE', 'Kill Redis')}
+            title="Simulate Redis session cache crash"
+          >
+            <Zap size={11} /> Kill Redis
+          </button>
+          <button
+            type="button"
+            className={`chaos-btn ${chaosInjections.some((c) => c.targetComponentId === 'postgres') ? 'active-kill' : ''}`}
+            onClick={() => toggleChaos('postgres', 'NODE_OUTAGE', 'Kill Postgres')}
+            title="Simulate PostgreSQL primary database crash"
+          >
+            <Zap size={11} /> Kill Postgres
+          </button>
+          <button
+            type="button"
+            className={`chaos-btn ${chaosInjections.some((c) => c.targetComponentId === 'gateway') ? 'active-warn' : ''}`}
+            onClick={() => toggleChaos('gateway', 'LATENCY_SPIKE', '+1500ms Spike', { latencyMs: 1500 })}
+            title="Inject 1500ms network latency spike on API Gateway"
+          >
+            <Clock size={11} /> +1500ms Spike
+          </button>
+          {chaosInjections.length > 0 && (
+            <button
+              type="button"
+              className="chaos-btn restore-btn"
+              onClick={restoreAllChaos}
+              title="Restore all killed nodes and clear latency spikes"
+            >
+              <RotateCcw size={11} /> Restore All
+            </button>
+          )}
+        </div>
+
+        <div className="chaos-telemetry-stats">
+          <div className={`telemetry-health-badge ${telemetry.overallSystemHealth.toLowerCase()}`}>
+            {telemetry.overallSystemHealth}
+          </div>
+          <div className="telemetry-pill">
+            <span>Flow:</span> <b>{telemetry.totalRpsThroughput} RPS</b>
+          </div>
+          {telemetry.droppedRps > 0 && (
+            <div className="telemetry-pill" style={{ color: '#fca5a5' }}>
+              <span>Drop:</span> <b>{telemetry.droppedRps} RPS</b>
+            </div>
+          )}
+          <div className="telemetry-pill">
+            <span>Latency:</span> <b>{telemetry.averageLatencyMs}ms</b>
+          </div>
+          <div className="telemetry-pill">
+            <span>P99:</span> <b>{telemetry.p99LatencyMs}ms</b>
+          </div>
+          {collaborativeMode && (
+            <div className="peer-presence-bar">
+              {studioRoom.getActivePeers().map((peer) => (
+                <span key={peer.peerId} className="peer-chip">
+                  <span className="peer-dot" style={{ backgroundColor: peer.color }} />
+                  <b>{peer.name}</b>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -319,15 +518,29 @@ export default function ArchitectureDiagram({ project }) {
                 viewMode === 'current' && project.changed && edge.from === 'auth' && edge.to === 'redis';
               const dimmed = selected && !isDirect && !isDownstream && !isUpstream;
 
-              const marker = isChanged
-                ? 'url(#arrow-changed)'
-                : isDirect
-                  ? 'url(#arrow-direct)'
-                  : isDownstream
-                    ? 'url(#arrow-downstream)'
-                    : isUpstream
-                      ? 'url(#arrow-upstream)'
-                      : 'url(#arrow)';
+              const edgeKey = `${edge.from}->${edge.to}`;
+              const edgeMetric = telemetry.edgeMetrics.get(edgeKey);
+              const isSevered = edgeMetric?.status === 'SEVERED';
+              const isCongested = edgeMetric?.status === 'CONGESTED';
+              const particleColor =
+                edgeMetric?.particleColor ||
+                (isChanged || isDirect ? '#4ef2d2' : isDownstream ? '#b5a2ff' : isUpstream ? '#f59e0b' : '#38bdf8');
+              const particleSpeed = edgeMetric?.particleSpeedSeconds || 2.4;
+              const particleDensity = edgeMetric?.particleDensity || 1;
+
+              const marker = isSevered
+                ? undefined
+                : isChanged
+                  ? 'url(#arrow-changed)'
+                  : isDirect
+                    ? 'url(#arrow-direct)'
+                    : isDownstream
+                      ? 'url(#arrow-downstream)'
+                      : isUpstream
+                        ? 'url(#arrow-upstream)'
+                        : 'url(#arrow)';
+
+              const pathD = `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2 - 7} ${y2}`;
 
               return (
                 <g
@@ -335,21 +548,44 @@ export default function ArchitectureDiagram({ project }) {
                   className={`diagram-relationship ${isDirect ? 'direct' : ''} ${isDownstream ? 'downstream' : ''} ${isUpstream ? 'upstream' : ''} ${dimmed ? 'dimmed' : ''}`}
                 >
                   <path
-                    className={`edge ${isChanged ? 'changed' : ''}`}
-                    d={`M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2 - 7} ${y2}`}
+                    className={`edge ${isChanged ? 'changed' : ''} ${isSevered ? 'severed' : ''} ${isCongested ? 'congested' : ''}`}
+                    d={pathD}
                     style={{ markerEnd: marker }}
                   />
-                  {(isChanged || isDirect) && (
-                    <circle r="2.5" fill="#4ef2d2" className="pulse-photon">
-                      <animateMotion
-                        path={`M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2 - 7} ${y2}`}
-                        dur="2.4s"
-                        repeatCount="indefinite"
-                      />
-                    </circle>
+                  {/* Dynamic Animated Edge Traffic Particles */}
+                  {!isSevered && (
+                    <>
+                      <circle r="2.8" fill={particleColor} className="pulse-photon">
+                        <animateMotion
+                          path={pathD}
+                          dur={`${particleSpeed}s`}
+                          repeatCount="indefinite"
+                        />
+                      </circle>
+                      {particleDensity >= 2 && (
+                        <circle r="2.2" fill={particleColor} opacity="0.8" className="pulse-photon">
+                          <animateMotion
+                            path={pathD}
+                            dur={`${particleSpeed}s`}
+                            begin={`${(particleSpeed / 2).toFixed(2)}s`}
+                            repeatCount="indefinite"
+                          />
+                        </circle>
+                      )}
+                      {particleDensity >= 3 && (
+                        <circle r="1.8" fill={particleColor} opacity="0.6" className="pulse-photon">
+                          <animateMotion
+                            path={pathD}
+                            dur={`${particleSpeed}s`}
+                            begin={`${(particleSpeed / 3).toFixed(2)}s`}
+                            repeatCount="indefinite"
+                          />
+                        </circle>
+                      )}
+                    </>
                   )}
                   <text className="edge-label" x={mid} y={(y1 + y2) / 2 - 5} textAnchor="middle">
-                    {edge.label}
+                    {isSevered ? `⚠️ SEVERED: ${edge.label}` : edge.label}
                   </text>
                 </g>
               );
@@ -365,9 +601,13 @@ export default function ArchitectureDiagram({ project }) {
               const dimmed = selected && !isSelected && !isDirect && !isDownstream && !isUpstream;
               const description = (node.responsibilities || [node.sub]).join(' ');
 
+              const nodeMetric = telemetry.nodeMetrics.get(node.id);
+              const isDown = nodeMetric?.status === 'DOWN';
+              const isDegraded = nodeMetric?.status === 'DEGRADED';
+
               return (
                 <g
-                  className={`node ${isChanged ? 'changed' : ''} ${isSelected ? 'selected' : ''} ${isDirect ? 'direct' : ''} ${isDownstream ? 'downstream' : ''} ${isUpstream ? 'upstream' : ''} ${dimmed ? 'dimmed' : ''}`}
+                  className={`node ${isChanged ? 'changed' : ''} ${isSelected ? 'selected' : ''} ${isDirect ? 'direct' : ''} ${isDownstream ? 'downstream' : ''} ${isUpstream ? 'upstream' : ''} ${isDown ? 'node-down' : isDegraded ? 'node-degraded' : ''} ${dimmed ? 'dimmed' : ''}`}
                   transform={`translate(${node.x},${node.y})`}
                   key={node.id}
                   role="button"
@@ -407,12 +647,88 @@ export default function ArchitectureDiagram({ project }) {
                   <path
                     d={`M ${nodeW - 12} 4 L ${nodeW - 4} 4 L ${nodeW - 4} 12`}
                     fill="none"
-                    stroke={isSelected || isChanged ? '#4ef2d2' : isUpstream ? '#f59e0b' : '#334155'}
+                    stroke={
+                      isDown
+                        ? '#ef4444'
+                        : isDegraded
+                          ? '#f59e0b'
+                          : isSelected || isChanged
+                            ? '#4ef2d2'
+                            : isUpstream
+                              ? '#f59e0b'
+                              : '#334155'
+                    }
                     strokeWidth="1.2"
                   />
+
+                  {/* Telemetry Status Badge on Node */}
+                  {nodeMetric && nodeMetric.status !== 'HEALTHY' && (
+                    <g transform={`translate(${nodeW - 58}, 5)`}>
+                      <rect
+                        width="54"
+                        height="13"
+                        rx="3"
+                        fill={isDown ? '#ef4444' : '#f59e0b'}
+                        opacity="0.9"
+                      />
+                      <text
+                        x="27"
+                        y="9.5"
+                        fill="#ffffff"
+                        fontSize="8"
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        fontFamily="var(--font-mono)"
+                      >
+                        {nodeMetric.status}
+                      </text>
+                    </g>
+                  )}
                 </g>
               );
             })}
+
+            {/* Phase 5: CRDT Multi-User Collaborative Cursors */}
+            {collaborativeMode &&
+              studioRoom
+                .getActivePeers()
+                .filter((p) => p.peerId !== studioRoom.localPeerId)
+                .map((peer) => (
+                  <g
+                    key={peer.peerId}
+                    transform={`translate(${peer.cursorX}, ${peer.cursorY})`}
+                    style={{ pointerEvents: 'none', transition: 'transform 0.4s ease-out' }}
+                  >
+                    <path
+                      d="M 0 0 L 0 14 L 4 11 L 8 18 L 11 16 L 7 10 L 13 10 Z"
+                      fill={peer.color}
+                      stroke="#0f172a"
+                      strokeWidth="1"
+                      className="peer-cursor-pointer"
+                    />
+                    <g transform="translate(14, 12)">
+                      <rect
+                        x="0"
+                        y="-10"
+                        width={peer.name.length * 6.5 + 14}
+                        height="18"
+                        rx="4"
+                        fill={peer.color}
+                        opacity="0.95"
+                      />
+                      <text
+                        x="7"
+                        y="3"
+                        fill="#0f172a"
+                        fontSize="10"
+                        fontWeight="bold"
+                        fontFamily="var(--font-mono)"
+                      >
+                        {peer.name}
+                      </text>
+                    </g>
+                  </g>
+                ))}
           </svg>
         </div>
 
@@ -591,6 +907,80 @@ export default function ArchitectureDiagram({ project }) {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phase 5: Architecture Decision Record (ADR) & Sign-Off Modal */}
+      {showAdrModal && (
+        <div className="modal-backdrop" onClick={() => setShowAdrModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 740 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <span className="eyebrow">[CHANGE_GOVERNANCE // NYGARD_ADR_FORMAT]</span>
+                <h3 style={{ margin: '4px 0 0' }}>Architecture Decision Record & Sign-Off</h3>
+              </div>
+              <button
+                type="button"
+                className="button compact"
+                onClick={() => setShowAdrModal(false)}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <b style={{ color: 'var(--cyan)', fontSize: 13 }}>{currentAdr.id}: {currentAdr.title}</b>
+                <span className={`telemetry-health-badge ${allSignedOff ? 'optimal' : 'degraded'}`}>
+                  {allSignedOff ? '✅ APPROVED FOR PRODUCTION' : '⏳ PENDING SIGN-OFFS'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="button compact" onClick={copyAdrMarkdown}>
+                  <Copy size={12} style={{ marginRight: 4 }} /> {copiedAdr ? 'Copied!' : 'Copy Markdown'}
+                </button>
+                <button type="button" className="button compact primary" onClick={downloadAdrMarkdown}>
+                  <Download size={12} style={{ marginRight: 4 }} /> Download ADR
+                </button>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 13, color: 'var(--text-mid)', marginBottom: 16 }}>
+              Formal compliance sign-off matrix across cross-functional roles before deploying architecture mutations.
+            </p>
+
+            {/* Sign-off checklist */}
+            <div className="adr-checklist">
+              {currentAdr.complianceSignoffs.map((item) => (
+                <div key={item.role} className="adr-signoff-card">
+                  <div>
+                    <div className="signoff-role">{item.role}</div>
+                    <div className="signoff-signee">Signee: {item.signee}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span className={`signoff-status-badge ${item.approved ? 'approved' : 'pending'}`}>
+                      {item.approved ? 'APPROVED' : 'ACTION REQUIRED'}
+                    </span>
+                    <button
+                      type="button"
+                      className="button compact"
+                      onClick={() => toggleSignoff(item.role)}
+                    >
+                      {item.approved ? 'Revoke' : 'Sign Off'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ADR Markdown Preview */}
+            <div style={{ marginTop: 14 }}>
+              <span className="eyebrow" style={{ marginBottom: 6, display: 'block' }}>[PREVIEW // GENERATED_MARKDOWN]</span>
+              <pre className="adr-markdown-preview">
+                {formatAdrMarkdown(currentAdr)}
+              </pre>
             </div>
           </div>
         </div>
