@@ -3,7 +3,7 @@ import { DEMO_COMMAND } from '../data/commerce.js';
 import { FOOD_DELIVERY_DEMO_COMMAND } from '../data/foodDelivery.js';
 import { sound } from '../utils/sound.js';
 
-export const PRESET_COMMANDS = [
+const PRESET_COMMANDS = [
   {
     id: 'challenge-core',
     tag: 'DEMO',

@@ -8,7 +8,7 @@ import { FOOD_DELIVERY_DEMO_COMMAND, makeFoodDeliveryProject } from '../src/data
 import { deriveRiskFindings, deriveTasks } from '../src/data/analysis.js';
 import { makeOpenApi } from '../src/data/openapi.js';
 import { generateMultiServiceOpenApi } from '../src/data/openapiSynth.ts';
-import { makeExportFiles } from '../src/data/export.js';
+import { createVerifiedExportZip, makeExportFiles } from '../src/data/export.js';
 import {
   createServerlessBranch,
   createKubernetesBranch,
@@ -144,13 +144,18 @@ test('joined commands preview and apply as separate graph and API changes', () =
 
 test('sequential commands propose against the latest applied model', () => {
   const baseline = makeCommerceProject();
+  const history = new HistoryTimeline(baseline);
   const first = applyChange(baseline, proposeChange('Add Redis cache for catalog'));
+  history.push(first, first.changes[0].originalInstruction, first.changes[0].id);
   const secondProposal = proposeChange('Split payments into a separate service');
   const second = applyChange(first, secondProposal);
+  history.push(second, secondProposal.text, second.changes[0].id);
   assert.equal(first.version, 2);
   assert.equal(second.version, 3);
   assert.equal(second.changes.length, 2);
   assert.ok(second.relationships.some((edge) => edge.from === 'payment-service' && edge.to === 'payment'));
+  assert.equal(history.undo().version, 2);
+  assert.equal(history.redo().version, 3);
 });
 
 test('Wispr dictation normalizes common transcription errors without changing source text', () => {
@@ -160,6 +165,8 @@ test('Wispr dictation normalizes common transcription errors without changing so
   const updated = applyChange(makeCommerceProject(), parsed);
   assert.equal(updated.changes[0].originalInstruction, raw);
   assert.equal(normalizeArchitectureCommand('Use the Kafka cue').normalized, 'use the kafka queue');
+  assert.equal(normalizeArchitectureCommand('API GATEWAY').normalized, 'api gateway');
+  assert.equal(normalizeArchitectureCommand('Please, add rate limiting').normalized, 'add rate limit');
 });
 
 test('ambiguous or unsupported dictation is called out instead of guessed', () => {
@@ -193,6 +200,12 @@ test('Food Delivery sample feeds the diagram model, contracts, risks, tasks, and
   assert.match(files['openapi.yaml'], /\/restaurants/);
   assert.match(files['risk-audit.json'], /PostgreSQL/);
   assert.match(files['engineering-tasks.json'], /TASK-DELIVERY-ASSIGN/);
+  const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jv9sAAAAASUVORK5CYII=', 'base64'));
+  const foodZip = createVerifiedExportZip(food, '2026-10-20T00:00:00.000Z', png);
+  assert.ok(foodZip.files.includes('architecture.png'));
+  assert.ok(foodZip.files.includes('architecture.svg'));
+  assert.ok(foodZip.files.includes('architecture.mmd'));
+  assert.ok(foodZip.data.length > 0);
 
   const updated = applyChange(food, proposeChange(FOOD_DELIVERY_DEMO_COMMAND));
   assert.equal(updated.version, 2);

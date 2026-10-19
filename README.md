@@ -1,25 +1,41 @@
 # VoiceArchitect
 
-VoiceArchitect is a deterministic React prototype for the WeMakeDevs × Wispr Flow challenge. The Commerce Platform sample turns a reviewed natural-language architecture change into an updated model, diagram, evidence-based risk findings, OpenAPI contract, and proposed engineering tasks.
+VoiceArchitect is a deterministic React + Vite prototype for the WeMakeDevs × Wispr Flow challenge. It turns reviewed natural-language architecture requests into a current project model, an interactive diagram, OpenAPI views, evidence-based risks, proposed engineering tasks, and export files. It runs offline and needs no API key.
 
-## Run it
+## Run locally
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. The app needs no API key. `index.html` is only the Vite entry point; application code and feature panels live in `src/`.
+Open the local URL printed by Vite. The code is a single-page React app under `src/`; `index.html` is the Vite entry point.
 
-Run the built-in logic checks with `npm test`; create a production bundle with `npm run build`.
+## Verify
 
-## Try the demo
+```sh
+npm test
+npm run typecheck
+npm run build
+```
 
-1. Select **Load Sample Architecture**.
-2. Focus the instruction field and dictate with Wispr Flow, or use the supplied demo command.
-3. Select **Preview change**, inspect the interpretation and unresolved assumptions, then apply it.
-4. Explore Architecture Diagram, OpenAPI Contract, Risk & Consistency, and Engineering Tasks. All views derive from the same in-memory project model.
-5. Select **Export All** to download a verified ZIP of the current model, diagram, contract, findings, proposed tasks, change log, and an export README.
-6. Reset the demo to return to the unloaded state.
+GitHub Actions runs `npm ci`, `npm test`, and `npm run build` for pushes and pull requests.
 
-Wispr Flow dictates into the app's text field; there is no direct Wispr API integration. The OpenAPI request and success-response payload fields, rate-limit threshold, and Redis outage fallback are left unspecified when the model does not provide them. The OpenAPI panel runs basic structural checks; it is not a full external OpenAPI validator. Risk findings are deterministic model checks, not failure probabilities. Engineering tasks are proposed work, not completed tickets. Export All verifies each ZIP entry against its generated source content before starting the download.
+## Demo walkthrough
+
+1. In the workspace, choose **Commerce Platform** or **Food Delivery** and select **Load sample**. The sample selector does not change the loaded model until you load it.
+2. Enter an instruction in the text field. Wispr Flow can dictate into that field; typing works too. The sample’s demo instruction is available in the example cards.
+3. Select **Preview change**. Review the interpretation, before/after artifact diff, and unresolved assumptions. Rate-limit thresholds and Redis outage behavior remain unresolved until a person chooses them.
+4. Apply the change. Each apply creates one model version and one undoable history entry. Review the diagram, API contract, risks, tasks, and change impact tabs. Select a diagram component to inspect its role and connections.
+5. Use the Export menu for the verified **Export All** ZIP or standalone SVG, PNG, and Mermaid diagram files. The ZIP is generated from the current model and checks every entry before download.
+6. **Reset sample** restores the currently loaded sample’s baseline and clears its history.
+
+The Commerce Platform example includes commands for Redis session storage, PostgreSQL ownership, rate limiting, and Redis outage resilience. The Food Delivery example models orders, restaurants, couriers, payments, notifications, and its API operations.
+
+## Limitations
+
+- Wispr Flow writes into the instruction field; there is no direct Wispr API integration.
+- Command parsing uses deterministic local rules and a small set of known transcription corrections. Unsupported instructions are surfaced as unresolved; this is not a general natural-language compiler.
+- The OpenAPI output is derived from the demo model and receives basic structural checks. It is not validated by a full OpenAPI validator. Request and successful-response fields are left unspecified when they are absent from the model.
+- Risks are deterministic findings from modeled evidence, not calibrated risk scores or production telemetry. Tasks are proposed work; they are not completed tickets and are not sent to GitHub or Jira.
+- The PNG export uses the browser’s local SVG and canvas APIs. If the browser cannot render a canvas PNG, Export All reports an error rather than producing an incomplete ZIP.

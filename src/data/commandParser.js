@@ -15,6 +15,7 @@ export function normalizeArchitectureCommand(input = '') {
     .replace(/\b(event|message|kafka)\s+cue\b/g, '$1 queue')
     .replace(/\bcue\s+(?=in kafka|with kafka|for kafka|queue)/g, 'queue ')
     .replace(FILLERS, ' ')
+    .replace(/[.,!?;]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
