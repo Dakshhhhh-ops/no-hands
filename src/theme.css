@@ -3435,3 +3435,233 @@ body {
     gap: 10px;
   }
 }
+
+/* ==========================================================================
+   Phase 3: Scenario Branching & Time-Travel Toolbar Styles
+   ========================================================================== */
+
+.scenario-branching-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--line-mid);
+  border-radius: 10px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 10;
+}
+
+.branch-selector-wrap {
+  position: relative;
+}
+
+.branch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-mid);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.branch-chip:hover {
+  border-color: var(--cyan);
+  background: rgba(78, 242, 210, 0.06);
+}
+
+.branch-label {
+  color: var(--text-pure);
+}
+
+.branch-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: var(--text-mid);
+}
+
+.branch-chevron {
+  color: var(--text-dim);
+}
+
+.branch-dropdown-menu,
+.timeline-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 300px;
+  background: #0e141f;
+  border: 1px solid var(--line-bright);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  padding: 6px;
+  z-index: 100;
+}
+
+.timeline-dropdown-menu {
+  left: auto;
+  right: 0;
+  min-width: 320px;
+}
+
+.branch-dropdown-header {
+  padding: 6px 10px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--line-dim);
+  margin-bottom: 4px;
+}
+
+.branch-dropdown-item,
+.timeline-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.branch-dropdown-item:hover,
+.timeline-item:hover {
+  background: rgba(78, 242, 210, 0.08);
+}
+
+.branch-dropdown-item.active {
+  background: rgba(78, 242, 210, 0.12);
+  border: 1px solid rgba(78, 242, 210, 0.3);
+}
+
+.patch-count-badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--cyan);
+  background: rgba(78, 242, 210, 0.1);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.scenario-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-travel-cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.time-travel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-mid);
+  border-radius: 6px;
+  color: var(--text-mid);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.time-travel-btn:hover:not(:disabled) {
+  color: var(--text-pure);
+  border-color: var(--line-bright);
+  background: var(--surface-3);
+}
+
+.time-travel-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Scenario Comparison Modal */
+.comparison-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-mid);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.summary-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.scenario-comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.scenario-card {
+  padding: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-mid);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.scenario-card-header h3 {
+  margin: 4px 0 14px;
+  font-size: 16px;
+}
+
+.scenario-metrics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line-dim);
+  font-size: 12px;
+}
+
+.metric-name {
+  color: var(--text-mid);
+}
+
+.metric-value {
+  font-weight: 600;
+  color: var(--text-pure);
+}
+
+.full-width {
+  width: 100%;
+}
+

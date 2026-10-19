@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Activity, ArrowRight, AudioLines, Check, CircleHelp, ClipboardCheck, ClipboardList, Code2, Cpu, FileArchive, FileCode2, Layers, LayoutDashboard, Mic, Mic2, Network, Radio, RotateCcw, ShieldAlert, Sparkles, Terminal, X, Zap } from 'lucide-react';
 import ArchitectureDiagram from './components/ArchitectureDiagram.jsx';
 import OpenApiPanel from './components/OpenApiPanel.jsx';
@@ -10,10 +10,16 @@ import StudioTelemetryBar from './components/StudioTelemetryBar.jsx';
 import WisprFlowModal from './components/WisprFlowModal.jsx';
 import CommandPresets from './components/CommandPresets.jsx';
 import SystemTelemetryPanel from './components/SystemTelemetryPanel.jsx';
+import ScenarioBranchingBar from './components/ScenarioBranchingBar.jsx';
+import ScenarioComparisonModal from './components/ScenarioComparisonModal.jsx';
+import MergeConflictModal from './components/MergeConflictModal.jsx';
 import { applyChange, DEMO_COMMAND, makeCommerceProject, proposeChange } from './data/commerce.js';
 import { createVerifiedExportZip } from './data/export.js';
 import { getProjectSyncStatus } from './data/analysis.js';
 import { sound } from './utils/sound.js';
+import { HistoryTimeline } from './data/historyManager.ts';
+import { createServerlessBranch, createKubernetesBranch, compareBranches } from './data/branching.ts';
+import { detectMergeConflicts, executeMerge } from './data/semanticMerge.ts';
 
 const tabs = [
   { id: 'diagram', label: 'Architecture Diagram', icon: Network, code: '01' },
@@ -34,6 +40,183 @@ export default function App() {
   const [isWisprGuideOpen, setIsWisprGuideOpen] = useState(false);
   const [isDictatingSim, setIsDictatingSim] = useState(false);
   const modalRef = useRef(null);
+
+  // Phase 3: Scenario Branching & Time-Travel State
+  const [historyTimeline] = useState(() => new HistoryTimeline(makeCommerceProject()));
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const [currentBranchId, setCurrentBranchId] = useState('main');
+  const [branches, setBranches] = useState(() => {
+    const baseProject = makeCommerceProject();
+    return {
+      main: { id: 'main', name: 'Main Branch', description: 'Commerce Platform primary architecture', project: baseProject, history: new HistoryTimeline(baseProject) },
+    };
+  });
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [mergeConflicts, setMergeConflicts] = useState([]);
+  const [mergingBranchId, setMergingBranchId] = useState(null);
+
+  // Derive branch list for UI
+  const branchList = useMemo(() => Object.values(branches).map((b) => ({
+    id: b.id,
+    name: b.name,
+    description: b.description,
+    version: b.project.version,
+  })), [branches]);
+
+  // Derive comparison between scenario branches if they exist
+  const scenarioComparison = useMemo(() => {
+    if (branches['branch-serverless'] && branches['branch-k8s-postgres']) {
+      return compareBranches(branches['branch-serverless'], branches['branch-k8s-postgres']);
+    }
+    return null;
+  }, [branches]);
+
+  // Time-travel timeline entries
+  const timelineEntries = useMemo(() => {
+    const currentHistory = branches[currentBranchId]?.history || historyTimeline;
+    return currentHistory.getFullTimeline().map((e) => ({
+      version: e.version,
+      label: e.label,
+      patchCount: e.patchCount,
+    }));
+  }, [branches, currentBranchId, historyTimeline, canUndo, canRedo]);
+
+  // Sync undo/redo state
+  function syncHistoryState() {
+    const history = branches[currentBranchId]?.history || historyTimeline;
+    setCanUndo(history.canUndo);
+    setCanRedo(history.canRedo);
+  }
+
+  // Undo handler
+  function handleUndo() {
+    const history = branches[currentBranchId]?.history || historyTimeline;
+    const prev = history.undo();
+    if (prev) {
+      setProject(prev);
+      setBranches((b) => ({ ...b, [currentBranchId]: { ...b[currentBranchId], project: prev } }));
+      syncHistoryState();
+      notify('Undone. Architecture rolled back to previous version.');
+    }
+  }
+
+  // Redo handler
+  function handleRedo() {
+    const history = branches[currentBranchId]?.history || historyTimeline;
+    const next = history.redo();
+    if (next) {
+      setProject(next);
+      setBranches((b) => ({ ...b, [currentBranchId]: { ...b[currentBranchId], project: next } }));
+      syncHistoryState();
+      notify('Redone. Architecture fast-forwarded.');
+    }
+  }
+
+  // Jump to a specific timeline version
+  function handleJumpToVersion(index) {
+    const history = branches[currentBranchId]?.history || historyTimeline;
+    const target = history.jumpTo(index);
+    setProject(target);
+    setBranches((b) => ({ ...b, [currentBranchId]: { ...b[currentBranchId], project: target } }));
+    syncHistoryState();
+    notify(`Time-traveled to v${target.version}.`);
+  }
+
+  // Switch between scenario branches
+  function handleSwitchBranch(branchId) {
+    if (!branches[branchId]) return;
+    setCurrentBranchId(branchId);
+    setProject(branches[branchId].project);
+    syncHistoryState();
+    notify(`Switched to branch: ${branches[branchId].name}`);
+  }
+
+  // Create scenario branches (Serverless & K8s)
+  function createScenarioBranches() {
+    const base = branches.main.project;
+    const serverless = createServerlessBranch(base);
+    const k8s = createKubernetesBranch(base);
+    setBranches((b) => ({
+      ...b,
+      [serverless.id]: serverless,
+      [k8s.id]: k8s,
+    }));
+    notify('Created Scenario A (Serverless) and Scenario B (Kubernetes) branches.');
+  }
+
+  // Open comparison modal (create branches if needed)
+  function handleOpenComparison() {
+    if (!branches['branch-serverless'] || !branches['branch-k8s-postgres']) {
+      createScenarioBranches();
+    }
+    setShowComparisonModal(true);
+  }
+
+  // Initiate merge from current branch into main
+  function handleInitiateMerge() {
+    if (currentBranchId === 'main') return;
+    const source = branches[currentBranchId];
+    const target = branches.main;
+    const base = branches.main; // Common ancestor is main baseline
+    const analysis = detectMergeConflicts(base.project, target.project, source.project);
+    if (analysis.canAutoMerge) {
+      // No conflicts, merge directly
+      const result = executeMerge(base.project, target.project, source.project, {});
+      if (result.success && result.mergedProject) {
+        const newHistory = branches.main.history;
+        newHistory.push(result.mergedProject, `Merged ${source.name}`, result.mergedProject.changes[0]?.id);
+        setBranches((b) => ({ ...b, main: { ...b.main, project: result.mergedProject, history: newHistory } }));
+        setCurrentBranchId('main');
+        setProject(result.mergedProject);
+        syncHistoryState();
+        notify(`Successfully merged "${source.name}" into Main with no conflicts.`);
+      }
+    } else {
+      // Has conflicts — show resolution modal
+      setMergeConflicts(analysis.conflicts);
+      setMergingBranchId(currentBranchId);
+      setShowMergeModal(true);
+    }
+  }
+
+  // Execute merge with user-chosen conflict resolutions
+  function handleConfirmMerge(resolutions) {
+    const source = branches[mergingBranchId];
+    const target = branches.main;
+    const result = executeMerge(target.project, target.project, source.project, resolutions);
+    if (result.success && result.mergedProject) {
+      const newHistory = branches.main.history;
+      newHistory.push(result.mergedProject, `Merged ${source.name} (resolved conflicts)`, result.mergedProject.changes[0]?.id);
+      setBranches((b) => ({ ...b, main: { ...b.main, project: result.mergedProject, history: newHistory } }));
+      setCurrentBranchId('main');
+      setProject(result.mergedProject);
+      setShowMergeModal(false);
+      setMergeConflicts([]);
+      setMergingBranchId(null);
+      syncHistoryState();
+      notify('3-way merge completed with resolved conflicts.');
+    } else {
+      notify(`Merge failed: ${result.error || 'Unknown error'}`);
+    }
+  }
+
+  // Ctrl+Z / Ctrl+Y keyboard shortcut for undo/redo
+  useEffect(() => {
+    function onKeyDown(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        handleRedo();
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  });
 
   const preview = useMemo(() => (command.trim() ? proposeChange(command.trim()) : null), [command]);
   const activeTab = tabs.find((item) => item.id === tab) || tabs[0];
@@ -104,19 +287,29 @@ export default function App() {
 
   function loadSample() {
     sound.click();
-    setProject(makeCommerceProject());
+    const fresh = makeCommerceProject();
+    setProject(fresh);
     setCommand('');
     setProposal(null);
     setTab('diagram');
+    setCurrentBranchId('main');
+    setBranches({ main: { id: 'main', name: 'Main Branch', description: 'Commerce Platform primary architecture', project: fresh, history: new HistoryTimeline(fresh) } });
+    setCanUndo(false);
+    setCanRedo(false);
     notify('Commerce Platform demo baseline loaded.');
   }
 
   function reset() {
     sound.click();
-    setProject(makeCommerceProject());
+    const fresh = makeCommerceProject();
+    setProject(fresh);
     setCommand('');
     setProposal(null);
     setTab('diagram');
+    setCurrentBranchId('main');
+    setBranches({ main: { id: 'main', name: 'Main Branch', description: 'Commerce Platform primary architecture', project: fresh, history: new HistoryTimeline(fresh) } });
+    setCanUndo(false);
+    setCanRedo(false);
     notify('Workspace reset to Commerce Platform v1 baseline.');
   }
 
@@ -136,9 +329,15 @@ export default function App() {
   function confirmChange() {
     if (!project || !proposal) return;
     sound.apply();
-    setProject((current) => applyChange(current, proposal));
+    const nextProject = applyChange(project, proposal);
+    // Push into history timeline for undo/redo
+    const history = branches[currentBranchId]?.history || historyTimeline;
+    history.push(nextProject, proposal.text, nextProject.changes[0]?.id);
+    setProject(nextProject);
+    setBranches((b) => ({ ...b, [currentBranchId]: { ...b[currentBranchId], project: nextProject } }));
     setProposal(null);
     setTab('impact');
+    syncHistoryState();
     notify('Reviewed change applied. Synthesizing cross-artifact impact.');
   }
 
@@ -353,6 +552,21 @@ export default function App() {
       </section>
 
       {/* Main Studio Workspace: Command Input & Output Panels */}
+      {/* Phase 3: Scenario Branching & Time-Travel Toolbar */}
+      <ScenarioBranchingBar
+        currentBranchId={currentBranchId}
+        branches={branchList}
+        onSwitchBranch={handleSwitchBranch}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        timeline={timelineEntries}
+        onJumpToVersion={handleJumpToVersion}
+        comparison={scenarioComparison}
+        onOpenComparison={handleOpenComparison}
+        onMergeBranch={currentBranchId !== 'main' ? handleInitiateMerge : undefined}
+      />
       <section className="workspace">
         {/* Left Aside: Architecture Command Console */}
         <aside className="command-card">
@@ -662,6 +876,26 @@ export default function App() {
       )}
 
       {/* Toast Notification */}
+      {/* Phase 3: Scenario Comparison Modal */}
+      {showComparisonModal && scenarioComparison && (
+        <ScenarioComparisonModal
+          comparison={scenarioComparison}
+          onClose={() => setShowComparisonModal(false)}
+          onSelectBranch={handleSwitchBranch}
+        />
+      )}
+
+      {/* Phase 3: 3-Way Merge Conflict Resolution Modal */}
+      {showMergeModal && (
+        <MergeConflictModal
+          sourceBranchName={branches[mergingBranchId]?.name || mergingBranchId}
+          targetBranchName={branches.main.name}
+          conflicts={mergeConflicts}
+          onClose={() => setShowMergeModal(false)}
+          onConfirmMerge={handleConfirmMerge}
+        />
+      )}
+
       {toast && (
         <div className="toast" key={toastKey}>
           <Activity size={15} className="text-cyan animate-pulse" />
