@@ -1,17 +1,22 @@
 # VoiceArchitect
 
-A small, deterministic VoiceArchitect demo for the WeMakeDevs × Wispr Flow challenge. The workspace has no pre-existing React, Next.js, or Vite setup, so this first vertical slice is a self-contained HTML/CSS/JavaScript app with no dependencies.
+VoiceArchitect is a deterministic React prototype for the WeMakeDevs × Wispr Flow challenge. The Commerce Platform sample turns a reviewed natural-language architecture change into an updated model, diagram, evidence-based risk findings, OpenAPI contract, and proposed engineering tasks.
 
 ## Run it
 
-Open `index.html` in a modern browser. No install or API key is needed.
+```sh
+npm install
+npm run dev
+```
+
+Open the local URL printed by Vite. The app needs no API key. `index.html` is only the Vite entry point; application code and feature panels live in `src/`.
 
 ## Try the demo
 
-1. Select **Load Sample Architecture** to render the synthetic Commerce Platform and its service/data-flow relationships.
-2. Enter or dictate the example instruction shown in the left panel. Wispr Flow can dictate into the focused text box; there is no direct Wispr API integration.
-3. Select **Preview change** and inspect the proposed interpretation and open decisions.
-4. Choose **Apply reviewed change**. The model version and diagram update; the Auth Service → Redis relationship is highlighted.
-5. Select **Reset Demo** to return to the unloaded state.
+1. Select **Load Sample Architecture**.
+2. Focus the instruction field and dictate with Wispr Flow, or use the supplied demo command.
+3. Select **Preview change**, inspect the interpretation and unresolved assumptions, then apply it.
+4. Explore Architecture Diagram, OpenAPI Contract, Risk & Consistency, and Engineering Tasks. All views derive from the same in-memory project model.
+5. Reset the demo to return to the unloaded state.
 
-The current demo slice supports deterministic rules for Redis session storage, PostgreSQL source-of-truth constraints, authentication rate limiting, and Redis outage resilience. It does not yet generate OpenAPI, risk audits, or engineering tasks; their tabs are visibly disabled. The demo does not claim that proposed requirements are implemented by the modeled system.
+Wispr Flow dictates into the app's text field; there is no direct Wispr API integration. The OpenAPI request and success-response payload fields, rate-limit threshold, and Redis outage fallback are left unspecified when the model does not provide them. Risk findings are deterministic model checks, not failure probabilities. Engineering tasks are proposed work, not completed tickets.
