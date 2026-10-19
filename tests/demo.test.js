@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeCommerceProject, DEMO_COMMAND, proposeChange, applyChange } from '../src/data/commerce.js';
 import { checkOpenApiStructure, makeOpenApi, toYaml } from '../src/data/openapi.js';
-import { deriveRiskFindings, deriveTasks } from '../src/data/analysis.js';
+import { deriveRiskFindings, deriveTasks, getProjectSyncStatus } from '../src/data/analysis.js';
+import { deriveChangeDiff, deriveManualDecisions } from '../src/data/changeDiff.js';
 import { createVerifiedExportZip, makeExportFiles } from '../src/data/export.js';
 import { strFromU8, unzipSync } from 'fflate';
 
@@ -22,6 +23,30 @@ test('sample change stays reviewable and preserves unresolved decisions', () => 
   const unrelated = proposeChange('Add a dashboard for service health.');
   assert.equal(unrelated.items[0].key, 'unresolved');
   assert.ok(!unrelated.assumptions.some((item) => item.includes('rate-limit threshold')));
+});
+
+test('project status distinguishes the loaded baseline and an applied change with unresolved decisions', () => {
+  const baseline = makeCommerceProject();
+  assert.equal(getProjectSyncStatus(baseline), 'Baseline loaded · unresolved decisions remain');
+  const changed = applyChange(baseline, proposeChange(DEMO_COMMAND));
+  assert.equal(getProjectSyncStatus(changed), 'Change applied · unresolved decisions remain');
+  assert.equal(getProjectSyncStatus(null), 'Ready');
+});
+
+test('before-and-after diff covers all artifact types with instruction provenance', () => {
+  const project = applyChange(makeCommerceProject(), proposeChange(DEMO_COMMAND));
+  const groups = deriveChangeDiff(project);
+  assert.deepEqual(groups.map(({ id }) => id), ['components', 'relationships', 'requirements', 'apiOperations', 'risks', 'tasks']);
+  for (const groupId of ['components', 'relationships', 'requirements', 'apiOperations', 'risks', 'tasks']) {
+    const entries = groups.find(({ id }) => id === groupId).entries;
+    assert.ok(entries.length > 0, `${groupId} should show the applied demo impact`);
+    assert.ok(entries.every((entry) => entry.changeId === 'CHG-0002' && entry.instruction === DEMO_COMMAND), `${groupId} entries should retain their source`);
+  }
+  assert.equal(groups.find(({ id }) => id === 'apiOperations').entries[0].status, 'modified');
+  assert.ok(deriveManualDecisions(project).some(({ id }) => id === 'rate-limit-threshold'));
+  assert.ok(deriveManualDecisions(project).some(({ id }) => id === 'redis-fallback'));
+  assert.equal(project.changes[0].originalInstruction, DEMO_COMMAND);
+  assert.equal(project.changes[0].id, 'CHG-0002');
 });
 
 test('applying the same request updates the diagram and records requirements only once', () => {
@@ -71,6 +96,8 @@ test('Export All ZIP contains the current model and all expected artifacts', () 
   const { data, files } = createVerifiedExportZip(project, timestamp);
   const contents = unzipSync(data);
   assert.deepEqual(files.sort(), Object.keys(expected).sort());
+  assert.ok(files.includes('risk-audit.json'));
+  assert.ok(files.includes('risk-audit.md'));
   assert.equal(Object.keys(contents).length, 9);
   for (const [name, text] of Object.entries(expected)) assert.equal(strFromU8(contents[name]), text, `${name} should match current export content`);
   const architecture = JSON.parse(strFromU8(contents['architecture.json']));
@@ -79,4 +106,5 @@ test('Export All ZIP contains the current model and all expected artifacts', () 
   assert.match(strFromU8(contents['openapi.yaml']), /"429"/);
   assert.match(strFromU8(contents['README.md']), /Model version: 2/);
   assert.match(strFromU8(contents['README.md']), /fallback/);
+  assert.match(strFromU8(contents['README.md']), /Validation status: Basic OpenAPI structural checks passed/);
 });

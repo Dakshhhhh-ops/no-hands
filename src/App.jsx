@@ -4,18 +4,21 @@ import ArchitectureDiagram from './components/ArchitectureDiagram.jsx';
 import OpenApiPanel from './components/OpenApiPanel.jsx';
 import RiskPanel from './components/RiskPanel.jsx';
 import TaskPanel from './components/TaskPanel.jsx';
+import ChangeImpactPanel from './components/ChangeImpactPanel.jsx';
 import { applyChange, DEMO_COMMAND, makeCommerceProject, proposeChange } from './data/commerce.js';
 import { createVerifiedExportZip } from './data/export.js';
+import { getProjectSyncStatus } from './data/analysis.js';
 
 const tabs = [
   { id: 'diagram', label: 'Architecture Diagram', icon: Network },
   { id: 'openapi', label: 'OpenAPI Contract', icon: FileCode2 },
   { id: 'risk', label: 'Risk & Consistency', icon: ShieldAlert },
   { id: 'tasks', label: 'Engineering Tasks', icon: ClipboardList },
+  { id: 'impact', label: 'Change Impact', icon: Activity },
 ];
 
 export default function App() {
-  const [project, setProject] = useState(null);
+  const [project, setProject] = useState(makeCommerceProject);
   const [command, setCommand] = useState('');
   const [tab, setTab] = useState('diagram');
   const [proposal, setProposal] = useState(null);
@@ -50,7 +53,7 @@ export default function App() {
     setProject(makeCommerceProject()); setCommand(''); setProposal(null); setTab('diagram'); notify('Commerce Platform demo loaded.');
   }
   function reset() {
-    setProject(null); setCommand(''); setProposal(null); setTab('diagram'); notify('Demo reset.');
+    setProject(makeCommerceProject()); setCommand(''); setProposal(null); setTab('diagram'); notify('Demo reset to the Commerce Platform baseline.');
   }
   function showProposal() {
     if (!project) { notify('Load the Commerce Platform sample first.'); return; }
@@ -59,7 +62,7 @@ export default function App() {
   }
   function confirmChange() {
     if (!project || !proposal) return;
-    setProject((current) => applyChange(current, proposal)); setProposal(null); notify('Reviewed change applied to the project model.');
+    setProject((current) => applyChange(current, proposal)); setProposal(null); setTab('impact'); notify('Reviewed change applied. Showing the baseline-to-current impact.');
   }
   function exportAll() {
     if (!project) { notify('Load a project before exporting its artifacts.'); return; }
@@ -81,7 +84,8 @@ export default function App() {
     if (tab === 'diagram') return <ArchitectureDiagram project={project} />;
     if (tab === 'openapi') return <OpenApiPanel project={project} onNotify={notify} />;
     if (tab === 'risk') return <RiskPanel project={project} />;
-    return <TaskPanel project={project} />;
+    if (tab === 'tasks') return <TaskPanel project={project} />;
+    return <ChangeImpactPanel project={project} />;
   }
 
   return <main className="shell">
@@ -115,7 +119,7 @@ export default function App() {
           else if (event.key === 'End') next = tabs.length - 1;
           else return;
           event.preventDefault(); setTab(tabs[next].id); document.getElementById(`tab-${tabs[next].id}`)?.focus();
-        }}>{tabs.map(({ id, label, icon: Icon }) => <button id={`tab-${id}`} key={id} role="tab" aria-controls="artifact-panel" tabIndex={tab === id ? 0 : -1} aria-selected={tab === id} className={`tab ${tab === id ? 'active' : ''}`} onClick={() => setTab(id)}><Icon size={15} /><span>{label}</span></button>)}<span className="sync-state" role="presentation"><i />{project ? 'Synchronized' : 'Ready'}</span></div>
+        }}>{tabs.map(({ id, label, icon: Icon }) => <button id={`tab-${id}`} key={id} role="tab" aria-controls="artifact-panel" tabIndex={tab === id ? 0 : -1} aria-selected={tab === id} className={`tab ${tab === id ? 'active' : ''}`} onClick={() => setTab(id)}><Icon size={15} /><span>{label}</span></button>)}<span className={`sync-state ${project && getProjectSyncStatus(project).includes('unresolved') ? 'unresolved' : ''}`} role="status" aria-live="polite"><i />{getProjectSyncStatus(project)}</span></div>
         <div className="output-heading"><div><span className="eyebrow">{activeTab.label}</span><h2>{project ? project.name : 'System architecture'}</h2></div>{project && <span className="version-chip">MODEL · v{project.version}</span>}</div>
         <div className="artifact-content" id="artifact-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={0}>{content()}</div>
       </section>

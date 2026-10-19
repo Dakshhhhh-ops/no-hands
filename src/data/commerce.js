@@ -1,8 +1,10 @@
-export const makeCommerceProject = () => ({
-  name: 'Commerce Platform',
-  version: 1,
-  changed: false,
-  components: [
+export const makeCommerceProject = () => {
+  const project = {
+    name: 'Commerce Platform',
+    version: 1,
+    changed: false,
+    changes: [],
+    components: [
     { id: 'web', name: 'Web & mobile', type: 'CLIENT', x: 42, y: 150, sub: 'Storefront clients' },
     { id: 'gateway', name: 'API Gateway', type: 'GATEWAY', x: 226, y: 150, sub: 'Routing · TLS · auth' },
     { id: 'auth', name: 'Auth Service', type: 'SERVICE', x: 424, y: 52, sub: 'Login · token issuance' },
@@ -12,8 +14,8 @@ export const makeCommerceProject = () => ({
     { id: 'postgres', name: 'PostgreSQL', type: 'DATABASE', x: 650, y: 176, sub: 'Persistent data store' },
     { id: 'kafka', name: 'Kafka', type: 'QUEUE', x: 650, y: 280, sub: 'Order events' },
     { id: 'payment', name: 'Payment Provider', type: 'EXTERNAL', x: 836, y: 280, sub: 'External integration' },
-  ],
-  relationships: [
+    ],
+    relationships: [
     { from: 'web', to: 'gateway', label: 'HTTPS' },
     { from: 'gateway', to: 'auth', label: 'login' },
     { from: 'gateway', to: 'catalog', label: 'catalog API' },
@@ -24,11 +26,21 @@ export const makeCommerceProject = () => ({
     { from: 'orders', to: 'postgres', label: 'orders' },
     { from: 'orders', to: 'kafka', label: 'publish' },
     { from: 'kafka', to: 'payment', label: 'payment event' },
-  ],
-  apiOperations: [{ id: 'api-login', componentId: 'auth', method: 'post', path: '/auth/login', summary: 'Authenticate a user and begin a session' }],
-  requirements: [],
-  activity: [],
-});
+    ],
+    apiOperations: [{ id: 'api-login', componentId: 'auth', method: 'post', path: '/auth/login', summary: 'Authenticate a user and begin a session' }],
+    requirements: [],
+    activity: [],
+  };
+  project.baseline = structuredClone({
+    name: project.name,
+    version: project.version,
+    components: project.components,
+    relationships: project.relationships,
+    apiOperations: project.apiOperations,
+    requirements: project.requirements,
+  });
+  return project;
+};
 
 export const DEMO_COMMAND = 'Move session storage to Redis, keep PostgreSQL as the source of truth, add rate limiting to the authentication endpoint, and make login resilient if Redis becomes unavailable.';
 
@@ -51,14 +63,23 @@ export function applyChange(project, proposal) {
   const next = structuredClone(project);
   const lower = proposal.text.toLowerCase();
   const changes = [];
+  const changeId = `CHG-${String(next.version + 1).padStart(4, '0')}`;
+  const provenance = { sourceChangeId: changeId, originalInstruction: proposal.text };
+  const affectedArtifacts = new Set();
   const addRequirement = (id, text) => {
-    if (!next.requirements.some((item) => item.id === id)) next.requirements.push({ id, text, status: 'confirmed' });
+    if (!next.requirements.some((item) => item.id === id)) next.requirements.push({ id, text, status: 'confirmed', ...provenance });
+    affectedArtifacts.add('requirements');
   };
   if (lower.includes('redis') && lower.includes('session')) {
     const edge = next.relationships.find((item) => item.from === 'auth' && item.to === 'redis');
-    if (edge) edge.label = 'sessions · primary store';
+    if (edge) { edge.label = 'sessions · primary store'; Object.assign(edge, provenance); }
     const redis = next.components.find((item) => item.id === 'redis');
-    if (redis) redis.sub = 'Primary session store';
+    if (redis) { redis.sub = 'Primary session store'; Object.assign(redis, provenance); }
+    const operation = next.apiOperations.find((item) => item.componentId === 'auth');
+    if (operation) Object.assign(operation, provenance);
+    affectedArtifacts.add('components');
+    affectedArtifacts.add('relationships');
+    affectedArtifacts.add('apiOperations');
     changes.push('Redis relationship labeled as primary session storage');
   }
   if (lower.includes('postgres') && (lower.includes('source of truth') || lower.includes('persistent'))) {
@@ -67,14 +88,27 @@ export function applyChange(project, proposal) {
   }
   if (lower.includes('rate limit') || lower.includes('rate-limit')) {
     addRequirement('REQ-AUTH-RATE', 'Authentication endpoint requires rate limiting; threshold unresolved');
+    const operation = next.apiOperations.find((item) => item.id === 'api-login');
+    if (operation) Object.assign(operation, provenance);
+    affectedArtifacts.add('apiOperations');
+    affectedArtifacts.add('risks');
+    affectedArtifacts.add('tasks');
     changes.push('Authentication rate-limiting requirement recorded');
   }
   if (lower.includes('resilien') || lower.includes('unavailable') || lower.includes('failure')) {
     addRequirement('REQ-REDIS-FAIL', 'Login must remain resilient when Redis is unavailable; fallback unresolved');
+    affectedArtifacts.add('risks');
+    affectedArtifacts.add('tasks');
     changes.push('Redis outage resilience requirement recorded');
+  }
+  if (lower.includes('postgres') && (lower.includes('source of truth') || lower.includes('persistent'))) {
+    affectedArtifacts.add('risks');
+    affectedArtifacts.add('tasks');
   }
   next.version += 1;
   next.changed = true;
-  next.activity.unshift({ version: next.version, summary: changes.join(' · ') || 'Architecture request recorded for follow-up' });
+  const summary = changes.join(' · ') || 'Architecture request recorded for follow-up';
+  next.changes.unshift({ id: changeId, version: next.version, originalInstruction: proposal.text, summary, affectedArtifacts: [...affectedArtifacts] });
+  next.activity.unshift({ version: next.version, summary, sourceChangeId: changeId, originalInstruction: proposal.text });
   return next;
 }

@@ -18,6 +18,16 @@ export function deriveRiskFindings(project) {
   return findings;
 }
 
+export function getProjectSyncStatus(project) {
+  if (!project) return 'Ready';
+  const rateLimit = project.requirements.find((item) => /rate.?limit/i.test(item.text));
+  const redisResilience = project.requirements.find((item) => /redis/i.test(item.text) && /(unavailable|resilien|fallback)/i.test(item.text));
+  const unresolved = !rateLimit || /threshold unresolved/i.test(rateLimit.text)
+    || !redisResilience || /fallback unresolved/i.test(redisResilience.text);
+  if (project.changed) return unresolved ? 'Change applied · unresolved decisions remain' : 'Change applied';
+  return unresolved ? 'Baseline loaded · unresolved decisions remain' : 'Baseline loaded';
+}
+
 export function deriveTasks(project) {
   const tasks = [];
   for (const requirement of project.requirements) {
