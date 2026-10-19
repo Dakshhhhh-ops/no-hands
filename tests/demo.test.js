@@ -129,6 +129,8 @@ test('Export All ZIP contains the current model and all expected artifacts', () 
   for (const [name, text] of Object.entries(expected)) assert.equal(strFromU8(contents[name]), text, `${name} should match current export content`);
   const architecture = JSON.parse(strFromU8(contents['architecture.json']));
   assert.equal(architecture.version, 2);
+  const changeLog = JSON.parse(strFromU8(contents['change-log.json']));
+  assert.ok(Number.isFinite(changeLog.entries[0].timestamp));
   assert.ok(architecture.requirements.some((item) => item.id === 'REQ-AUTH-RATE'));
   assert.match(strFromU8(contents['openapi.yaml']), /"429"/);
   assert.match(strFromU8(contents['README.md']), /Model version: 2/);

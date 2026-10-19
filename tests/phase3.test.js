@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeCommerceProject } from '../src/data/commerce.js';
+import { makeCommerceProject, DEMO_COMMAND, proposeChange, applyChange } from '../src/data/commerce.js';
 import { generateJsonPatch, applyJsonPatch } from '../src/data/jsonPatch.ts';
 import { HistoryTimeline } from '../src/data/historyManager.ts';
 import {
@@ -102,6 +102,24 @@ test('Time Travel History: manages undo, redo, and timeline version scrubbing', 
   // 5. Jump / Scrub directly to index 0 (v1)
   const scrubbed = history.jumpTo(0);
   assert.equal(scrubbed.version, 1);
+});
+
+test('one applied command creates one timestamped, undoable history entry', () => {
+  const baseline = makeCommerceProject();
+  const history = new HistoryTimeline(baseline);
+  const applied = applyChange(baseline, proposeChange(DEMO_COMMAND));
+  const change = applied.changes[0];
+  history.push(applied, DEMO_COMMAND, change.id);
+
+  assert.equal(applied.changes.length, 1);
+  assert.equal(applied.activity.length, 1);
+  assert.ok(Number.isFinite(change.timestamp));
+  assert.equal(applied.activity[0].timestamp, change.timestamp);
+  assert.equal(history.getFullTimeline().filter((entry) => entry.changeId === change.id).length, 1);
+  assert.ok(history.getFullTimeline().find((entry) => entry.changeId === change.id).timestamp > 0);
+
+  assert.equal(history.undo().version, baseline.version);
+  assert.equal(history.redo().changes[0].timestamp, change.timestamp);
 });
 
 test('Scenario Branching: creates Serverless & K8s scenario branches with distinct metrics', () => {

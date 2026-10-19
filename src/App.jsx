@@ -106,7 +106,7 @@ export default function App() {
 
   const timelineEntries = useMemo(() => {
     const history = branches[currentBranchId]?.history || historyTimeline;
-    return history.getFullTimeline().map((e) => ({ version: e.version, label: e.label, patchCount: e.patchCount }));
+    return history.getFullTimeline().map((e) => ({ version: e.version, label: e.label, patchCount: e.patchCount, timestamp: e.timestamp, changeId: e.changeId }));
   }, [branches, currentBranchId, historyTimeline, canUndo, canRedo]);
 
   function getHistory(branchId = currentBranchId) {
@@ -845,6 +845,7 @@ export default function App() {
                 onUndo={handleUndo}
                 onRedo={handleRedo}
                 timeline={timelineEntries}
+                changes={project?.changes || []}
                 onJumpToVersion={handleJumpToVersion}
                 comparison={scenarioComparison}
                 onOpenComparison={handleOpenComparison}

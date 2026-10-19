@@ -28,6 +28,7 @@ export default function ScenarioBranchingBar({
   onUndo,
   onRedo,
   timeline,
+  changes = [],
   onJumpToVersion,
   comparison,
   onOpenComparison,
@@ -37,6 +38,9 @@ export default function ScenarioBranchingBar({
   const [showBranchDropdown, setShowBranchDropdown] = useState(false);
 
   const activeBranch = branches.find((b) => b.id === currentBranchId) || branches[0];
+  const formatTimestamp = (timestamp) => Number.isFinite(timestamp)
+    ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(timestamp))
+    : 'Timestamp unavailable';
 
   return (
     <div className="scenario-branching-bar" aria-label="Architecture scenario branching and time-travel controls">
@@ -170,12 +174,37 @@ export default function ScenarioBranchingBar({
                       </span>
                     )}
                   </div>
+                  {entry.changeId && <small className="va-timeline-timestamp">{formatTimestamp(entry.timestamp)}</small>}
                 </div>
               ))}
             </div>
           )}
         </div>
       </div>
+      <section className="va-change-log" aria-labelledby="va-change-log-title">
+        <div className="va-change-log-head">
+          <h3 id="va-change-log-title">Applied command log</h3>
+          <span>{changes.length} {changes.length === 1 ? 'entry' : 'entries'}</span>
+        </div>
+        {changes.length ? (
+          <ol>
+            {changes.map((change) => (
+              <li key={change.id}>
+                <div className="va-change-log-meta">
+                  <b>{change.id} · v{change.version}</b>
+                  <time dateTime={Number.isFinite(change.timestamp) ? new Date(change.timestamp).toISOString() : undefined}>
+                    {formatTimestamp(change.timestamp)}
+                  </time>
+                </div>
+                <p>{change.originalInstruction}</p>
+                <small>{change.summary}</small>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="va-change-log-empty">No commands applied in this model yet. Reset sample clears this log.</p>
+        )}
+      </section>
     </div>
   );
 }

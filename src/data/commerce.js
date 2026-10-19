@@ -70,6 +70,7 @@ export function applyChange(project, proposal, decisions = {}) {
   const lower = proposal.text.toLowerCase();
   const changes = [];
   const changeId = `CHG-${String(next.version + 1).padStart(4, '0')}`;
+  const timestamp = Date.now();
   const provenance = { sourceChangeId: changeId, originalInstruction: proposal.text };
   const affectedArtifacts = new Set();
   const existingResolution = (id) => next.requirements.find((item) => item.id === id)?.resolution || '';
@@ -153,8 +154,8 @@ export function applyChange(project, proposal, decisions = {}) {
   next.version += 1;
   next.changed = true;
   const summary = changes.join(' · ') || 'Architecture request recorded for follow-up';
-  next.changes.unshift({ id: changeId, version: next.version, originalInstruction: proposal.text, summary, affectedArtifacts: [...affectedArtifacts] });
-  next.activity.unshift({ version: next.version, summary, sourceChangeId: changeId, originalInstruction: proposal.text });
+  next.changes.unshift({ id: changeId, version: next.version, originalInstruction: proposal.text, summary, affectedArtifacts: [...affectedArtifacts], timestamp });
+  next.activity.unshift({ version: next.version, summary, sourceChangeId: changeId, originalInstruction: proposal.text, timestamp });
 
   return validateProject(next);
 }

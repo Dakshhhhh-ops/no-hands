@@ -89,6 +89,7 @@ export const ActivityRecordSchema = z.object({
   summary: z.string(),
   sourceChangeId: z.string(),
   originalInstruction: z.string(),
+  timestamp: z.number().int().nonnegative().optional(),
 });
 export type ActivityRecord = z.infer<typeof ActivityRecordSchema>;
 
