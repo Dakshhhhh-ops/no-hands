@@ -8,9 +8,11 @@ export type JsonPatchOp = 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test
 export interface JsonPatchOperation {
   op: JsonPatchOp;
   path: string; // RFC 6901 JSON Pointer, e.g. "/components/2/sub"
-  value?: any;
+  value?: JsonValue;
   from?: string;
 }
+
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 /**
  * Escapes characters for JSON Pointer (RFC 6901)
@@ -39,16 +41,16 @@ function parsePointer(path: string): string[] {
 /**
  * Traverses a document following a JSON Pointer path
  */
-function getValueAtPath(doc: any, path: string): any {
+function getValueAtPath(doc: JsonValue, path: string): JsonValue {
   const tokens = parsePointer(path);
-  let curr = doc;
+  let curr: JsonValue = doc;
   for (const token of tokens) {
     if (curr === null || curr === undefined) return undefined;
     if (Array.isArray(curr)) {
       const idx = Number(token);
       curr = curr[idx];
     } else {
-      curr = curr[token];
+      curr = (curr as Record<string, JsonValue>)[token];
     }
   }
   return curr;
@@ -57,7 +59,7 @@ function getValueAtPath(doc: any, path: string): any {
 /**
  * Generates an RFC 6902 JSON Patch by comparing two JavaScript objects/documents.
  */
-export function generateJsonPatch(beforeObj: any, afterObj: any, prefix = ''): JsonPatchOperation[] {
+export function generateJsonPatch(beforeObj: JsonValue, afterObj: JsonValue, prefix = ''): JsonPatchOperation[] {
   const patches: JsonPatchOperation[] = [];
 
   if (beforeObj === afterObj) return patches;
@@ -81,7 +83,6 @@ export function generateJsonPatch(beforeObj: any, afterObj: any, prefix = ''): J
 
   // Handle Arrays
   if (Array.isArray(beforeObj) && Array.isArray(afterObj)) {
-    // If arrays have completely different structure or IDs, optimize with item-level diff
     const maxLength = Math.max(beforeObj.length, afterObj.length);
     for (let i = 0; i < maxLength; i++) {
       const currentPath = `${prefix}/${i}`;
@@ -122,10 +123,14 @@ export function generateJsonPatch(beforeObj: any, afterObj: any, prefix = ''): J
       patches.push({
         op: 'add',
         path: currentPath,
-        value: structuredClone(afterObj[key]),
+        value: structuredClone((afterObj as Record<string, JsonValue>)[key]),
       });
     } else {
-      patches.push(...generateJsonPatch(beforeObj[key], afterObj[key], currentPath));
+      patches.push(...generateJsonPatch(
+        (beforeObj as Record<string, JsonValue>)[key],
+        (afterObj as Record<string, JsonValue>)[key],
+        currentPath
+      ));
     }
   }
 
@@ -136,7 +141,7 @@ export function generateJsonPatch(beforeObj: any, afterObj: any, prefix = ''): J
  * Applies an RFC 6902 JSON Patch onto a base document (pure/immutable, returns cloned result)
  * and generates the exact inverse rollback patch.
  */
-export function applyJsonPatch<T = any>(
+export function applyJsonPatch<T extends JsonValue>(
   baseDoc: T,
   patches: JsonPatchOperation[]
 ): { result: T; inversePatch: JsonPatchOperation[] } {
@@ -144,16 +149,16 @@ export function applyJsonPatch<T = any>(
   const inversePatch: JsonPatchOperation[] = [];
 
   // Helper to resolve parent and property/index
-  function getParentAndKey(doc: any, path: string): { parent: any; key: string | number } {
+  function getParentAndKey(doc: JsonValue, path: string): { parent: JsonValue; key: string | number } {
     const tokens = parsePointer(path);
     if (tokens.length === 0) throw new Error('Cannot target root document directly for add/remove');
-    let parent = doc;
+    let parent: JsonValue = doc;
     for (let i = 0; i < tokens.length - 1; i++) {
       const t = tokens[i];
       if (Array.isArray(parent)) {
         parent = parent[Number(t)];
       } else {
-        parent = parent[t];
+        parent = (parent as Record<string, JsonValue>)[t];
       }
       if (parent === undefined || parent === null) {
         throw new Error(`Invalid patch path token: "${t}" in path: "${path}"`);
@@ -175,7 +180,7 @@ export function applyJsonPatch<T = any>(
           path: patch.path,
           value: structuredClone(cloned),
         });
-        return { result: structuredClone(patch.value), inversePatch };
+        return { result: structuredClone(patch.value as T), inversePatch };
       }
       throw new Error(`Unsupported root operation: ${patch.op}`);
     }
@@ -196,7 +201,7 @@ export function applyJsonPatch<T = any>(
           });
         } else {
           const existed = Object.prototype.hasOwnProperty.call(parent, key);
-          parent[key] = structuredClone(patch.value);
+          (parent as Record<string, JsonValue>)[key as string] = structuredClone(patch.value);
           if (existed) {
             inversePatch.unshift({
               op: 'replace',
@@ -216,7 +221,7 @@ export function applyJsonPatch<T = any>(
         if (Array.isArray(parent)) {
           parent.splice(key as number, 1);
         } else {
-          delete parent[key];
+          delete (parent as Record<string, JsonValue>)[key as string];
         }
         inversePatch.unshift({
           op: 'add',
@@ -226,7 +231,7 @@ export function applyJsonPatch<T = any>(
         break;
       }
       case 'replace': {
-        parent[key] = structuredClone(patch.value);
+        (parent as Record<string, JsonValue>)[key as string] = structuredClone(patch.value);
         inversePatch.unshift({
           op: 'replace',
           path: patch.path,
@@ -242,10 +247,9 @@ export function applyJsonPatch<T = any>(
         break;
       }
       default:
-        throw new Error(`Unsupported JSON Patch operation: ${(patch as any).op}`);
+        throw new Error(`Unsupported JSON Patch operation: ${(patch as JsonPatchOperation).op}`);
     }
   }
 
   return { result: cloned, inversePatch };
 }
-

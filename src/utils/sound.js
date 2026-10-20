@@ -78,7 +78,9 @@ class SoundFX {
         osc.start(now + i * 0.04);
         osc.stop(now + i * 0.04 + 0.12);
       });
-    } catch {}
+    } catch {
+      // AudioContext unavailable or blocked
+    }
   }
 
   export() {
@@ -99,7 +101,9 @@ class SoundFX {
         osc.start(now + i * 0.05);
         osc.stop(now + i * 0.05 + 0.18);
       });
-    } catch {}
+    } catch {
+      // AudioContext unavailable or blocked
+    }
   }
 }
 

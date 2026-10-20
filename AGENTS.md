@@ -7,7 +7,7 @@ architecture workspace.
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Start Vite dev server (`vite`, opens browser) |
+| `npm run dev` | Start Vite dev server (`vite`, opens browser) |qa
 | `npm run build` | Production build (`vite build`) |
 | `npm run preview` | Preview the production build |
 | `npm run test` | Run all `tests/*.test.js` via `node --test` |

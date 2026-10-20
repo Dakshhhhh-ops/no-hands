@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { sound } from '../utils/sound.js';
 import { simulateChaosAndTelemetry } from '../data/chaosSimulator.ts';
+import { useChaosWorker } from '../hooks/useChaosWorker.ts';
 import { CollaborativeStudioRoom } from '../data/crdtStudio.ts';
 import { generateAdrFromChange, formatAdrMarkdown } from '../data/adrWorkflow.ts';
 
@@ -85,11 +86,8 @@ export default function ArchitectureDiagram({ project }) {
     [model.components, model.relationships]
   );
 
-  // Phase 5: Chaos Simulation & Telemetry Stream
-  const telemetry = useMemo(
-    () => simulateChaosAndTelemetry(model, chaosInjections, 1500),
-    [model, chaosInjections]
-  );
+  // Phase 5: Chaos Simulation & Telemetry Stream (Web Worker)
+  const telemetry = useChaosWorker(project, chaosInjections);
 
   // Phase 5: Architecture Decision Record (ADR)
   const baseAdr = useMemo(() => generateAdrFromChange(project), [project]);
@@ -131,6 +129,63 @@ export default function ArchitectureDiagram({ project }) {
     if (event.type === 'keydown') event.preventDefault();
     sound.click();
     setSelectedId((current) => (current === nodeId ? null : nodeId));
+  }
+
+  function handleNodeKeyDown(event, nodeId) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      selectNode(event, nodeId);
+      return;
+    }
+    
+    const current = activeComponents.find((c) => c.id === nodeId);
+    if (!current) return;
+    
+    let nextId = null;
+    const currentIndex = activeComponents.findIndex((c) => c.id === nodeId);
+    
+    switch (event.key) {
+      case 'ArrowRight':
+        // Navigate to downstream
+        if (neighborhood.downstreamIds.size > 0) {
+          const downstream = Array.from(neighborhood.downstreamIds);
+          nextId = downstream[0];
+        } else if (currentIndex < activeComponents.length - 1) {
+          nextId = activeComponents[currentIndex + 1].id;
+        }
+        break;
+      case 'ArrowLeft':
+        // Navigate to upstream
+        if (neighborhood.upstreamIds?.size > 0) {
+          const upstream = Array.from(neighborhood.upstreamIds);
+          nextId = upstream[0];
+        } else if (currentIndex > 0) {
+          nextId = activeComponents[currentIndex - 1].id;
+        }
+        break;
+      case 'ArrowDown':
+        // Navigate to next component in list
+        if (currentIndex < activeComponents.length - 1) {
+          nextId = activeComponents[currentIndex + 1].id;
+        }
+        break;
+      case 'ArrowUp':
+        // Navigate to previous component in list
+        if (currentIndex > 0) {
+          nextId = activeComponents[currentIndex - 1].id;
+        }
+        break;
+      case 'Escape':
+        // Clear selection
+        nextId = null;
+        break;
+      default:
+        return;
+    }
+    
+    event.preventDefault();
+    sound.click();
+    setSelectedId(nextId);
   }
 
   function handleModeChange(mode) {
@@ -606,7 +661,7 @@ export default function ArchitectureDiagram({ project }) {
                   aria-label={`${node.name}, ${node.type}. ${description}`}
                   aria-pressed={isSelected}
                   onClick={(event) => selectNode(event, node.id)}
-                  onKeyDown={(event) => selectNode(event, node.id)}
+                  onKeyDown={(event) => handleNodeKeyDown(event, node.id)}
                 >
                   <title>
                     {node.name}: {description}

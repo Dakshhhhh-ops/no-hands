@@ -19,6 +19,76 @@ export interface DriftReport {
   isFullyCompliant: boolean;
 }
 
+type OpenApiPathItem = {
+  get?: OpenApiOperation;
+  post?: OpenApiOperation;
+  put?: OpenApiOperation;
+  delete?: OpenApiOperation;
+  patch?: OpenApiOperation;
+  options?: OpenApiOperation;
+  head?: OpenApiOperation;
+  trace?: OpenApiOperation;
+};
+
+type OpenApiOperation = {
+  operationId: string;
+  tags: string[];
+  summary: string;
+  description?: string;
+  security?: Array<Record<string, string[]>>;
+  parameters?: OpenApiParameter[];
+  requestBody?: OpenApiRequestBody;
+  responses: Record<string, OpenApiResponse>;
+  [key: string]: unknown;
+};
+
+type OpenApiParameter = {
+  name: string;
+  in: 'query' | 'header' | 'path' | 'cookie';
+  required?: boolean;
+  schema: OpenApiSchema;
+};
+
+type OpenApiRequestBody = {
+  required: boolean;
+  content: Record<string, { schema: OpenApiSchema }>;
+};
+
+type OpenApiResponse = {
+  description: string;
+  content?: Record<string, { schema: OpenApiSchema }>;
+  headers?: Record<string, OpenApiHeader>;
+};
+
+type OpenApiHeader = {
+  schema: OpenApiSchema;
+  description?: string;
+};
+
+type OpenApiSchema = {
+  type?: string;
+  format?: string;
+  enum?: string[];
+  minimum?: number;
+  default?: string | number;
+  required?: string[];
+  properties?: Record<string, OpenApiSchema>;
+  items?: OpenApiSchema;
+  $ref?: string;
+  additionalProperties?: boolean;
+};
+
+type OpenApiComponents = {
+  schemas: Record<string, OpenApiSchema>;
+  securitySchemes?: Record<string, OpenApiSecurityScheme>;
+};
+
+type OpenApiSecurityScheme = {
+  type: string;
+  scheme?: string;
+  bearerFormat?: string;
+};
+
 /**
  * Generates rich, production-grade OpenAPI 3.1.0 specifications across all
  * microservices in the architecture graph (Auth, Catalog, Orders, Payment, etc.).
@@ -26,11 +96,11 @@ export interface DriftReport {
 export function generateMultiServiceOpenApi(project: Project) {
   if (project.name !== 'Commerce Platform') {
     const rateLimitReq = project.requirements.find((r) => /rate.?limit/i.test(r.text));
-    const paths: Record<string, any> = {};
+    const paths: Record<string, OpenApiPathItem> = {};
     for (const operation of project.apiOperations) {
       const component = project.components.find((item) => item.id === operation.componentId);
       if (!component) continue;
-      const responses: Record<string, any> = {
+      const responses: Record<string, OpenApiResponse> = {
         '200': { description: `Successful response from ${component.name}. Payload fields remain unspecified unless modeled.` },
         '500': { description: 'Unexpected service error.' },
       };
@@ -77,10 +147,10 @@ export function generateMultiServiceOpenApi(project: Project) {
   const redisFallbackReq = project.requirements.find((r) => /redis/i.test(r.text) && /(fallback|unavailable|resilien)/i.test(r.text));
   const postgresOwnerReq = project.requirements.find((r) => /postgres/i.test(r.text) && /source of truth/i.test(r.text));
 
-  const paths: Record<string, any> = {};
+  const paths: Record<string, OpenApiPathItem> = {};
 
   // Standard Error Components
-  const components = {
+  const components: OpenApiComponents = {
     schemas: {
       ErrorResponse: {
         type: 'object',
@@ -160,7 +230,7 @@ export function generateMultiServiceOpenApi(project: Project) {
   };
 
   // 1. Auth Service Routes
-  const rateLimitHeaders: Record<string, any> = rateLimitReq
+  const rateLimitHeaders: Record<string, OpenApiHeader> = rateLimitReq
     ? {
         'X-RateLimit-Limit': {
           schema: { type: 'integer' },
@@ -207,8 +277,8 @@ export function generateMultiServiceOpenApi(project: Project) {
           content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
         },
       },
-    ...(rateLimitReq?.resolution ? { 'x-voicearchitect-rate-limit-choice': rateLimitReq.resolution } : {}),
-    ...(redisFallbackReq?.resolution ? { 'x-voicearchitect-redis-outage-choice': redisFallbackReq.resolution } : {}),
+      ...(rateLimitReq?.resolution ? { 'x-voicearchitect-rate-limit-choice': rateLimitReq.resolution } : {}),
+      ...(redisFallbackReq?.resolution ? { 'x-voicearchitect-redis-outage-choice': redisFallbackReq.resolution } : {}),
     },
   };
 
@@ -379,4 +449,3 @@ export function detectContractDrift(project: Project): DriftReport {
     isFullyCompliant: criticalCount === 0 && warningCount === 0,
   };
 }
-

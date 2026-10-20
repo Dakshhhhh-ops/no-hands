@@ -1,30 +1,37 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import {
   Activity, ArrowRight, AudioLines, Check, ChevronDown, CircleHelp, ClipboardCheck, ClipboardList,
   FileArchive, FileCode2, GitBranch, Layers, Mic, Network, Play, Redo2, RotateCcw, Server, ShieldAlert, Undo2, X,
+  Sun, Moon, Keyboard,
 } from 'lucide-react';
-import ArchitectureDiagram from './components/ArchitectureDiagram.jsx';
-import OpenApiPanel from './components/OpenApiPanel.jsx';
-import RiskPanel from './components/RiskPanel.jsx';
-import TaskPanel from './components/TaskPanel.jsx';
-import ChangeImpactPanel from './components/ChangeImpactPanel.jsx';
 import WisprFlowModal from './components/WisprFlowModal.jsx';
 import CommandPresets from './components/CommandPresets.jsx';
-import SystemTelemetryPanel from './components/SystemTelemetryPanel.jsx';
 import ScenarioBranchingBar from './components/ScenarioBranchingBar.jsx';
 import ScenarioComparisonModal from './components/ScenarioComparisonModal.jsx';
 import MergeConflictModal from './components/MergeConflictModal.jsx';
-import { applyChange, DEMO_COMMAND, makeCommerceProject, proposeChange } from './data/commerce.js';
-import { FOOD_DELIVERY_DEMO_COMMAND, makeFoodDeliveryProject } from './data/foodDelivery.js';
-import { deriveChangeDiff } from './data/changeDiff.js';
-import { createVerifiedExportZip, createVerifiedDevOpsZip } from './data/export.js';
-import { makeArchitectureMermaid, makeArchitectureSvg, renderArchitecturePng } from './data/diagramExport.js';
+import ErrorBoundary from './components/ErrorBoundary.tsx';
+import ShortcutsModal from './components/ShortcutsModal.jsx';
+import CommandPalette from './components/CommandPalette.jsx';
+import ConnectionStatus from './components/ConnectionStatus.jsx';
+import { DiagramSkeleton, TableSkeleton, ListSkeleton } from './components/Skeleton.jsx';
 import { getProjectSyncStatus } from './data/analysis.js';
 import { sound } from './utils/sound.js';
-import { HistoryTimeline } from './data/historyManager.ts';
-import { createServerlessBranch, createKubernetesBranch, compareBranches } from './data/branching.ts';
-import { detectMergeConflicts, executeMerge } from './data/semanticMerge.ts';
+import { useProjectState } from './hooks/useProjectState.ts';
+import { useDictation } from './hooks/useDictation.ts';
+import { useJourney } from './hooks/useJourney.ts';
+import { useExport } from './hooks/useExport.ts';
+import { useProposalReview } from './hooks/useProposalReview.ts';
+import { useToast } from './hooks/useToast.ts';
+import useLocalStorage from './hooks/useLocalStorage.ts';
+import { useTheme } from './hooks/useTheme.ts';
 import './app-shell.css';
+
+const ArchitectureDiagram = lazy(() => import('./components/ArchitectureDiagram.jsx'));
+const OpenApiPanel = lazy(() => import('./components/OpenApiPanel.jsx'));
+const RiskPanel = lazy(() => import('./components/RiskPanel.jsx'));
+const TaskPanel = lazy(() => import('./components/TaskPanel.jsx'));
+const ChangeImpactPanel = lazy(() => import('./components/ChangeImpactPanel.jsx'));
+const SystemTelemetryPanel = lazy(() => import('./components/SystemTelemetryPanel.jsx'));
 
 const tabs = [
   { id: 'diagram', label: 'Diagram', icon: Network },
@@ -46,192 +53,141 @@ function describeProposalValue(value) {
   return value.title || JSON.stringify(value);
 }
 
-function makeMainBranch(project) {
-  return {
-    id: 'main',
-    name: 'Main Branch',
-    description: `${project.name} primary architecture`,
-    project,
-    history: new HistoryTimeline(project),
-  };
-}
-
 function isTypingTarget(target) {
   return target instanceof HTMLElement
     && (target.isContentEditable || ['TEXTAREA', 'INPUT', 'SELECT'].includes(target.tagName));
 }
 
+function PanelWrapper({ children, fallback }) {
+  return (
+    <ErrorBoundary fallback={fallback}>
+      {children}
+    </ErrorBoundary>
+  );
+}
+
 export default function App() {
-  const [project, setProject] = useState(makeCommerceProject);
-  const [sampleChoice, setSampleChoice] = useState('commerce');
-  const [command, setCommand] = useState('');
-  const [decisionDraft, setDecisionDraft] = useState({ rateLimitThreshold: '', redisFallback: '' });
   const [tab, setTab] = useState('diagram');
-  const [proposal, setProposal] = useState(null);
-  const [toast, setToast] = useState('');
-  const [toastKey, setToastKey] = useState(0);
-  const [isWisprGuideOpen, setIsWisprGuideOpen] = useState(false);
-  const [isDictatingSim, setIsDictatingSim] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [inspectedArtifacts, setInspectedArtifacts] = useState(() => new Set());
-  const modalRef = useRef(null);
-  const recognitionRef = useRef(null);
+  const [isWisprGuideOpen, setIsWisprGuideOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const exportMenuRef = useRef(null);
 
-  // Scenario branching and time travel
-  const [historyTimeline] = useState(() => new HistoryTimeline(makeCommerceProject()));
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
-  const [currentBranchId, setCurrentBranchId] = useState('main');
-  const [branches, setBranches] = useState(() => ({ main: makeMainBranch(makeCommerceProject()) }));
-  const [showComparisonModal, setShowComparisonModal] = useState(false);
-  const [showMergeModal, setShowMergeModal] = useState(false);
-  const [mergeConflicts, setMergeConflicts] = useState([]);
-  const [mergingBranchId, setMergingBranchId] = useState(null);
+  const { toast, notify } = useToast();
 
-  const currentBranch = branches[currentBranchId];
+  const projectState = useProjectState();
+  const {
+    project,
+    sampleChoice,
+    setSampleChoice,
+    branches,
+    currentBranchId,
+    setCurrentBranchId,
+    currentBranch,
+    branchList,
+    canUndo,
+    canRedo,
+    timelineEntries,
+    scenarioComparison,
+    loadSample: projectLoadSample,
+    reset: projectReset,
+    setBranchProject,
+    syncHistory,
+    _syncHistory: _unusedSyncHistory,
+    handleUndo,
+    handleRedo,
+    handleJumpToVersion,
+    handleSwitchBranch,
+    _createScenarioBranches,
+    handleOpenComparison,
+    handleInitiateMerge,
+    handleConfirmMerge,
+    showComparisonModal,
+    setShowComparisonModal,
+    showMergeModal,
+    setShowMergeModal,
+    mergeConflicts,
+    _setMergeConflicts,
+    mergingBranchId,
+    _setMergingBranchId,
+  } = projectState;
 
-  const branchList = useMemo(() => Object.values(branches).map((b) => ({
-    id: b.id,
-    name: b.name,
-    description: b.description,
-    version: b.project.version,
-  })), [branches]);
+  const [command, setCommand] = useLocalStorage('va-command', '');
+  const [decisionDraft, setDecisionDraft] = useLocalStorage('va-decisions', { rateLimitThreshold: '', redisFallback: '' });
 
-  const scenarioComparison = useMemo(() => {
-    if (branches['branch-serverless'] && branches['branch-k8s-postgres']) {
-      return compareBranches(branches['branch-serverless'], branches['branch-k8s-postgres']);
-    }
-    return null;
-  }, [branches]);
+  const dictation = useDictation({
+    onResult: (transcript) => setCommand(transcript),
+    onError: notify,
+  });
 
-  const timelineEntries = useMemo(() => {
-    const history = branches[currentBranchId]?.history || historyTimeline;
-    return history.getFullTimeline().map((e) => ({ version: e.version, label: e.label, patchCount: e.patchCount, timestamp: e.timestamp, changeId: e.changeId }));
-  }, [branches, currentBranchId, historyTimeline, canUndo, canRedo]);
+  const { isListening, _isSupported, _start: _startDictation, _stop: _stopDictation, toggle: toggleDictation } = dictation;
 
-  function getHistory(branchId = currentBranchId) {
-    return branches[branchId]?.history || historyTimeline;
-  }
+  const journey = useJourney(project, command, null, tab, false, isListening);
+  const {
+    journeySteps,
+    currentJourneyStep,
+    journeyGuidance,
+    journeyOutputs,
+    inspectedArtifacts,
+    setInspectedArtifacts,
+    handleTabChange: journeyHandleTabChange,
+  } = journey;
 
-  // Takes the history explicitly so it never reads a stale branch.
-  function syncHistory(history) {
-    setCanUndo(history.canUndo);
-    setCanRedo(history.canRedo);
-  }
+  const exportHooks = useExport(project);
+  const {
+    exportOpen,
+    setExportOpen,
+    exportAll,
+    exportDevOps,
+    exportDiagram,
+  } = exportHooks;
 
-  function setBranchProject(branchId, next) {
-    setProject(next);
-    setBranches((b) => ({ ...b, [branchId]: { ...b[branchId], project: next } }));
-  }
+  const { theme, toggleTheme } = useTheme();
 
-  function notify(message) {
-    setToast(message);
-    setToastKey((current) => current + 1);
-  }
+  const proposalHooks = useProposalReview(project, sampleChoice, notify);
+  const {
+    proposal,
+    setProposal,
+    preview,
+    _proposedProject,
+    _proposedDiff,
+    proposedDiffGroups,
+    modalRef,
+    showProposal,
+    _confirmChange: _proposalConfirmChange,
+    playDemoDictation,
+    activeDemoCommand,
+    proposalHasRateLimit,
+    proposalHasRedisFallback,
+    proposalCaveats,
+    unresolvedProposalAssumptions,
+    isDictatingSim,
+    setIsDictatingSim,
+  } = proposalHooks;
 
-  // Toasts dismiss themselves.
-  useEffect(() => {
-    if (!toast) return undefined;
-    const timer = setTimeout(() => setToast(''), 4500);
-    return () => clearTimeout(timer);
-  }, [toast, toastKey]);
+  const handleTabChange = (id) => {
+    sound.tab();
+    setTab(id);
+    journeyHandleTabChange(id);
+  };
 
-  function handleUndo() {
-    const history = getHistory();
-    const prev = history.undo();
-    if (!prev) return;
-    setBranchProject(currentBranchId, prev);
-    syncHistory(history);
-    notify('Undone. The model is back at the previous version.');
-  }
+  const activeTab = tabs.find((item) => item.id === tab) || tabs[0];
 
-  function handleRedo() {
-    const history = getHistory();
-    const next = history.redo();
-    if (!next) return;
-    setBranchProject(currentBranchId, next);
-    syncHistory(history);
-    notify('Redone.');
-  }
+  const rateLimitRequirement = project?.requirements.find((item) => /rate.?limit/i.test(item.text));
+  const redisResilienceRequirement = project?.requirements.find((item) => /redis/i.test(item.text) && /(unavailable|resilien|fallback)/i.test(item.text));
+  const openDecisionCount = project
+    ? Number(!rateLimitRequirement || /threshold unresolved/i.test(rateLimitRequirement.text))
+      + Number(!redisResilienceRequirement || /fallback unresolved/i.test(redisResilienceRequirement.text))
+    : 0;
 
-  function handleJumpToVersion(index) {
-    const history = getHistory();
-    const target = history.jumpTo(index);
-    setBranchProject(currentBranchId, target);
-    syncHistory(history);
-    notify(`Jumped to v${target.version}.`);
-  }
+  const syncStatus = getProjectSyncStatus(project);
+  const isLive = isListening || isDictatingSim;
+  const _instructionReady = Boolean(command.trim()) && !isDictatingSim && !isListening;
 
-  function handleSwitchBranch(branchId) {
-    if (!branches[branchId]) return;
-    setCurrentBranchId(branchId);
-    setProject(branches[branchId].project);
-    syncHistory(branches[branchId].history);
-    notify(`Switched to ${branches[branchId].name}.`);
-  }
+  const _inspectedCount = journeyOutputs.filter((item) => inspectedArtifacts.has(item.id)).length;
 
-  function createScenarioBranches() {
-    const base = branches.main.project;
-    const serverless = createServerlessBranch(base);
-    const k8s = createKubernetesBranch(base);
-    setBranches((b) => ({ ...b, [serverless.id]: serverless, [k8s.id]: k8s }));
-    notify('Created two alternatives: Serverless and Kubernetes.');
-  }
-
-  function handleOpenComparison() {
-    if (!branches['branch-serverless'] || !branches['branch-k8s-postgres']) createScenarioBranches();
-    setShowComparisonModal(true);
-  }
-
-  function handleInitiateMerge() {
-    if (currentBranchId === 'main') return;
-    const source = branches[currentBranchId];
-    const target = branches.main;
-    const base = branches.main;
-    const analysis = detectMergeConflicts(base.project, target.project, source.project);
-    if (analysis.canAutoMerge) {
-      const result = executeMerge(base.project, target.project, source.project, {});
-      if (result.success && result.mergedProject) {
-        const history = branches.main.history;
-        history.push(result.mergedProject, `Merged ${source.name}`, result.mergedProject.changes[0]?.id);
-        setBranches((b) => ({ ...b, main: { ...b.main, project: result.mergedProject, history } }));
-        setCurrentBranchId('main');
-        setProject(result.mergedProject);
-        syncHistory(history);
-        notify(`Merged "${source.name}" into Main with no conflicts.`);
-      }
-    } else {
-      setMergeConflicts(analysis.conflicts);
-      setMergingBranchId(currentBranchId);
-      setShowMergeModal(true);
-    }
-  }
-
-  function handleConfirmMerge(resolutions) {
-    const source = branches[mergingBranchId];
-    const target = branches.main;
-    const result = executeMerge(target.project, target.project, source.project, resolutions);
-    if (result.success && result.mergedProject) {
-      const history = branches.main.history;
-      history.push(result.mergedProject, `Merged ${source.name} (resolved conflicts)`, result.mergedProject.changes[0]?.id);
-      setBranches((b) => ({ ...b, main: { ...b.main, project: result.mergedProject, history } }));
-      setCurrentBranchId('main');
-      setProject(result.mergedProject);
-      setShowMergeModal(false);
-      setMergeConflicts([]);
-      setMergingBranchId(null);
-      syncHistory(history);
-      notify('Merged with your conflict choices applied.');
-    } else {
-      notify(`Merge failed: ${result.error || 'unknown error'}.`);
-    }
-  }
-
-  // Ctrl/Cmd+Z and Ctrl/Cmd+Y undo the model, but never while typing,
-  // so the textarea keeps its own text undo.
+  // Ctrl/Cmd+Z and Ctrl/Cmd+Y undo the model, but never while typing
   useEffect(() => {
     function onKeyDown(e) {
       if (proposal || isTypingTarget(e.target)) return;
@@ -242,11 +198,19 @@ export default function App() {
       } else if (mod && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault();
         handleRedo();
+      } else if (mod && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(true);
+        sound.click();
+      } else if (e.key === '?') {
+        e.preventDefault();
+        setIsShortcutsOpen(true);
+        sound.click();
       }
     }
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  });
+  }, [proposal, handleUndo, handleRedo]);
 
   // Close the export menu on outside click or Escape
   useEffect(() => {
@@ -263,100 +227,26 @@ export default function App() {
       document.removeEventListener('mousedown', onPointer);
       document.removeEventListener('keydown', onKey);
     };
-  }, [exportOpen]);
+  }, [exportOpen, setExportOpen]);
 
-  const preview = useMemo(() => (command.trim() ? proposeChange(command.trim()) : null), [command]);
-  const proposedProject = useMemo(
-    () => (project && proposal ? applyChange(project, proposal, decisionDraft) : null),
-    [project, proposal, decisionDraft],
-  );
-  const proposedDiff = useMemo(
-    () => (project && proposedProject ? deriveChangeDiff(proposedProject, project) : []),
-    [project, proposedProject],
-  );
-  const proposedDiffGroups = proposedDiff.filter((group) => group.entries.length > 0);
-  const activeTab = tabs.find((item) => item.id === tab) || tabs[0];
-
-  // Focus trap and Escape for the review dialog
+  // Sync dictation state with proposal hook
   useEffect(() => {
-    if (!proposal) return undefined;
-    const previousFocus = document.activeElement;
-    modalRef.current?.querySelector('button')?.focus();
-    function onKeyDown(event) {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setProposal(null);
-        return;
-      }
-      if (event.key !== 'Tab') return;
-      const focusable = [...(modalRef.current?.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [href], [tabindex]:not([tabindex="-1"])') || [])];
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      previousFocus?.focus?.();
-    };
-  }, [proposal]);
+    setIsDictatingSim(isDictatingSim);
+  }, [isDictatingSim, setIsDictatingSim]);
 
-  // Browser speech recognition (optional extra; Wispr Flow works in the textarea regardless)
-  useEffect(() => {
-    const SpeechRec = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
-    if (!SpeechRec) return;
-    try {
-      const recog = new SpeechRec();
-      recog.continuous = true;
-      recog.interimResults = true;
-      recog.lang = 'en-US';
-      recog.onresult = (event) => {
-        let transcript = '';
-        for (let i = 0; i < event.results.length; i += 1) transcript += event.results[i][0].transcript;
-        if (transcript.trim()) setCommand(transcript);
-      };
-      recog.onerror = (event) => {
-        setIsListening(false);
-        if (event?.error === 'not-allowed') notify('Microphone access is blocked. Allow it in your browser, or dictate with Wispr Flow.');
-      };
-      recog.onend = () => setIsListening(false);
-      recognitionRef.current = recog;
-    } catch {
-      recognitionRef.current = null;
-    }
-  }, []);
-
-  function handleTabChange(id) {
-    sound.tab();
-    setTab(id);
-    if (project?.changed && ['diagram', 'openapi', 'risk', 'tasks'].includes(id)) {
-      setInspectedArtifacts((current) => new Set(current).add(id));
-    }
-  }
-
-  function resetWorkspace(message, kind = sampleChoice) {
+  const resetWorkspace = (message, kind = sampleChoice) => {
     sound.click();
-    const fresh = kind === 'food' ? makeFoodDeliveryProject() : makeCommerceProject();
-    setSampleChoice(kind);
-    setProject(fresh);
+    projectLoadSample();
+    projectReset(message, kind);
     setCommand('');
     setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
     setProposal(null);
     setTab('diagram');
     setCurrentBranchId('main');
-    setBranches({ main: makeMainBranch(fresh) });
-    setCanUndo(false);
-    setCanRedo(false);
     setInspectedArtifacts(new Set());
+    setShowHistory(false);
     notify(message);
-  }
+  };
 
   const loadSample = () => resetWorkspace(`${sampleChoice === 'food' ? 'Food Delivery' : 'Commerce Platform'} sample loaded.`, sampleChoice);
   const reset = () => {
@@ -364,143 +254,31 @@ export default function App() {
     resetWorkspace(`Workspace reset to the ${kind === 'food' ? 'Food Delivery' : 'Commerce Platform'} baseline.`, kind);
   };
 
-  function showProposal() {
-    sound.click();
-    if (!project) {
-      notify('Load the Commerce Platform sample first.');
-      return;
-    }
-    if (!command.trim()) {
-      notify('Describe or dictate a change first.');
-      return;
-    }
-    setDecisionDraft((current) => ({
-      rateLimitThreshold: current.rateLimitThreshold || project.requirements.find((item) => item.id === 'REQ-AUTH-RATE')?.resolution || '',
-      redisFallback: current.redisFallback || project.requirements.find((item) => item.id === 'REQ-REDIS-FAIL')?.resolution || '',
-    }));
-    setProposal(proposeChange(command.trim()));
-  }
+  const startDemo = () => {
+    resetWorkspace(`${sampleChoice === 'food' ? 'Food Delivery' : 'Commerce Platform'} demo is ready.`, sampleChoice);
+    document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(playDemoDictation, 450);
+  };
 
   function confirmChange() {
     if (!project || !proposal) return;
     sound.apply();
-    const nextProject = applyChange(project, proposal, decisionDraft);
-    const history = getHistory();
-    history.push(nextProject, proposal.text, nextProject.changes[0]?.id);
-    setBranchProject(currentBranchId, nextProject);
+    const appliedProject = _proposedProject;
+    if (!appliedProject) return;
+    const history = branches[currentBranchId]?.history;
+    if (history) {
+      history.push(appliedProject, proposal.text, appliedProject.changes[0]?.id);
+      setBranchProject(currentBranchId, appliedProject);
+      syncHistory(history);
+    }
     setProposal(null);
     setTab('impact');
     setInspectedArtifacts(new Set());
-    syncHistory(history);
     const recordedDecisionCount = Number(Boolean(decisionDraft.rateLimitThreshold.trim()))
       + Number(Boolean(decisionDraft.redisFallback.trim()));
     notify(recordedDecisionCount
       ? `Change applied with ${recordedDecisionCount} recorded decision${recordedDecisionCount === 1 ? '' : 's'}. Implementation is still proposed.`
       : 'Change applied. Any unanswered decisions remain open in every view.');
-  }
-
-  async function downloadBundle(factory, suffix, label) {
-    if (!project) {
-      notify('Load a project before exporting.');
-      return;
-    }
-    sound.export();
-    setExportOpen(false);
-    try {
-      const { data, files } = await factory(project);
-      const url = URL.createObjectURL(new Blob([data], { type: 'application/zip' }));
-      const anchor = document.createElement('a');
-      const slug = project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      anchor.href = url;
-      anchor.download = `${slug}${suffix}-v${project.version}.zip`;
-      document.body.append(anchor);
-      anchor.click();
-      anchor.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
-      notify(`${label} downloaded (${files.length} files).`);
-    } catch (error) {
-      notify(`Export failed: ${error instanceof Error ? error.message : 'could not create the ZIP.'}`);
-    }
-  }
-
-  const exportAll = () => downloadBundle(async (model) => {
-    const png = await renderArchitecturePng(model);
-    return createVerifiedExportZip(model, undefined, png);
-  }, '', 'Engineering artifacts');
-  const exportDevOps = () => downloadBundle(createVerifiedDevOpsZip, '-devops', 'DevOps bundle');
-
-  async function exportDiagram(format) {
-    if (!project) return notify('Load a project before exporting its diagram.');
-    try {
-      sound.export();
-      setExportOpen(false);
-      const slug = project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const extension = format === 'mermaid' ? 'mmd' : format;
-      const content = format === 'svg' ? makeArchitectureSvg(project)
-        : format === 'mermaid' ? makeArchitectureMermaid(project)
-          : await renderArchitecturePng(project);
-      const blob = new Blob([content], { type: format === 'svg' ? 'image/svg+xml' : format === 'png' ? 'image/png' : 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `${slug}-architecture-v${project.version}.${extension}`;
-      document.body.append(anchor);
-      anchor.click();
-      anchor.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
-      notify(`${format === 'mermaid' ? 'Mermaid' : format.toUpperCase()} diagram downloaded.`);
-    } catch (error) {
-      notify(`Diagram export failed: ${error instanceof Error ? error.message : 'could not render the diagram.'}`);
-    }
-  }
-
-  function toggleLiveVoice() {
-    const recog = recognitionRef.current;
-    if (!recog) {
-      notify('This browser has no built-in dictation. Click the text box and use your Wispr Flow shortcut, or play the demo.');
-      return;
-    }
-    if (isListening) {
-      recog.stop();
-      setIsListening(false);
-      sound.click();
-      return;
-    }
-    try {
-      recog.start();
-      setIsListening(true);
-      sound.apply();
-    } catch {
-      setIsListening(false);
-      notify('Could not start the microphone. Try again, or dictate with Wispr Flow.');
-    }
-  }
-
-  function playDemoDictation() {
-    const demoCommand = project?.name === 'Food Delivery Platform' ? FOOD_DELIVERY_DEMO_COMMAND : DEMO_COMMAND;
-    if (isDictatingSim) return;
-    setIsDictatingSim(true);
-    sound.apply();
-    setCommand('');
-    setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
-    let i = 0;
-    const timer = setInterval(() => {
-      i += 3;
-      if (i >= demoCommand.length) {
-        setCommand(demoCommand);
-        clearInterval(timer);
-        setIsDictatingSim(false);
-        notify('Demo dictation finished. Review it, then preview the change.');
-      } else {
-        setCommand(demoCommand.slice(0, i));
-      }
-    }, 18);
-  }
-
-  function startDemo() {
-    resetWorkspace(`${sampleChoice === 'food' ? 'Food Delivery' : 'Commerce Platform'} demo is ready.`, sampleChoice);
-    document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' });
-    setTimeout(playDemoDictation, 450);
   }
 
   function content() {
@@ -516,75 +294,36 @@ export default function App() {
         </div>
       );
     }
-    if (tab === 'diagram') return <ArchitectureDiagram project={project} />;
-    if (tab === 'openapi') return <OpenApiPanel project={project} onNotify={notify} />;
-    if (tab === 'risk') return <RiskPanel project={project} />;
-    if (tab === 'tasks') return <TaskPanel project={project} />;
-    if (tab === 'impact') return <ChangeImpactPanel project={project} />;
-    return <SystemTelemetryPanel project={project} />;
+    if (tab === 'diagram') return <Suspense fallback={<DiagramSkeleton />}><PanelWrapper fallback={<div>Diagram unavailable</div>}><ArchitectureDiagram project={project} /></PanelWrapper></Suspense>;
+    if (tab === 'openapi') return <Suspense fallback={<TableSkeleton rows={6} columns={4} />}><PanelWrapper fallback={<div>API contract unavailable</div>}><OpenApiPanel project={project} onNotify={notify} /></PanelWrapper></Suspense>;
+    if (tab === 'risk') return <Suspense fallback={<TableSkeleton rows={5} columns={5} />}><PanelWrapper fallback={<div>Risks unavailable</div>}><RiskPanel project={project} /></PanelWrapper></Suspense>;
+    if (tab === 'tasks') return <Suspense fallback={<TableSkeleton rows={5} columns={6} />}><PanelWrapper fallback={<div>Tasks unavailable</div>}><TaskPanel project={project} /></PanelWrapper></Suspense>;
+    if (tab === 'impact') return <Suspense fallback={<ListSkeleton items={4} />}><PanelWrapper fallback={<div>Change impact unavailable</div>}><ChangeImpactPanel project={project} /></PanelWrapper></Suspense>;
+    return <Suspense fallback={<DiagramSkeleton />}><PanelWrapper fallback={<div>Telemetry unavailable</div>}><SystemTelemetryPanel project={project} /></PanelWrapper></Suspense>;
   }
 
-  const rateLimitRequirement = project?.requirements.find((item) => /rate.?limit/i.test(item.text));
-  const redisResilienceRequirement = project?.requirements.find((item) => /redis/i.test(item.text) && /(unavailable|resilien|fallback)/i.test(item.text));
-  const openDecisionCount = project
-    ? Number(!rateLimitRequirement || /threshold unresolved/i.test(rateLimitRequirement.text))
-      + Number(!redisResilienceRequirement || /fallback unresolved/i.test(redisResilienceRequirement.text))
-    : 0;
-
-  const syncStatus = getProjectSyncStatus(project);
-  const isLive = isListening || isDictatingSim;
-  const instructionReady = Boolean(command.trim()) && !isDictatingSim && !isListening;
-  const journeyOutputs = [
-    { id: 'diagram', label: 'Diagram' },
-    { id: 'openapi', label: 'API contract' },
-    { id: 'risk', label: 'Risks' },
-    { id: 'tasks', label: 'Tasks' },
+  const paletteCommands = [
+    { id: 'load-sample', label: 'Load Sample', description: 'Load Commerce Platform or Food Delivery sample', keys: [], icon: <RotateCcw size={14} />, category: 'actions', action: loadSample },
+    { id: 'reset', label: 'Reset Workspace', description: 'Reset to baseline sample', keys: [], icon: <RotateCcw size={14} />, category: 'actions', action: reset },
+    { id: 'start-demo', label: 'Start Guided Demo', description: 'Run the full demo flow', keys: [], icon: <Play size={14} />, category: 'actions', action: startDemo },
+    { id: 'preview', label: 'Preview Change', description: 'Preview the current instruction', keys: ['Ctrl', 'Enter'], icon: <ClipboardCheck size={14} />, category: 'actions', action: () => { if (project && command.trim()) showProposal(); } },
+    { id: 'apply', label: 'Apply Change', description: 'Apply the previewed change', keys: [], icon: <ArrowRight size={14} />, category: 'actions', action: () => { if (proposal) confirmChange(); } },
+    { id: 'export-all', label: 'Export All (ZIP)', description: 'Download engineering artifacts ZIP', keys: [], icon: <FileArchive size={14} />, category: 'export', action: exportAll },
+    { id: 'export-devops', label: 'Export DevOps (ZIP)', description: 'Download Terraform, K8s, SDK bundle', keys: [], icon: <Server size={14} />, category: 'export', action: exportDevOps },
+    { id: 'export-svg', label: 'Export Diagram (SVG)', description: 'Download architecture as SVG', keys: [], icon: <FileCode2 size={14} />, category: 'export', action: () => exportDiagram('svg') },
+    { id: 'export-png', label: 'Export Diagram (PNG)', description: 'Download architecture as PNG', keys: [], icon: <FileCode2 size={14} />, category: 'export', action: () => exportDiagram('png') },
+    { id: 'export-mermaid', label: 'Export Mermaid', description: 'Download Mermaid source', keys: [], icon: <FileCode2 size={14} />, category: 'export', action: () => exportDiagram('mermaid') },
+    { id: 'tab-diagram', label: 'Diagram Tab', description: 'Switch to architecture diagram', keys: ['→'], icon: <Network size={14} />, category: 'navigation', action: () => handleTabChange('diagram') },
+    { id: 'tab-openapi', label: 'API Contract Tab', description: 'Switch to OpenAPI contract', keys: ['→'], icon: <FileCode2 size={14} />, category: 'navigation', action: () => handleTabChange('openapi') },
+    { id: 'tab-risk', label: 'Risks Tab', description: 'Switch to risk audit', keys: ['→'], icon: <ShieldAlert size={14} />, category: 'navigation', action: () => handleTabChange('risk') },
+    { id: 'tab-tasks', label: 'Tasks Tab', description: 'Switch to engineering tasks', keys: ['→'], icon: <ClipboardList size={14} />, category: 'navigation', action: () => handleTabChange('tasks') },
+    { id: 'tab-impact', label: 'Change Impact Tab', description: 'Switch to change impact', keys: ['→'], icon: <Activity size={14} />, category: 'navigation', action: () => handleTabChange('impact') },
+    { id: 'tab-telemetry', label: 'Telemetry Tab', description: 'Switch to system telemetry', keys: ['→'], icon: <Layers size={14} />, category: 'navigation', action: () => handleTabChange('telemetry') },
+    { id: 'history', label: 'Show History', description: 'Open branches and history panel', keys: [], icon: <GitBranch size={14} />, category: 'view', action: () => setShowHistory(true) },
+    { id: 'compare', label: 'Compare Scenarios', description: 'Open scenario comparison modal', keys: [], icon: <GitBranch size={14} />, category: 'view', action: () => { if (scenarioComparison) setShowComparisonModal(true); } },
+    { id: 'shortcuts', label: 'Keyboard Shortcuts', description: 'Show all keyboard shortcuts', keys: ['?'], icon: <HelpCircle size={14} />, category: 'help', action: () => setIsShortcutsOpen(true) },
+    { id: 'theme', label: 'Toggle Theme', description: 'Switch between dark and light mode', keys: [], icon: <Sun size={14} />, category: 'view', action: toggleTheme },
   ];
-  const inspectedCount = journeyOutputs.filter((item) => inspectedArtifacts.has(item.id)).length;
-  const journeySteps = [
-    { title: 'Start with the sample', complete: Boolean(project) },
-    { title: 'Enter or dictate a change', complete: instructionReady },
-    { title: 'Preview the proposal', complete: Boolean(proposal || project?.changed) },
-    { title: 'Review open decisions', complete: Boolean(project?.changed) },
-    { title: 'Apply the change', complete: Boolean(project?.changed) },
-    { title: 'Explore the updated outputs', complete: Boolean(project?.changed) && inspectedCount === journeyOutputs.length },
-  ];
-  const currentJourneyStep = !project
-    ? 0
-    : !instructionReady
-      ? 1
-      : !proposal && !project.changed
-        ? 2
-        : proposal
-          ? 3
-          : inspectedCount < journeyOutputs.length
-            ? 5
-            : journeySteps.length;
-  const journeyGuidance = !project
-    ? 'Start by loading the Commerce Platform sample.'
-    : !instructionReady
-      ? isDictatingSim
-        ? 'The sample instruction is being entered. It will be ready to preview in a moment.'
-        : isListening
-          ? 'Listening now. Finish speaking, then preview the instruction when it is ready.'
-          : 'The sample is ready. Type a change below, use Wispr Flow in the text box, or play the sample dictation.'
-      : !proposal && !project.changed
-        ? 'Your instruction is ready. Preview it to see what the prototype understood before anything changes.'
-        : proposal
-          ? 'Review the proposed changes and the decisions that still need your team. Nothing changes until you apply it.'
-          : inspectedCount < journeyOutputs.length
-            ? `Your change is applied. Explore each output below (${inspectedCount} of ${journeyOutputs.length} viewed).`
-            : 'Walkthrough complete. You have reviewed every updated output.';
-  const proposalHasRateLimit = Boolean(proposal?.items.some((item) => item.key === 'rate-limit'));
-  const proposalHasRedisFallback = Boolean(proposal?.items.some((item) => item.key === 'redis-fallback'));
-  const proposalCaveats = proposal?.assumptions.filter((item) => /does not mean/i.test(item)) || [];
-  const unresolvedProposalAssumptions = proposal?.assumptions.filter((item) => {
-    if (/does not mean/i.test(item)) return false;
-    if (/rate-limit threshold/i.test(item) && decisionDraft.rateLimitThreshold.trim()) return false;
-    if (/redis outage fallback/i.test(item) && decisionDraft.redisFallback.trim()) return false;
-    return true;
-  }) || [];
-  const activeDemoCommand = project?.name === 'Food Delivery Platform' ? FOOD_DELIVERY_DEMO_COMMAND : DEMO_COMMAND;
 
   return (
     <main className="va-app">
@@ -603,8 +342,20 @@ export default function App() {
           <button type="button" className="va-btn va-btn-ghost va-btn-collapse" onClick={() => setIsWisprGuideOpen(true)}>
             <CircleHelp size={16} /> <span className="va-btn-label">Dictation guide</span>
           </button>
+          <button type="button" className="va-btn va-btn-ghost va-btn-icon" onClick={() => { setIsShortcutsOpen(true); sound.click(); }} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">
+            <Keyboard size={18} />
+          </button>
           <button type="button" className="va-btn va-btn-ghost va-btn-collapse" onClick={reset}>
             <RotateCcw size={15} /> <span className="va-btn-label">Reset sample</span>
+          </button>
+          <button
+            type="button"
+            className="va-btn va-btn-ghost va-btn-icon"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           <div className="va-menu" ref={exportMenuRef}>
             <button
@@ -761,7 +512,7 @@ export default function App() {
               aria-pressed={isListening}
               aria-label={isListening ? 'Stop dictation' : 'Start dictation'}
               title={isListening ? 'Stop dictation' : 'Start browser dictation'}
-              onClick={toggleLiveVoice}
+              onClick={toggleDictation}
             >
               <Mic size={22} />
             </button>
@@ -917,15 +668,15 @@ export default function App() {
               aria-label="Architecture outputs"
               onKeyDown={(event) => {
                 const current = tabs.findIndex((item) => item.id === tab);
-                let next = current;
-                if (event.key === 'ArrowRight') next = (current + 1) % tabs.length;
-                else if (event.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length;
-                else if (event.key === 'Home') next = 0;
-                else if (event.key === 'End') next = tabs.length - 1;
+                let _next;
+                if (event.key === 'ArrowRight') _next = (current + 1) % tabs.length;
+                else if (event.key === 'ArrowLeft') _next = (current - 1 + tabs.length) % tabs.length;
+                else if (event.key === 'Home') _next = 0;
+                else if (event.key === 'End') _next = tabs.length - 1;
                 else return;
                 event.preventDefault();
-                handleTabChange(tabs[next].id);
-                document.getElementById(`tab-${tabs[next].id}`)?.focus();
+                handleTabChange(tabs[_next].id);
+                document.getElementById(`tab-${tabs[_next].id}`)?.focus();
               }}
             >
               {tabs.map(({ id, label, icon: Icon }) => (
@@ -1163,7 +914,7 @@ export default function App() {
             )}
             {proposalCaveats.length > 0 && (
               <p className="va-review-caveat">
-                <b>Important:</b> Recording a decision documents your team’s intent; it does not implement or verify the behavior.
+                <b>Important:</b> Recording a decision documents your team's intent; it does not implement or verify the behavior.
               </p>
             )}
 
@@ -1198,11 +949,14 @@ export default function App() {
       )}
 
       {toast && (
-        <div className="va-toast" key={toastKey} role="status" aria-live="polite">
+        <div className="va-toast" key={toast.key} role="status" aria-live="polite">
           <Activity size={15} />
-          <span>{toast}</span>
+          <span>{toast.message}</span>
         </div>
       )}
+      <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
+      <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} commands={paletteCommands} />
+      <ConnectionStatus />
     </main>
   );
 }

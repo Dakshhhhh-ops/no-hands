@@ -4,9 +4,9 @@
    Font faces loaded via <link> in index.html. */
 
 :root {
-  color-scheme: dark;
+  color-scheme: dark light;
 
-  /* Surfaces */
+  /* Dark theme (default) */
   --va-bg: #13161c;
   --va-bg-sunken: #0f1217;
   --va-panel: #1a1e26;
@@ -34,7 +34,7 @@
   /* Type */
   --va-font: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --va-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  --va-fs-xs: 12px;     /* smallest text allowed anywhere */
+  --va-fs-xs: 12px;
   --va-fs-sm: 13px;
   --va-fs-md: 14.5px;
   --va-fs-lg: 17px;
@@ -45,7 +45,7 @@
   --va-r-lg: 12px;
   --va-r-xl: 16px;
 
-  /* ---- Legacy aliases: old components pick these up automatically ---- */
+  /* Legacy aliases */
   --bg: var(--va-bg);
   --bg-2: var(--va-panel);
   --bg-deep: var(--va-bg-sunken);
@@ -74,7 +74,7 @@
   --text-high: var(--va-ink);
   --text-mid: var(--va-muted);
   --text-muted: var(--va-muted);
-  --text-dim: var(--va-muted);   /* was used but never defined */
+  --text-dim: var(--va-muted);
   --text-faint: var(--va-faint);
 
   --cyan: var(--va-accent);
@@ -89,7 +89,77 @@
 
   --font-sans: var(--va-font);
   --font-mono: var(--va-mono);
-  --mono: var(--va-mono);        /* styles.css used var(--mono) without defining it */
+  --mono: var(--va-mono);
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --va-bg: #f8f9fb;
+  --va-bg-sunken: #eff2f7;
+  --va-panel: #ffffff;
+  --va-panel-2: #f0f3f8;
+  --va-panel-3: #e4e8ef;
+  --va-line: #d0d5de;
+  --va-line-strong: #b8becb;
+  --va-line-bright: #9aa3b2;
+
+  --va-ink: #1a1d23;
+  --va-muted: #5c6370;
+  --va-faint: #8b92a3;
+
+  --va-accent: #3b5bdb;
+  --va-accent-strong: #2a4ac7;
+  --va-accent-ink: #eef1fa;
+  --va-rec: #c94a3d;
+  --va-warn: #b87d00;
+  --va-ok: #2d8a5e;
+  --va-danger: #c94a3d;
+  --va-downstream: #7c5cff;
+
+  --bg: var(--va-bg);
+  --bg-2: var(--va-panel);
+  --bg-deep: var(--va-bg-sunken);
+  --bg-canvas: var(--va-bg-sunken);
+  --card: var(--va-panel);
+  --surface: var(--va-panel);
+  --surface2: var(--va-panel-2);
+  --surface-1: var(--va-panel);
+  --surface-2: var(--va-panel-2);
+  --surface-3: var(--va-panel-3);
+  --surface-card: #f0f3f8;
+  --surface-hover: var(--va-panel-3);
+
+  --line: var(--va-line);
+  --line-2: var(--va-line-strong);
+  --line-3: var(--va-line-bright);
+  --line-dim: var(--va-line);
+  --line-mid: var(--va-line-strong);
+  --line-bright: var(--va-line-bright);
+  --line-high: var(--va-line-bright);
+
+  --ink: var(--va-ink);
+  --muted: var(--va-muted);
+  --soft: var(--va-muted);
+  --text-pure: #0f1218;
+  --text-high: var(--va-ink);
+  --text-mid: var(--va-muted);
+  --text-muted: var(--va-muted);
+  --text-dim: var(--va-muted);
+  --text-faint: var(--va-faint);
+
+  --cyan: var(--va-accent);
+  --cyan-bright: var(--va-accent-strong);
+  --cyan-glow: color-mix(in srgb, var(--va-accent) 35%, transparent);
+  --teal-architect: var(--va-accent);
+  --violet: var(--va-downstream);
+  --violet-downstream: var(--va-downstream);
+  --orange-crox: var(--va-rec);
+  --amber-warn: var(--va-warn);
+  --green-nominal: var(--va-ok);
+
+  --font-sans: var(--va-font);
+  --font-mono: var(--va-mono);
+  --mono: var(--va-mono);
 }
 
 @media (prefers-reduced-motion: reduce) {

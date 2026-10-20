@@ -221,15 +221,16 @@ export function simulateChaosAndTelemetry(
 
     let status: 'FLOWING' | 'CONGESTED' | 'SEVERED' | 'DEGRADED' = 'FLOWING';
     let latencyMs = 8;
-    let particleSpeedSeconds = 2.4;
-    let particleDensity = 2;
-    let particleColor = '#4ef2d2'; // Default cyan
-    let trafficRps = baseIncomingRps;
 
     // Scale traffic down based on hop tier
+    let trafficRps: number;
     if (rel.from === 'web') trafficRps = baseIncomingRps;
     else if (rel.from === 'gateway') trafficRps = Math.round(baseIncomingRps / 3);
     else trafficRps = Math.round(baseIncomingRps / 4);
+
+    let particleSpeedSeconds: number;
+    let particleDensity: number;
+    let particleColor: string;
 
     if (fromStatus?.status === 'DOWN' || toStatus?.status === 'DOWN') {
       status = 'SEVERED';

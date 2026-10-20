@@ -3,14 +3,16 @@ import { validateProject } from '../types/schema.ts';
 
 export type ConflictResolutionChoice = 'target' | 'source' | 'custom';
 
+type MergeValue = string | number | boolean | null | Record<string, unknown> | Array<unknown>;
+
 export interface MergeConflict {
   id: string;
   entityType: 'component' | 'relationship' | 'requirement';
   entityId: string;
   field: string;
-  baseValue: any;
-  targetValue: any; // Branch being merged into (e.g. main)
-  sourceValue: any; // Branch being merged from (e.g. branch-serverless)
+  baseValue: MergeValue;
+  targetValue: MergeValue; // Branch being merged into (e.g. main)
+  sourceValue: MergeValue; // Branch being merged from (e.g. branch-serverless)
   description: string;
   chosenResolution?: ConflictResolutionChoice;
 }
@@ -312,4 +314,3 @@ export function executeMerge(
     analysis,
   };
 }
-

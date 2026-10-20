@@ -1,6 +1,20 @@
 /* VoiceArchitect app shell. All classes are prefixed va-.
    Load LAST (after tokens.css and bridge.css). Colors, type and radii come from tokens.css. */
 
+/* Skeleton shimmer animation */
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--va-panel-2) 25%, var(--va-panel-3) 50%, var(--va-panel-2) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+.skeleton-row { display: flex; gap: 16px; align-items: center; }
+
 /* ---------- Page ---------- */
 html { scroll-behavior: smooth; scroll-padding-top: 76px; }
 html, body, #root { height: auto; min-height: 100%; }
@@ -334,6 +348,115 @@ body { margin: 0; overflow-x: visible; background: var(--va-bg); }
   to { transform: scaleX(1); }
 }
 .va-toast svg { flex: none; color: var(--va-accent); }
+
+/* ---------- Command Palette ---------- */
+.va-command-palette {
+  position: fixed;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, 90vw);
+  max-height: 70vh;
+  background: var(--va-panel);
+  border: 1px solid var(--va-line-strong);
+  border-radius: var(--va-r-xl);
+  box-shadow: 0 24px 48px rgba(0,0,0,.4);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  animation: va-rise .15s ease-out;
+}
+.va-palette-header { padding: 12px 16px; border-bottom: 1px solid var(--va-line); }
+.va-palette-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--va-bg);
+  border: 1px solid var(--va-line);
+  border-radius: var(--va-r-md);
+  padding: 0 14px;
+  height: 44px;
+}
+.va-palette-search > svg { flex: none; color: var(--va-muted); }
+.va-palette-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--va-ink);
+  font: inherit;
+  font-size: var(--va-fs-md);
+}
+.va-palette-search input::placeholder { color: var(--va-faint); }
+.va-kbd-hint { flex: none; font-size: 10px; color: var(--va-faint); padding: 2px 6px; background: var(--va-panel-2); border-radius: 4px; }
+.va-palette-list { flex: 1; overflow: auto; padding: 8px; margin: 0; list-style: none; }
+.va-palette-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--va-r-md);
+  cursor: pointer;
+  transition: background .1s;
+}
+.va-palette-item:hover, .va-palette-item.selected { background: var(--va-panel-2); }
+.va-palette-item-icon { flex: none; color: var(--va-muted); display: flex; align-items: center; }
+.va-palette-item-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.va-palette-item-label { color: var(--va-ink); font-weight: 500; font-size: var(--va-fs-sm); }
+.va-palette-item-desc { color: var(--va-muted); font-size: var(--va-fs-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.va-palette-item-keys { flex: none; display: flex; gap: 4px; }
+.va-palette-empty { padding: 24px; text-align: center; color: var(--va-muted); }
+.va-palette-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--va-line);
+  color: var(--va-faint);
+  font-size: var(--va-fs-xs);
+  flex-wrap: wrap;
+}
+
+/* ---------- Connection Status ---------- */
+.va-connection-status {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--va-panel);
+  border: 1px solid var(--va-line-strong);
+  border-radius: var(--va-r-md);
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  z-index: 150;
+  font-size: var(--va-fs-sm);
+  animation: va-rise .2s ease-out;
+}
+.va-connection-status.offline { border-color: var(--va-danger); color: var(--va-danger); }
+.va-connection-status.online { border-color: var(--va-ok); color: var(--va-ok); }
+.va-spin { animation: va-spin 1s linear infinite; }
+@keyframes va-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+
+/* ---------- Auto-save Indicator ---------- */
+.va-autosave-indicator {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--va-panel);
+  border: 1px solid var(--va-line);
+  border-radius: var(--va-r-md);
+  font-size: var(--va-fs-xs);
+  color: var(--va-muted);
+  z-index: 150;
+}
+.va-autosave-indicator.saving { color: var(--va-accent); border-color: var(--va-accent); }
 
 /* ---------- Motion ---------- */
 @keyframes va-ping { 0% { transform: scale(.9); opacity: .7; } 100% { transform: scale(1.35); opacity: 0; } }

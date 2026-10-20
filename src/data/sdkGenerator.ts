@@ -6,7 +6,7 @@ import { generateMultiServiceOpenApi } from './openapiSynth.ts';
  * derived directly from the OpenAPI 3.1 specification.
  */
 export function generateTypeScriptSdk(project: Project): string {
-  const spec = generateMultiServiceOpenApi(project);
+  const _spec = generateMultiServiceOpenApi(project);
 
   return `/**
  * ==============================================================================
