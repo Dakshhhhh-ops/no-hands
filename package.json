@@ -23,6 +23,7 @@
     "preview": "vite preview",
     "start": "node --env-file-if-exists=.env.local server/serve.ts",
     "test": "node --experimental-vm-modules --test --require ./tests/setup.js",
+    "eval": "node --env-file-if-exists=.env.local scripts/eval.ts",
     "test:vitest": "vitest run",
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
