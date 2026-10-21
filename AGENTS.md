@@ -13,6 +13,9 @@ architecture workspace.
 | `npm run test` | Run all `tests/*.test.js` via `node --test` |
 | `npm run typecheck` | Run `tsc --noEmit` against `src` + `tests` |
 | `npm run lint` | Run ESLint on the project |
+| `npm run test:vitest` | Run the component tests (Vitest + Testing Library) |
+| `npx playwright test` | Browser tests against a production build, with axe checks |
+| `npm run eval` | Score labelled instructions; add `-- --provider groq` to measure the model |
 
 ## Project layout
 

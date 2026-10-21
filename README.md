@@ -1,6 +1,8 @@
 # VoiceArchitect
 
-Architecture diagrams go stale because updating them is slow. VoiceArchitect starts from your real docker-compose file, and you describe changes in plain language, typed or dictated. A language model (Groq or Claude) turns each request into a short list of explicit operations. A deterministic applier checks every operation against the current model and the Zod schema, so nothing reaches the diagram, API contract, risks, or tasks until you have reviewed the exact diff.
+Voice keeps your architecture diagram in sync with your code.
+
+Architecture diagrams go stale because updating them is slow. VoiceArchitect starts from your real docker-compose file. You hold your Wispr Flow hotkey and say a change, in English or Hinglish. A language model (Groq or Claude) turns it into a short list of explicit operations, a deterministic applier checks every operation against the current model and the Zod schema, and nothing reaches the diagram, API contract, risks, or tasks until you have reviewed the exact diff. When the code moves on, you check the diagram against the newer compose file.
 
 Without an API key the app still runs, using a small set of offline rules.
 
@@ -12,6 +14,7 @@ Without an API key the app still runs, using a small set of offline rules.
 
 ### Also included
 
+- A guided demo: one click imports an example stack and walks an English change, a Hinglish change, and a check against the next compose file
 - Interactive diagram: layout, blast radius, cycle detection, deployment order, keyboard navigation
 - OpenAPI 3.1 contract derived only from the model's API operations
 - Risks with the facts behind each finding, and fixes you choose and review in one step
@@ -21,7 +24,8 @@ Without an API key the app still runs, using a small set of offline rules.
 - Outage simulator, labeled simulated: cascades come from component types and connections, numbers from stated assumptions
 - ADR drafts generated from each change, with sign-off pending until a reviewer marks it
 - Exports: artifact ZIP, DevOps ZIP (Terraform and Kubernetes scaffolding, TypeScript client), SVG, PNG, Mermaid
-- Light and dark themes, offline PWA, Docker image
+- Server limits for a public deploy: per-IP rate limit, daily cap, timeout, and a badge when a preview falls back to the offline rules
+- Light and dark themes, WCAG AA contrast checked with axe in the browser tests, offline PWA, Docker image
 
 ## Voice-first with Wispr Flow
 
@@ -44,19 +48,20 @@ cp .env.example .env.local   # then set GROQ_API_KEY (free) or ANTHROPIC_API_KEY
 npm run dev
 ```
 
-The key is read only by the Vite dev and preview servers, which expose `/api/status` and `/api/interpret`. It is never bundled into the browser code. The badge under the instruction box shows which provider is active. Without a key it shows "Offline rules only" and the app falls back to the built-in rules. Groq's free tier allows about three previews a minute; a rate-limited preview is retried once and otherwise falls back to the offline rules.
+The key is read only by the Vite dev and preview servers, which expose `/api/status`, `/api/interpret`, and `/api/health`. It is never bundled into the browser code. The label under the instruction box shows which provider is active. Without a key it shows "Offline rules only" and the app uses the built-in rules. When a preview hits a rate limit, the daily cap, or a timeout, that preview uses the offline rules and a badge says why.
 
 Open the local URL printed by Vite. The app is a single-page React app under `src/`; `index.html` is the Vite entry point.
 
 ## Verify
 
 ```sh
-npm test             # 82 unit tests
-npm run test:vitest  # 54 component tests (Vitest + RTL)
+npm test             # 106 unit tests
+npm run test:vitest  # 56 component tests (Vitest + RTL)
 npm run typecheck    # TypeScript strict mode
 npm run lint         # ESLint, 0 problems
 npm run build        # Production build
-npx playwright test  # 9 browser tests against the production build
+npx playwright test  # 16 browser tests against the production build, including axe checks
+npm run eval         # labelled instructions; add -- --provider groq to measure the model
 ```
 
 ## Deploy
@@ -94,16 +99,29 @@ When a limit is reached, the provider rate-limits, or a preview times out, the s
 
 ## Demo Walkthrough
 
-1. **Load a system** — **Import docker-compose** with your own file, **Try example stack**, or **Load sample**. Later, **Check against code** with a newer compose file (or **Try example update**) to sync the diagram with what changed
-2. **Enter instruction** — Type or dictate; try the example cards
-3. **Preview change** — Review interpretation, before/after diff, unresolved assumptions
-4. **Apply** — Creates versioned, undoable history entry
-5. **Explore tabs** — Diagram, API contract, Risks, Tasks, What changed, Topology
-6. **Export** — Verified ZIP (artifacts/DevOps) or standalone SVG/PNG/Mermaid
-7. **Branches** — Fork this version → apply a change → Compare with main → Merge to main
-8. **Outage simulator** — Diagram tab → More tools → take down the cache or database (simulated)
-9. **ADR draft** — Diagram tab → More tools → ADR Sign-Off → mark roles approved → Download markdown
-10. **Reload** — Command, sample choice, decisions persist via localStorage
+1. **Start guided demo** on the first screen. It imports an example docker-compose stack and shows three steps: what to say and what will change.
+2. **Say a change** into the instruction box with your Wispr Flow hotkey, or type it. English and Hinglish both work. Try "Add a Redis cache in front of the trips API" or "payment service ko alag container mein daalo".
+3. **Review** the exact diff and any open questions. In the follow-up field, say "make it PostgreSQL instead", "undo that", "cancel", or "apply".
+4. **Explore** Diagram, API contract, Risks, Tasks, and What changed. In Risks, choose fixes for open findings and review them together.
+5. **Check against code** from the **From code** menu with a newer compose file, or **Try example update**. New and retired services become one reviewable sync; planned work is kept.
+6. **Undo** by saying "undo" in the instruction box, or with Ctrl+Z.
+7. **Advanced** holds branches and history, the outage simulator and decision records, Topology, and the DevOps bundle.
+8. **Export** the artifact ZIP, SVG, PNG, or Mermaid source.
+
+## Evals
+
+Measured on 2026-10-21 with `npm run eval`: 22 labelled instructions (11 English, 11 Hinglish, two of them not architecture changes) against the three built-in models. Each result is applied with the app's own applier and scored by the structural change it makes: components and connections added or removed, and requirements recorded. A case is correct only when every expected change happened and nothing else did. Recall is the share of expected changes made; precision is the share of changes made that were expected. One run per interpreter; model output varies between runs. Cases are in [evals/cases.ts](evals/cases.ts), full results in [evals/results/](evals/results/).
+
+| Interpreter | Cases | Correct | Recall | Precision |
+|---|---|---|---|---|
+| Groq `openai/gpt-oss-120b` | All 22 | 18 / 22 | 96% | 82% |
+| Groq `openai/gpt-oss-120b` | English 11 | 9 / 11 | 100% | 80% |
+| Groq `openai/gpt-oss-120b` | Hinglish 11 | 9 / 11 | 92% | 85% |
+| Offline rules, no key | All 22 | 13 / 22 | 58% | 88% |
+| Offline rules, no key | English 11 | 6 / 11 | 50% | 86% |
+| Offline rules, no key | Hinglish 11 | 7 / 11 | 67% | 89% |
+
+The model's misses were stricter-than-needed failures, not wrong edits: it added a new cache in front of the restaurant service instead of reusing Redis (twice), recorded an extra requirement, and added a Payment Service without connecting it to the gateway. The offline rules cover only four change shapes, so removals and "add a service behind X" fall outside them.
 
 ## Architecture
 
@@ -123,26 +141,32 @@ src/
 ├── components/              # Workspace panels (lazy-loaded) and dialogs
 │   └── landing/             # Landing page sections
 ├── data/                    # Domain logic, pure TS/JS: compose import, drift check,
-│                            # operations applier, risks and fixes, OpenAPI, exports
+│                            # operations applier, risks and fixes, OpenAPI, exports,
+│                            # dictation cleanup, Hinglish and English patterns, follow-ups
 ├── types/schema.ts          # Zod schema (single source of truth)
 └── utils/                   # Sound cues
-server/                      # /api/status and /api/interpret (Groq or Claude)
+server/                      # /api/health, /api/status, /api/interpret (Groq or Claude), limits
+scripts/eval.ts              # npm run eval
+evals/cases.ts               # labelled instructions, English and Hinglish
+docs/                        # Wispr Flow research notes, submission notes, demo script
 ```
 
 ## Testing
 
 | Suite | Command | Tests |
 |-------|---------|-------|
-| Unit (Node) | `npm test` | 82 |
-| Component (Vitest + RTL) | `npm run test:vitest` | 54 |
-| E2E (Playwright) | `npm run test:e2e` | 9 |
+| Unit (Node) | `npm test` | 106 |
+| Component (Vitest + RTL) | `npm run test:vitest` | 56 |
+| E2E (Playwright, with axe) | `npm run test:e2e` | 16 |
 
 CI runs on every push: Lint → Typecheck → Tests → Build.
 
 ## Limitations
 
 - Claude interpretation needs the Node server (`npm run dev`, `npm run preview`, `npm start`, or the Docker image); static-only hosting runs on offline rules
-- Offline mode understands only a handful of request patterns; full understanding needs a model key
+- Offline mode understands only a handful of request patterns; full understanding needs a model key. See Evals for measured numbers
+- Drift checks compare services, images, and connections. Ports, volumes, and environment values are not modeled
+- Rate limits and the daily cap live in memory: they reset on restart and are per process
 - OpenAPI output is derived from the demo model; not validated by a full OpenAPI validator
 - Risks are deterministic findings from modeled evidence, not calibrated production telemetry
 - Tasks are proposed work; not sent to GitHub/Jira
