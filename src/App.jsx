@@ -757,7 +757,18 @@ export default function App() {
 
           <div className="va-studio-tools">
             <div className="va-sample-picker">
-              <select id="va-sample-choice" aria-label="Sample architecture" value={sampleChoice} onChange={(event) => setSampleChoice(event.target.value)}>
+              <select
+                id="va-sample-choice"
+                aria-label="Sample architecture"
+                value={isImported ? 'imported' : sampleChoice}
+                onChange={(event) => {
+                  const kind = event.target.value;
+                  setSampleChoice(kind);
+                  // On an imported stack, picking a sample loads it, so the picker never shows a model that is not on screen.
+                  if (isImported) resetWorkspace(`${kind === 'food' ? 'Food Delivery' : 'Commerce Platform'} sample loaded.`, kind);
+                }}
+              >
+                {isImported && <option value="imported" disabled>{project?.name || 'Imported stack'} (imported)</option>}
                 <option value="commerce">Commerce Platform</option>
                 <option value="food">Food Delivery</option>
               </select>
