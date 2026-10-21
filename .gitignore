@@ -1,8 +1,10 @@
 node_modules/
 dist/
 .env
+.env.local
 .env.*
 !.env.example
+coverage/
 
 # Playwright output (regenerated on every run)
 playwright-report/

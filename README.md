@@ -122,4 +122,4 @@ CI runs on every push: Lint → Typecheck → Tests → Build.
 
 ## License
 
-MIT. Prototype built for a WeMakeDevs hackathon, October 2026.
+MIT, 2026. Built for the WeMakeDevs x Wispr Flow No Hands challenge.

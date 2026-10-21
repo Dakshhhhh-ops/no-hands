@@ -2,6 +2,20 @@
   "name": "voicearchitect",
   "private": true,
   "version": "0.1.0",
+  "description": "Voice keeps your architecture diagram in sync with your code: import docker-compose, describe a change in plain language, review the exact diff, then check the diagram against newer code.",
+  "keywords": [
+    "wispr-flow",
+    "voice",
+    "dictation",
+    "architecture",
+    "docker-compose",
+    "drift-detection",
+    "openapi",
+    "react",
+    "typescript",
+    "zod"
+  ],
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
