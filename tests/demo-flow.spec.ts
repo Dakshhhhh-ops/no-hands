@@ -161,7 +161,7 @@ test.describe('VoiceArchitect demo flow', () => {
     await expect(guide.getByText('step 1 of 3')).toBeVisible({ timeout: 20000 });
     await expect(page.getByRole('heading', { name: 'ride-share-platform' })).toBeVisible();
 
-    for (const say of ['Add a Redis cache in front of the trips API', 'payment service ko alag container mein daalo']) {
+    for (const say of ['Add a Redis cache in front of the trips API', 'payment service ko alag container mein daalo aur gateway se connect karo']) {
       await guide.getByRole('button', { name: 'Type it for me' }).click();
       await expect(page.getByLabel('Your instruction')).toHaveValue(say);
       await page.getByRole('button', { name: /Preview my change/ }).click();

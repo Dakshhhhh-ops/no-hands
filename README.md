@@ -6,14 +6,14 @@ Voice keeps your architecture diagram in sync with your code.
 
 > **TODO (author):** replace this note with the problem in my own words: where stale architecture diagrams hurt in my work, and what I did before VoiceArchitect. Nothing here has been written on my behalf.
 
-Architecture diagrams go stale because updating them is slow. VoiceArchitect starts from your real docker-compose file. You hold your Wispr Flow hotkey and say a change, in English or Hinglish. A language model (Claude by default, or Groq) turns it into a short list of explicit operations, a deterministic applier checks every operation against the current model and the Zod schema, and nothing reaches the diagram, API contract, risks, or tasks until you have reviewed the exact diff. When the code moves on, you check the diagram against the newer compose file.
+Architecture diagrams go stale because updating them is slow. VoiceArchitect starts from your real docker-compose file. You hold your Wispr Flow hotkey and say a change, in English or Hinglish. A language model (Groq's `openai/gpt-oss-120b`, measured below; Claude is supported and used when its key is set) turns it into a short list of explicit operations, a deterministic applier checks every operation against the current model and the Zod schema, and nothing reaches the diagram, API contract, risks, or tasks until you have reviewed the exact diff. When the code moves on, you check the diagram against the newer compose file.
 
 Without an API key the app still runs: recorded model answers cover the guided demo, and a small set of offline rules handles the rest.
 
 ## Features
 
 - **Import docker-compose** — Builds the starting diagram from your real services, `depends_on`, and connection strings in environment variables
-- **Spoken or typed changes, validated before they apply** — A model (Claude, `claude-opus-5-5` by default, or Groq `openai/gpt-oss-120b` on its free tier) turns each request into explicit operations. Every operation is checked against the current model and the Zod schema; invalid ones are skipped and shown, never applied. You review the exact before/after diff, and every applied change can be undone
+- **Spoken or typed changes, validated before they apply** — A model (Groq `openai/gpt-oss-120b`, the measured one, or Claude `claude-opus-5-5` when its key is set) turns each request into explicit operations. Every operation is checked against the current model and the Zod schema; invalid ones are skipped and shown, never applied. You review the exact before/after diff, and every applied change can be undone
 - **Check against code** — Compare the diagram with a newer docker-compose file. New services, retired services, image changes, and new connections become one reviewable sync; components planned in the diagram but not built yet are reported, kept, and shown dashed as "planned"
 - **Import from Wispr Flow** — Sign in to Wispr Flow, pick a recent Notetaker meeting summary or Scratchpad note, and the decisions in it become an ordinary proposal you review like a spoken one. Pasted notes work the same way without Wispr Flow
 
@@ -46,7 +46,7 @@ What is *not* integrated: the app does not call any Wispr Flow API to start dict
 
 ```sh
 npm ci
-cp .env.example .env.local   # then set ANTHROPIC_API_KEY, or GROQ_API_KEY (free tier)
+cp .env.example .env.local   # then set GROQ_API_KEY (free tier, measured below) or ANTHROPIC_API_KEY
 npm run dev
 ```
 
@@ -57,7 +57,7 @@ Open the local URL printed by Vite. The app is a single-page React app under `sr
 ## Verify
 
 ```sh
-npm test             # 131 unit tests, including Wispr sign-in and MCP against a fake server
+npm test             # 133 unit tests, including Wispr sign-in and MCP against a fake server
 npm run test:vitest  # 60 component tests (Vitest + RTL)
 npm run typecheck    # TypeScript strict mode
 npm run lint         # ESLint, 0 problems
@@ -76,13 +76,13 @@ npm ci && npm run build
 npm start                      # reads the environment, or .env.local if present
 
 # Docker (serves on http://localhost:8080)
-ANTHROPIC_API_KEY=sk-ant-... docker compose up --build
+GROQ_API_KEY=gsk_... docker compose up --build
 
 # Development with hot reload
 docker compose --profile dev up --build
 ```
 
-**Render.** [render.yaml](render.yaml) is a Render Blueprint for one Docker web service with `/api/health` as its health check, `VOICEARCHITECT_TRUST_PROXY=1`, and both keys as secrets that Render asks for when you create the service. Leave the keys empty to run on recorded answers and the offline rules. Render's free plan spins the service down after 15 minutes without traffic, and the next visit waits about a minute while it starts.
+**Render.** [render.yaml](render.yaml) is a Render Blueprint for one Docker web service with `/api/health` as its health check, `VOICEARCHITECT_TRUST_PROXY=1`, and both keys as secrets that Render asks for when you create the service. Set `GROQ_API_KEY` and leave `ANTHROPIC_API_KEY` empty until Claude has eval numbers, since the server uses Claude whenever its key is set. Leave both empty to run on recorded answers and the offline rules. Render's free plan can run a Docker image (its own n8n Blueprint does), and each workspace gets 750 free instance hours a month. Render's free plan spins the service down after 15 minutes without traffic, and the next visit waits about a minute while it starts.
 
 To avoid the cold start, [.github/workflows/keep-warm.yml](.github/workflows/keep-warm.yml) pings `/api/health` every 10 minutes once you add a repository variable `LIVE_URL`; it does nothing until then. Check Render's free-hours allowance before leaving it on all month.
 
@@ -90,7 +90,7 @@ Any other host that runs a Node process or a Docker image works too. Set these a
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | none | Claude key. The default provider whenever it is set. |
+| `ANTHROPIC_API_KEY` | none | Claude key. When it is set, the server uses Claude instead of Groq. Claude is not measured yet (see Evals). |
 | `GROQ_API_KEY` | none | Groq key, used when no Claude key is set or `VOICEARCHITECT_PROVIDER=groq`. Without any key the app runs on recorded answers and the offline rules. |
 | `VOICEARCHITECT_PROVIDER` | auto | `anthropic`, `groq`, or `offline` to ignore keys. |
 | `VOICEARCHITECT_MODEL` | `claude-opus-5-5` | Claude model id, for example `claude-sonnet-5-5` or `claude-haiku-5-5`. Opus and Sonnet requests ask for Anthropic's server-side fallback model if the first one is overloaded; Haiku 5.5 has no fallback. |
@@ -114,7 +114,7 @@ When a limit is reached, the provider rate-limits, a preview times out, or there
 ## Demo Walkthrough
 
 1. **Start guided demo** on the first screen. It imports an example docker-compose stack and shows three steps: what to say and what will change.
-2. **Say a change** into the instruction box with your Wispr Flow hotkey, or type it. English and Hinglish both work. Try "Add a Redis cache in front of the trips API" or "payment service ko alag container mein daalo".
+2. **Say a change** into the instruction box with your Wispr Flow hotkey, or type it. English and Hinglish both work. Try "Add a Redis cache in front of the trips API" or "payment service ko alag container mein daalo aur gateway se connect karo".
 3. **Review** the exact diff and any open questions. In the follow-up field, say "make it PostgreSQL instead", "undo that", "cancel", or "apply".
 4. **Explore** Diagram, API contract, Risks, Tasks, and What changed. In Risks, choose fixes for open findings and review them together.
 5. **Check against code** from the **From code** menu with a newer compose file, or **Try example update**. New and retired services become one reviewable sync; planned work is kept.
@@ -141,7 +141,7 @@ Run to run, 18 of 22 cases passed every time, one passed in some runs (R1 (1/3))
 
 A repeat on 2026-10-22, after the system prompt gained the rule for imported notes, completed one full run before Groq's free tier rate-limited it: 19 / 22, with the same three misses. It is not in the table because it is incomplete.
 
-**Claude: not measured yet.** Claude is now the default provider, but no Anthropic key was available when these numbers were taken. To compare the three models and choose the default:
+**Claude: not measured yet.** The server prefers Claude whenever `ANTHROPIC_API_KEY` is set, so do not set that key on a public deploy until Claude has numbers here; the live demo runs on Groq, and its recorded answers are Groq's. To compare the three Claude models:
 
 ```sh
 # PowerShell: $env:VOICEARCHITECT_MODEL="claude-opus-5-5"; npm run eval -- --provider anthropic --runs 1
@@ -189,7 +189,7 @@ docs/                        # Wispr Flow research notes, submission notes, demo
 
 | Suite | Command | Tests |
 |-------|---------|-------|
-| Unit (Node) | `npm test` | 131 |
+| Unit (Node) | `npm test` | 133 |
 | Component (Vitest + RTL) | `npm run test:vitest` | 60 |
 | E2E (Playwright, with axe) | `npm run test:e2e` | 17 |
 

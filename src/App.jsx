@@ -66,7 +66,7 @@ const TOPOLOGY_TAB = { id: 'topology', label: 'Topology', icon: Layers };
 // The guided demo on the example ride-share stack. Each step works without a model key.
 const GUIDED_STEPS = [
   { language: 'English', say: 'Add a Redis cache in front of the trips API', changes: 'trips-api gets a connection to Redis. You see the exact diff before anything applies.' },
-  { language: 'Hinglish', say: 'payment service ko alag container mein daalo', changes: 'A new Payment Service appears, drawn dashed because it is planned and not in code yet.' },
+  { language: 'Hinglish', say: 'payment service ko alag container mein daalo aur gateway se connect karo', changes: 'A new payment-service appears behind the gateway, drawn dashed because it is planned and not in code yet.' },
   { drift: true, say: 'Check the diagram against the next docker-compose file', changes: 'The newer file adds two services, retires one, and upgrades PostgreSQL. Your planned Payment Service is kept, not deleted.' },
 ];
 
@@ -1086,11 +1086,12 @@ export default function App() {
               <button
                 type="button"
                 className="va-docs-trigger"
+                aria-label="Generated docs"
                 aria-expanded={showDocsMenu}
                 aria-controls="va-docs-menu"
                 onClick={() => setShowDocsMenu((open) => !open)}
               >
-                <FileCode2 size={15} /> Generated docs <ChevronDown size={14} />
+                <FileCode2 size={15} /> <span className="va-docs-long">Generated docs</span><span className="va-docs-short">Docs</span> <ChevronDown size={14} />
               </button>
               {showDocsMenu && (
                 <div className="va-pop-panel" id="va-docs-menu">

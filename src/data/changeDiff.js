@@ -1,7 +1,7 @@
 import { deriveRiskFindings, deriveTasks } from './analysis.js';
 import { makeOpenApi } from './openapi.js';
 import { ManualDecisionSchema } from '../types/schema.ts';
-import { baselineLabel, cacheRequirement, callersOf, findAuthComponent, findCaches, findPublicEntry, rateLimitRequirement } from './modelFacts.js';
+import { baselineLabel, cacheRequirement, componentLabel, callersOf, findAuthComponent, findCaches, findPublicEntry, rateLimitRequirement } from './modelFacts.js';
 
 const PROVENANCE_KEYS = new Set(['sourceChangeId', 'originalInstruction', 'requirementId']);
 
@@ -123,7 +123,7 @@ export function deriveChangeDiff(project, comparisonBase = project.baseline) {
       before: baseline.components,
       after: project.components,
       key: (item) => item.id,
-      itemLabel: (item) => `${item.name} (${item.id})`,
+      itemLabel: componentLabel,
     },
     {
       id: 'relationships',

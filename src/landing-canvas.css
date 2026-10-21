@@ -650,3 +650,20 @@
   }
   .va-studio .architecture-view:not(:has(.diagram-chaos-bar)) > .diagram-toolbar .diagram-toolbar-title-wrap { display: none; }
 }
+.va-docs-short { display: none; }
+@media (max-width: 760px) {
+  /* On a phone the trigger sits near the right edge, so the menu opens leftward. */
+  .va-docs-menu .va-pop-panel { left: auto; right: 0; width: min(290px, calc(100vw - 48px)); }
+  .va-tabs-row { padding-right: 4px; }
+  .va-tabs-row .va-tab svg, .va-docs-trigger > svg:first-child { display: none; }
+  .va-tabs-row .va-tab, .va-docs-trigger { padding-left: 10px; padding-right: 10px; }
+  .va-studio .va-tabs-row .va-tabs { mask-image: none; }
+  .va-docs-long { display: none; }
+  .va-docs-short { display: inline; }
+}
+@media (max-width: 760px) {
+  /* The sample picker takes the row's remaining width so Load sample never clips. */
+  .va-studio-bar .va-studio-source { width: 100%; margin-left: 0; }
+  .va-studio-source .va-sample-picker { display: flex; align-items: center; gap: 4px; width: 100%; }
+  .va-studio-source .va-sample-picker select { flex: 1 1 auto; min-width: 0; }
+}

@@ -1,5 +1,5 @@
 import { RiskFindingSchema, TaskSchema } from '../types/schema.ts';
-import { baselineLabel, cacheRequirement, callersOf, findAuthComponent, findCaches, findDatabases, findPublicEntry, rateLimitRequirement } from './modelFacts.js';
+import { baselineLabel, cacheRequirement, componentLabel, callersOf, findAuthComponent, findCaches, findDatabases, findPublicEntry, rateLimitRequirement } from './modelFacts.js';
 
 /** A recorded requirement saying the team accepts running this database as a single instance. */
 export function singleInstanceAcceptance(project, db) {
@@ -25,7 +25,7 @@ export function deriveRiskFindings(project) {
         status: 'resolved',
         title: `Single ${db.name} instance is an accepted risk`,
         description: `The team recorded that ${db.name} runs without a replica for now. The availability risk is known and accepted, not removed.`,
-        evidence: [`${accepted.id}: “${accepted.text}”`, `${db.name} (${db.id}) is still the only DATABASE node.`],
+        evidence: [`${accepted.id}: “${accepted.text}”`, `${componentLabel(db)} is still the only DATABASE node.`],
         requirementId: accepted.id,
         sourceChangeId: accepted.sourceChangeId,
         originalInstruction: accepted.originalInstruction,
@@ -37,7 +37,7 @@ export function deriveRiskFindings(project) {
       title: `${db.name} is the only modeled database`,
       description: 'The architecture shows one database component and no modeled replica or failover path. This is a potential availability risk; no availability target is specified.',
       evidence: [
-        `${db.name} (${db.id}) is the only DATABASE node.`,
+        `${componentLabel(db)} is the only DATABASE node.`,
         incoming.length ? `Incoming data flows: ${incoming.join(', ')} → ${db.name}.` : `No component reads from or writes to ${db.name} yet.`,
         'No database replication or failover relationship appears in the model.',
       ],
@@ -115,7 +115,7 @@ export function deriveRiskFindings(project) {
       title: auth ? 'Authentication rate limiting is not specified' : 'Rate limiting at the public entry point is not specified',
       description: 'No rate-limit requirement appears in the model. This is a requirement gap, not proof that a running service is vulnerable.',
       evidence: [
-        auth ? `${auth.name} (${auth.id}) handles sign-in.` : `${entry.name} (${entry.id}) receives public traffic.`,
+        auth ? `${componentLabel(auth)} handles sign-in.` : `${componentLabel(entry)} receives public traffic.`,
         'No rate-limiting requirement is recorded.',
       ],
       requirementId: undefined,

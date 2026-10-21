@@ -152,3 +152,18 @@ test('What changed lists only components that actually changed, regardless of ke
   const components = deriveChangeDiff(next).find((group) => group.id === 'components');
   assert.deepEqual(components.entries.map((entry) => entry.id), ['redis']);
 });
+
+test('change entries name a component once when its name is its id, and show the id when they differ', () => {
+  const project = makeCommerceProject();
+  const next = applyChange(project, proposeChange('Move session storage to Redis, keep PostgreSQL as the source of truth, add login rate limiting, and keep login working if Redis is down.'));
+  const redis = deriveChangeDiff(next).find((group) => group.id === 'components').entries[0];
+  const component = next.components.find((c) => c.id === 'redis');
+  assert.equal(redis.label, component.name === 'redis' ? 'redis' : `${component.name} (redis)`);
+  assert.doesNotMatch(redis.label, /^(\S+) \(\1\)$/);
+});
+
+test('component labels show the id only when it differs from the name', async () => {
+  const { componentLabel } = await import('../src/data/modelFacts.js');
+  assert.equal(componentLabel({ id: 'payment-service', name: 'payment-service' }), 'payment-service');
+  assert.equal(componentLabel({ id: 'postgres', name: 'PostgreSQL' }), 'PostgreSQL (postgres)');
+});

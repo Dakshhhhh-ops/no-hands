@@ -44,6 +44,9 @@ export const rateLimitRequirement = (project) => project.requirements.find((r) =
 
 export const baselineLabel = (project) => `${project?.name || 'Project'} baseline`;
 
+/** "PostgreSQL (postgres)", or just "payment-service" when the name is the id. */
+export const componentLabel = (component) => (component.name === component.id ? component.name : `${component.name} (${component.id})`);
+
 /** An API operation that signs users in, judged by its path, id, or owning component. */
 export function isAuthOperation(operation, component) {
   return AUTH_WORDS.test(`${words(operation.path).replace(/\//g, ' ')} ${words(operation.id)}`)

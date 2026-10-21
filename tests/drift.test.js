@@ -102,7 +102,8 @@ test('risk findings and open decisions come from the imported stack, not the sam
   assert.ok(titles.includes('redis availability behavior is unspecified'));
   assert.ok(titles.includes('Authentication rate limiting is not specified'));
   const rate = deriveRiskFindings(project).find((f) => f.title === 'Authentication rate limiting is not specified');
-  assert.match(rate.evidence[0], /accounts-api \(accounts-api\) handles sign-in/);
+  // The id is shown in brackets only when it differs from the name.
+  assert.match(rate.evidence[0], /^accounts-api handles sign-in/);
   assert.ok(!JSON.stringify(deriveRiskFindings(project)).includes('Auth Service'), 'no sample component names leak in');
 
   assert.equal(countOpenDecisions(project), 2);
