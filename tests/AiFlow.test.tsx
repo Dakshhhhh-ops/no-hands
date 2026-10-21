@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import App from '../src/App.jsx';
 
 // The shared setup mock lists only some icons; this full-app test renders the real ones.
@@ -50,7 +49,7 @@ describe('Model interpretation flow', () => {
   });
 
   it('previews a Claude proposal, shows skipped operations, and applies the valid ones', async () => {
-    render(<MemoryRouter><App /></MemoryRouter>);
+    render(<App />);
 
     expect(await screen.findByText('Interpreted by Groq')).toBeInTheDocument();
     expect(await screen.findByText(/Groq · openai\/gpt-oss-120b/)).toBeInTheDocument();
@@ -82,7 +81,7 @@ describe('Model interpretation flow', () => {
       if (url.endsWith('/api/status')) return jsonResponse({ ai: true, provider: 'groq', model: 'openai/gpt-oss-120b' });
       return jsonResponse({ error: 'Rate limited by the Anthropic API. Try again in a moment.' }, 429);
     });
-    render(<MemoryRouter><App /></MemoryRouter>);
+    render(<App />);
     await screen.findByText(/Interpreted by Groq/);
     fireEvent.click(screen.getByText('Load sample'));
 

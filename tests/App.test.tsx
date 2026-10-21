@@ -46,10 +46,9 @@ vi.mock('lucide-react', () => {
 });
 
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import App from '../src/App.jsx';
 
-const renderApp = () => render(<MemoryRouter><App /></MemoryRouter>);
+const renderApp = () => render(<App />);
 
 describe('App component', () => {
   beforeEach(() => {
