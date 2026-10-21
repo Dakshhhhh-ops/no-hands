@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   voicearchitect:
     build:
@@ -10,9 +8,15 @@ services:
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Abuse limits for /api/interpret; see README "Deploy". Empty means the default.
+      - VOICEARCHITECT_RATE_PER_MINUTE=${VOICEARCHITECT_RATE_PER_MINUTE:-}
+      - VOICEARCHITECT_DAILY_CAP=${VOICEARCHITECT_DAILY_CAP:-}
+      - VOICEARCHITECT_TIMEOUT_MS=${VOICEARCHITECT_TIMEOUT_MS:-}
+      - VOICEARCHITECT_MAX_BODY_KB=${VOICEARCHITECT_MAX_BODY_KB:-}
+      - VOICEARCHITECT_TRUST_PROXY=${VOICEARCHITECT_TRUST_PROXY:-}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/status"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3

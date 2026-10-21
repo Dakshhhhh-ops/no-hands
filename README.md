@@ -61,12 +61,12 @@ npx playwright test  # 9 browser tests against the production build
 
 ## Deploy
 
-Production runs a small Node server that serves the built app and the interpretation API routes (`/api/status` and `/api/interpret`). Pass the key (`GROQ_API_KEY` or `ANTHROPIC_API_KEY`) as an environment variable at run time; it is never baked into the image or the browser bundle.
+Production runs a small Node server (`server/serve.ts`) that serves the built app and the interpretation API. Keys are read only on the server, at run time; they are never baked into the image or the browser bundle.
 
 ```sh
 # Without Docker
-npm run build
-npm start                      # reads the key from the environment or .env.local
+npm ci && npm run build
+npm start                      # reads the environment, or .env.local if present
 
 # Docker (serves on http://localhost:8080)
 GROQ_API_KEY=gsk_... docker compose up --build
@@ -75,7 +75,22 @@ GROQ_API_KEY=gsk_... docker compose up --build
 docker compose --profile dev up --build
 ```
 
-Any host that runs a Docker image or a Node process works, for example Render, Railway, or Fly.io. Set `GROQ_API_KEY` in the host's secret settings. A static-only host serves the app in offline mode.
+Any host that runs a Node process or a Docker image works. Set these as environment variables or secrets on the host:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `GROQ_API_KEY` | none | Groq key. Without any key the app runs on the offline rules. |
+| `ANTHROPIC_API_KEY` | none | Claude key, used when no Groq key is set or `VOICEARCHITECT_PROVIDER=anthropic`. |
+| `VOICEARCHITECT_PROVIDER` | auto | `groq`, `anthropic`, or `offline` to ignore keys. |
+| `GROQ_MODEL` | `openai/gpt-oss-120b` | Groq model id. |
+| `VOICEARCHITECT_RATE_PER_MINUTE` | `6` | Model previews per client IP per minute. |
+| `VOICEARCHITECT_DAILY_CAP` | `300` | Model previews per UTC day across all clients. |
+| `VOICEARCHITECT_TIMEOUT_MS` | `45000` | Longest a preview may take before it falls back. |
+| `VOICEARCHITECT_MAX_BODY_KB` | `256` | Largest accepted request body. |
+| `VOICEARCHITECT_TRUST_PROXY` | off | Set to `1` behind a reverse proxy so limits use the `X-Forwarded-For` client address. |
+| `PORT` | `8080` | Port for `npm start` and the Docker image. |
+
+When a limit is reached, the provider rate-limits, or a preview times out, the server answers with a reason and the browser uses the offline rules for that preview, with a badge saying why. `GET /api/health` reports `{ "status": "ok" }` for health checks. The server never logs instructions or keys. Limits are kept in memory, so they reset when the process restarts and are per process, not shared across replicas.
 
 ## Demo Walkthrough
 

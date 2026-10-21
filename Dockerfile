@@ -9,7 +9,7 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 RUN npm run build && npm prune --omit=dev --legacy-peer-deps
 
-# Production stage: a small Node server serves dist/ and the Claude API routes.
+# Production stage: a small Node server serves dist/ and the interpretation API routes.
 # Pass the key at run time, never at build time:
 #   docker run -p 8080:8080 -e ANTHROPIC_API_KEY=... voicearchitect
 FROM node:24-alpine AS production
