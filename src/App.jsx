@@ -31,11 +31,13 @@ import TiltCard from './components/TiltCard.jsx';
 import VoiceField from './components/landing/VoiceField.jsx';
 import StoryScroll from './components/landing/StoryScroll.jsx';
 import { CustomCursor, Magnetic, SplitWords } from './components/landing/Interactions.jsx';
-import { useSmoothScroll } from './hooks/useSmoothScroll.ts';
 import { HeroFragments, SelectionFrame, CodeLine } from './components/landing/HeroCanvas.jsx';
 import { SectionLabel, RedlineStatement } from './components/landing/Editorial.jsx';
 import { useScrollSpy } from './hooks/useScrollSpy.ts';
 import { isDialogOpen } from './hooks/useDialog.ts';
+import { isAutomated, useSmoothScroll } from './hooks/useSmoothScroll.ts';
+import { parseFollowUp } from './data/reviewCommands.ts';
+import { dictionaryWords } from './data/dictation.ts';
 
 const NAV_SECTIONS = ['top', 'how', 'workspace', 'capabilities'];
 import './app-shell.css';
@@ -154,7 +156,11 @@ export default function App() {
     onError: notify,
   });
 
-  const { isListening, _isSupported, _start: _startDictation, _stop: _stopDictation, toggle: toggleDictation } = dictation;
+  // Wispr Flow types into the focused text box, so it needs no code here. The browser
+  // microphone (Web Speech API) is only a fallback for people without Wispr Flow.
+  const { isListening, isSupported: micSupported, toggle: toggleDictation } = dictation;
+  const heroInputRef = useRef(null);
+  const [followUp, setFollowUp] = useState('');
 
   const journey = useJourney(project, command, null, tab, false, isListening);
   const {
@@ -203,6 +209,9 @@ export default function App() {
     setIsDictatingSim,
     aiStatus,
     isInterpreting,
+    reviseProposal,
+    undoRevision,
+    revisionCount,
   } = proposalHooks;
 
   const handleTabChange = (id) => {
@@ -312,6 +321,11 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    if (isAutomated() || typeof window.matchMedia !== 'function' || !window.matchMedia('(pointer: fine)').matches) return;
+    heroInputRef.current?.focus({ preventScroll: true });
+  }, []);
+
   // Fixes chosen in the Risks tab open the same review dialog as any other change.
   const reviewResolution = (resolution) => {
     if (!resolution) return;
@@ -373,6 +387,49 @@ export default function App() {
     document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' });
     setTimeout(playDemoDictation, 450);
   };
+
+  // A spoken "undo" outside a review undoes the last applied change; "apply" or "cancel"
+  // with nothing under review is answered instead of being sent to the interpreter.
+  function runInstruction() {
+    const intent = parseFollowUp(command);
+    if (intent.type === 'undo') {
+      if (canUndo) {
+        handleUndo();
+        setCommand('');
+        notify('Undid the last applied change.');
+      } else {
+        notify('There is nothing to undo yet.');
+      }
+      return;
+    }
+    if (intent.type === 'apply' || intent.type === 'cancel') {
+      notify('No change is under review. Describe one first.');
+      return;
+    }
+    showProposal();
+  }
+
+  function handleFollowUp(event) {
+    event?.preventDefault?.();
+    const intent = parseFollowUp(followUp);
+    if (intent.type === 'empty') return;
+    setFollowUp('');
+    if (intent.type === 'apply') confirmChange();
+    else if (intent.type === 'cancel') { sound.click(); setProposal(null); }
+    else if (intent.type === 'undo') {
+      if (!undoRevision()) notify('This is the first version of the change. Say "cancel" to discard it.');
+    } else reviseProposal(intent.text);
+  }
+
+  async function copyDictionaryWords() {
+    const words = dictionaryWords(project);
+    try {
+      await navigator.clipboard.writeText(words.join('\n'));
+      notify(`Copied ${words.length} words. Add them in Wispr Flow under Dictionary so it spells them right.`);
+    } catch {
+      notify('Clipboard copy failed.');
+    }
+  }
 
   function confirmChange() {
     if (!project || !proposal) return;
@@ -520,20 +577,53 @@ export default function App() {
             </h1>
           </SelectionFrame>
           <p className="va-hero-description" data-reveal style={{ '--d': 4 }}>
-            Describe an architecture change out loud. VoiceArchitect turns it into a reviewable diff and keeps the diagram,
-            API contract, risks, and tasks true to your code.
+            Voice keeps your architecture diagram in sync with your code. Say a change, review the exact diff, then check it
+            against your docker-compose file.
           </p>
-          <div className="va-hero-actions" data-reveal style={{ '--d': 5 }}>
-            <Magnetic>
-              <button type="button" className="va-btn va-btn-primary va-btn-xl va-shine" onClick={startDemo} data-cursor="Play">
-                <Play size={16} /> Start guided demo
+          <form
+            className="va-voicebar"
+            data-reveal
+            style={{ '--d': 5 }}
+            onSubmit={(event) => { event.preventDefault(); runInstruction(); }}
+          >
+            <label htmlFor="va-hero-command" className="va-sr-only">Describe an architecture change</label>
+            <textarea
+              id="va-hero-command"
+              ref={heroInputRef}
+              rows={2}
+              value={command}
+              onChange={(event) => setCommand(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                  event.preventDefault();
+                  runInstruction();
+                }
+              }}
+              placeholder={'Add a Redis cache in front of the catalog service\norder service ko Kafka se connect karo'}
+            />
+            <div className="va-voicebar-foot">
+              <p className="va-voicebar-hint">
+                <Mic size={14} aria-hidden="true" /> Hold your Wispr Flow hotkey and speak, in English or Hinglish.
+              </p>
+              <button type="submit" className="va-btn va-btn-primary" disabled={!command.trim() || isInterpreting}>
+                {isInterpreting ? 'Interpreting…' : 'Preview change'} <ArrowRight size={15} />
+              </button>
+            </div>
+          </form>
+          <div className="va-hero-secondary" data-reveal style={{ '--d': 6 }}>
+            <Magnetic strength={0.2}>
+              <button type="button" className="va-link-btn" onClick={startDemo} data-cursor="Play">
+                <Play size={13} /> Start guided demo
               </button>
             </Magnetic>
-            <Magnetic strength={0.22}>
-              <a className="va-btn va-btn-xl va-btn-glass" href="#workspace" data-cursor="Open">
-                Open the workspace <ArrowRight size={16} />
-              </a>
-            </Magnetic>
+            {micSupported && (
+              <button type="button" className="va-link-btn" onClick={toggleDictation} aria-pressed={isListening}>
+                <Mic size={13} /> {isListening ? 'Stop browser mic' : 'Browser mic (fallback)'}
+              </button>
+            )}
+            <a className="va-link-btn" href="#workspace">
+              Open the workspace <ArrowRight size={13} />
+            </a>
           </div>
           <div data-reveal style={{ '--d': 6 }}>
             <CodeLine name="interpreter">
@@ -754,18 +844,10 @@ export default function App() {
         <section className="va-composer" aria-labelledby="va-composer-title">
           <div className="va-composer-head">
             <h2 id="va-composer-title">What should change?</h2>
-            <button
-              type="button"
-              className="va-mic"
-              data-live={isLive}
-              aria-pressed={isListening}
-              aria-label={isListening ? 'Stop dictation' : 'Start dictation'}
-              title={isListening ? 'Stop dictation' : 'Start browser dictation'}
-              onClick={toggleDictation}
-            >
-              <Mic size={20} />
-            </button>
           </div>
+          <p className="va-composer-hint">
+            <Mic size={14} aria-hidden="true" /> Hold your Wispr Flow hotkey and speak, or type. English and Hinglish both work.
+          </p>
 
           <div className="va-wave" data-live={isLive} aria-hidden="true">
             {Array.from({ length: 32 }, (_, i) => (
@@ -786,7 +868,7 @@ export default function App() {
               onKeyDown={(e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                   e.preventDefault();
-                  showProposal();
+                  runInstruction();
                 }
               }}
               placeholder="Say it or type it. For example: move session storage to Redis and keep login working if Redis is down."
@@ -822,7 +904,7 @@ export default function App() {
               className="va-btn va-btn-primary"
               disabled={!project || !command.trim() || isInterpreting}
               aria-busy={isInterpreting}
-              onClick={showProposal}
+              onClick={runInstruction}
             >
               <ClipboardCheck size={16} /> {isInterpreting ? 'Interpreting…' : 'Preview my change'}
             </button>
@@ -830,6 +912,11 @@ export default function App() {
               <button type="button" className="va-link-btn" onClick={playDemoDictation} disabled={isDictatingSim}>
                 <Play size={12} /> Play sample instruction
               </button>
+              {micSupported && (
+                <button type="button" className="va-link-btn" onClick={toggleDictation} aria-pressed={isListening}>
+                  <Mic size={12} /> {isListening ? 'Stop browser mic' : 'Browser mic (fallback)'}
+                </button>
+              )}
               {command && (
                 <button
                   type="button"
@@ -862,6 +949,9 @@ export default function App() {
           </details>
 
           <p className="va-composer-note">Nothing applies until you review it.</p>
+          <button type="button" className="va-link-btn va-composer-dict" onClick={copyDictionaryWords} disabled={!project}>
+            <ClipboardList size={12} /> Copy this model's names for your Wispr Flow dictionary
+          </button>
         </section>
 
         {/* ---------------- Output ---------------- */}
@@ -1155,6 +1245,27 @@ export default function App() {
                 <b>Important:</b> Recording a decision documents your team's intent; it does not implement or verify the behavior.
               </p>
             )}
+
+            <form className="va-followup" onSubmit={handleFollowUp}>
+              <label htmlFor="va-followup-input">Follow up by voice or text</label>
+              <div className="va-followup-row">
+                <input
+                  id="va-followup-input"
+                  type="text"
+                  value={followUp}
+                  onChange={(event) => setFollowUp(event.target.value)}
+                  placeholder={'"apply", "cancel", "undo", or "make it PostgreSQL instead"'}
+                  disabled={isInterpreting}
+                  autoComplete="off"
+                />
+                <button type="submit" className="va-btn va-btn-sm" disabled={!followUp.trim() || isInterpreting}>
+                  {isInterpreting ? 'Revising…' : 'Send'}
+                </button>
+              </div>
+              <small>
+                A follow-up revises this change{revisionCount ? ` (version ${revisionCount + 1})` : ''}. Nothing applies until you say or click apply.
+              </small>
+            </form>
 
             <div className="va-modal-actions">
               <button type="button" className="va-btn" onClick={() => { sound.click(); setProposal(null); }}>

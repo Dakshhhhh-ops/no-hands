@@ -93,3 +93,54 @@ describe('Model interpretation flow', () => {
     expect((await screen.findAllByText(/Using offline rules instead/)).length).toBeGreaterThan(0);
   });
 });
+
+describe('Voice follow-ups with a mocked model', () => {
+  const hinglish = {
+    understood: true,
+    summary: 'Connect the Payment Provider to Kafka',
+    items: [{ title: 'Connect Payment Provider to Kafka', detail: 'Payment Provider publishes to Kafka.' }],
+    assumptions: [],
+    operations: [{ op: 'add_relationship', from: 'payment', to: 'kafka', label: 'payment status', protocol: null }],
+  };
+  let calls: string[];
+
+  beforeEach(() => {
+    localStorage.clear();
+    calls = [];
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/status')) return jsonResponse({ ai: true, provider: 'groq', model: 'openai/gpt-oss-120b' });
+      if (url.endsWith('/api/interpret')) {
+        calls.push(JSON.parse(String(init?.body)).text);
+        return jsonResponse({ interpretation: hinglish, provider: 'groq', model: 'openai/gpt-oss-120b' });
+      }
+      return jsonResponse({}, 404);
+    }));
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('sends cleaned Hinglish, revises on a follow-up, and applies only on "apply karo"', async () => {
+    render(<App />);
+    await screen.findByText('Interpreted by Groq');
+    fireEvent.click(screen.getByText('Load sample'));
+    fireEvent.change(screen.getByLabelText('Your instruction'), { target: { value: 'um payment provider ko kafka se connect karo' } });
+    fireEvent.click(screen.getByRole('button', { name: /Preview my change/ }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Review this change' });
+    expect(calls[0]).toBe('payment provider ko Kafka se connect karo');
+    const followUp = within(dialog).getByLabelText('Follow up by voice or text');
+
+    fireEvent.change(followUp, { target: { value: 'label it payment events' } });
+    fireEvent.submit(followUp.closest('form')!);
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect(calls[1]).toBe('payment provider ko Kafka se connect karo. Label it payment events');
+    expect(screen.getByRole('dialog', { name: 'Review this change' })).toBeInTheDocument();
+
+    fireEvent.change(followUp, { target: { value: 'haan apply karo' } });
+    fireEvent.submit(followUp.closest('form')!);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Review this change' })).not.toBeInTheDocument());
+    expect(calls).toHaveLength(2);
+    expect((await screen.findAllByText(/v2 · updated/)).length).toBeGreaterThan(0);
+  });
+});

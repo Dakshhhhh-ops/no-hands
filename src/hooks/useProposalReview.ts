@@ -5,6 +5,9 @@ import { FOOD_DELIVERY_DEMO_COMMAND } from '../data/foodDelivery.js';
 import { deriveChangeDiff } from '../data/changeDiff.js';
 import { sound } from '../utils/sound.js';
 import { fetchAiStatus, interpretWithModel } from '../data/aiClient.ts';
+import { interpretPattern } from '../data/patternRules.ts';
+import { cleanDictation } from '../data/dictation.ts';
+import { combineInstruction } from '../data/reviewCommands.ts';
 import type { AiStatus } from '../data/aiClient.ts';
 
 interface DecisionDraft {
@@ -36,6 +39,11 @@ interface UseProposalReviewReturn {
   aiStatus: AiStatus;
   isInterpreting: boolean;
   setIsDictatingSim: React.Dispatch<React.SetStateAction<boolean>>;
+  /** Re-interpret the pending change with a follow-up such as "make it Postgres instead". */
+  reviseProposal: (_followUp: string) => void;
+  /** Step back to the version before the last revision; false when there is none. */
+  undoRevision: () => boolean;
+  revisionCount: number;
 }
 
 export function useProposalReview(
@@ -49,6 +57,11 @@ export function useProposalReview(
   const { command, setCommand } = commandState;
   const [decisionDraft, setDecisionDraft] = useState<DecisionDraft>({ rateLimitThreshold: '', redisFallback: '' });
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [revisions, setRevisions] = useState<Proposal[]>([]);
+  // A closed review (applied or cancelled) starts the next one without history.
+  useEffect(() => {
+    if (!proposal) setRevisions([]);
+  }, [proposal]);
   const [isDictatingSim, setIsDictatingSim] = useState(false);
   const modalRef = useRef<HTMLElement | null>(null);
   const [aiStatus, setAiStatus] = useState<AiStatus>({ ai: false, provider: null, model: null });
@@ -68,8 +81,12 @@ export function useProposalReview(
 
   // The live keyword preview only describes the offline rules, so hide it when a model interprets.
   const preview = useMemo(
-    () => (!aiStatus.ai && command.trim() ? proposeChange(command.trim()) : null),
-    [command, aiStatus.ai],
+    () => {
+      if (aiStatus.ai || !command.trim()) return null;
+      const text = cleanDictation(command);
+      return (project && interpretPattern(text, project)) || proposeChange(text);
+    },
+    [command, aiStatus.ai, project],
   );
   const proposedProject = useMemo(
     () => (project && proposal ? applyChange(project, proposal, decisionDraft) : null),
@@ -97,7 +114,9 @@ export function useProposalReview(
   useEffect(() => {
     if (!proposal) return undefined;
     const previousFocus = document.activeElement as HTMLElement | null;
-    modalRef.current?.querySelector<HTMLElement>('button')?.focus();
+    // The follow-up field takes focus, so a Wispr Flow user can hold the hotkey and say "apply".
+    const followUpField = modalRef.current?.querySelector<HTMLElement>('#va-followup-input');
+    (followUpField || modalRef.current?.querySelector<HTMLElement>('button'))?.focus({ preventScroll: true });
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -126,23 +145,12 @@ export function useProposalReview(
     };
   }, [proposal]);
 
-  function showProposal() {
-    sound.click();
-    if (!project) {
-      onNotify('Load the Commerce Platform sample first.');
-      return;
-    }
-    if (!command.trim()) {
-      onNotify('Describe or dictate a change first.');
-      return;
-    }
-    setDecisionDraft((current) => ({
-      rateLimitThreshold: current.rateLimitThreshold || project.requirements.find((item) => item.id === 'REQ-AUTH-RATE')?.resolution || '',
-      redisFallback: current.redisFallback || project.requirements.find((item) => item.id === 'REQ-REDIS-FAIL')?.resolution || '',
-    }));
-    const text = command.trim();
+  /** Interpret text with the model, or the offline rules when no model is available or it fails. */
+  function interpret(text: string) {
+    if (!project) return;
+    const offline = () => interpretPattern(text, project) || proposeChange(text);
     if (!aiStatus.ai) {
-      setProposal(proposeChange(text));
+      setProposal(offline());
       return;
     }
     interpretAbort.current?.abort();
@@ -157,7 +165,7 @@ export function useProposalReview(
         if (controller.signal.aborted) return;
         const reason = error instanceof Error ? error.message : 'Interpretation failed.';
         onNotify(`${reason} Using offline rules instead.`);
-        setProposal(proposeChange(text));
+        setProposal(offline());
       })
       .finally(() => {
         if (interpretAbort.current === controller) {
@@ -165,6 +173,46 @@ export function useProposalReview(
           setIsInterpreting(false);
         }
       });
+  }
+
+  function showProposal() {
+    sound.click();
+    if (!project) {
+      onNotify('Load the Commerce Platform sample first.');
+      return;
+    }
+    if (!command.trim()) {
+      onNotify('Describe or dictate a change first.');
+      return;
+    }
+    setDecisionDraft((current) => ({
+      rateLimitThreshold: current.rateLimitThreshold || project.requirements.find((item) => item.id === 'REQ-AUTH-RATE')?.resolution || '',
+      redisFallback: current.redisFallback || project.requirements.find((item) => item.id === 'REQ-REDIS-FAIL')?.resolution || '',
+    }));
+    const text = cleanDictation(command);
+    if (text !== command) setCommand(text);
+    setRevisions([]);
+    interpret(text);
+  }
+
+  function reviseProposal(followUp: string) {
+    if (!project || !proposal || !followUp.trim()) return;
+    sound.click();
+    const text = combineInstruction(proposal.text, cleanDictation(followUp));
+    setRevisions((stack) => [...stack, proposal]);
+    setCommand(text);
+    interpret(text);
+  }
+
+  function undoRevision() {
+    const previous = revisions[revisions.length - 1];
+    if (!previous) return false;
+    interpretAbort.current?.abort();
+    setIsInterpreting(false);
+    setRevisions((stack) => stack.slice(0, -1));
+    setProposal(previous);
+    setCommand(previous.text);
+    return true;
   }
 
   function confirmChange() {
@@ -220,5 +268,8 @@ export function useProposalReview(
     aiStatus,
     isInterpreting,
     setIsDictatingSim,
+    reviseProposal,
+    undoRevision,
+    revisionCount: revisions.length,
   };
 }
