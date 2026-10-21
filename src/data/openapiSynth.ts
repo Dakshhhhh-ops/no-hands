@@ -70,6 +70,8 @@ type OpenApiSchema = {
   format?: string;
   enum?: string[];
   minimum?: number;
+  minLength?: number;
+  description?: string;
   default?: string | number;
   required?: string[];
   properties?: Record<string, OpenApiSchema>;

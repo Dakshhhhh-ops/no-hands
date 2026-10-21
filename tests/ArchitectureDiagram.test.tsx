@@ -95,13 +95,22 @@ describe('ArchitectureDiagram', () => {
     expect(webNode).toHaveAttribute('aria-pressed', 'false');
   });
 
+  it('hides advanced tools until More tools is opened', () => {
+    render(<ArchitectureDiagram project={mockProject} />);
+    expect(screen.queryByRole('button', { name: /deployment/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /kill redis/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'More tools' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('shows deployment button', () => {
     render(<ArchitectureDiagram project={mockProject} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More tools' }));
     expect(screen.getByRole('button', { name: /deployment/i })).toBeInTheDocument();
   });
 
   it('shows chaos injection buttons', () => {
     render(<ArchitectureDiagram project={mockProject} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More tools' }));
     expect(screen.getByRole('button', { name: /kill redis/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /kill postgres/i })).toBeInTheDocument();
   });

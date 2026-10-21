@@ -100,10 +100,83 @@ export const ProposalItemSchema = z.object({
 });
 export type ProposalItem = z.infer<typeof ProposalItemSchema>;
 
+/* ==========================================================================
+   Model-proposed architecture operations
+   Claude returns a list of these; a deterministic applier executes them and the
+   resulting project is re-validated with ProjectSchema before it is accepted.
+   Nullable (not optional) fields keep the schema compatible with structured outputs.
+   ========================================================================== */
+
+const HttpMethodEnum = z.enum(['get', 'post', 'put', 'patch', 'delete']);
+
+export const ArchitectureOperationSchema = z.union([
+  z.object({
+    op: z.literal('add_component'),
+    id: z.string(),
+    name: z.string(),
+    type: ComponentTypeEnum,
+    sub: z.string(),
+    responsibilities: z.array(z.string()),
+  }),
+  z.object({
+    op: z.literal('update_component'),
+    id: z.string(),
+    name: z.string().nullable(),
+    type: ComponentTypeEnum.nullable(),
+    sub: z.string().nullable(),
+    responsibilities: z.array(z.string()).nullable(),
+  }),
+  z.object({ op: z.literal('remove_component'), id: z.string() }),
+  z.object({
+    op: z.literal('add_relationship'),
+    from: z.string(),
+    to: z.string(),
+    label: z.string(),
+    protocol: z.string().nullable(),
+  }),
+  z.object({
+    op: z.literal('update_relationship'),
+    from: z.string(),
+    to: z.string(),
+    label: z.string().nullable(),
+    protocol: z.string().nullable(),
+  }),
+  z.object({ op: z.literal('remove_relationship'), from: z.string(), to: z.string() }),
+  z.object({
+    op: z.literal('add_api_operation'),
+    id: z.string(),
+    componentId: z.string(),
+    method: HttpMethodEnum,
+    path: z.string(),
+    summary: z.string(),
+  }),
+  z.object({ op: z.literal('remove_api_operation'), id: z.string() }),
+  z.object({
+    op: z.literal('add_requirement'),
+    id: z.string(),
+    text: z.string(),
+    status: z.enum(['confirmed', 'unresolved']),
+  }),
+]);
+export type ArchitectureOperation = z.infer<typeof ArchitectureOperationSchema>;
+
+/** The exact shape Claude must return (sent as the structured-output schema). */
+export const InterpretationSchema = z.object({
+  understood: z.boolean(),
+  summary: z.string(),
+  items: z.array(z.object({ title: z.string(), detail: z.string() })),
+  assumptions: z.array(z.string()),
+  operations: z.array(ArchitectureOperationSchema),
+});
+export type Interpretation = z.infer<typeof InterpretationSchema>;
+
 export const ProposalSchema = z.object({
   text: z.string(),
   items: z.array(ProposalItemSchema).min(1, 'Proposal must contain at least one item'),
   assumptions: z.array(z.string()).default([]),
+  /** 'ai' proposals carry operations; 'rules' proposals use the offline keyword rules. */
+  source: z.enum(['ai', 'rules']).optional(),
+  operations: z.array(ArchitectureOperationSchema).optional(),
 });
 export type Proposal = z.infer<typeof ProposalSchema>;
 

@@ -41,9 +41,9 @@ function parsePointer(path: string): string[] {
 /**
  * Traverses a document following a JSON Pointer path
  */
-function getValueAtPath(doc: JsonValue, path: string): JsonValue {
+function getValueAtPath(doc: JsonValue, path: string): JsonValue | undefined {
   const tokens = parsePointer(path);
-  let curr: JsonValue = doc;
+  let curr: JsonValue | undefined = doc;
   for (const token of tokens) {
     if (curr === null || curr === undefined) return undefined;
     if (Array.isArray(curr)) {
@@ -192,7 +192,7 @@ export function applyJsonPatch<T extends JsonValue>(
       case 'add': {
         if (Array.isArray(parent)) {
           const index = key === '-' ? parent.length : (key as number);
-          parent.splice(index, 0, structuredClone(patch.value));
+          parent.splice(index, 0, structuredClone(patch.value as JsonValue));
           inversePatch.unshift({
             op: 'remove',
             path: patch.path === `${patch.path.slice(0, patch.path.lastIndexOf('/'))}/-`
@@ -201,7 +201,7 @@ export function applyJsonPatch<T extends JsonValue>(
           });
         } else {
           const existed = Object.prototype.hasOwnProperty.call(parent, key);
-          (parent as Record<string, JsonValue>)[key as string] = structuredClone(patch.value);
+          (parent as Record<string, JsonValue>)[key as string] = structuredClone(patch.value as JsonValue);
           if (existed) {
             inversePatch.unshift({
               op: 'replace',
@@ -231,7 +231,7 @@ export function applyJsonPatch<T extends JsonValue>(
         break;
       }
       case 'replace': {
-        (parent as Record<string, JsonValue>)[key as string] = structuredClone(patch.value);
+        (parent as Record<string, JsonValue>)[key as string] = structuredClone(patch.value as JsonValue);
         inversePatch.unshift({
           op: 'replace',
           path: patch.path,

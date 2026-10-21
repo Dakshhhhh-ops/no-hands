@@ -20,6 +20,11 @@ const browserGlobals = {
   webkitSpeechRecognition: 'readonly',
   localStorage: 'readonly',
   self: 'readonly',
+  requestAnimationFrame: 'readonly',
+  cancelAnimationFrame: 'readonly',
+  fetch: 'readonly',
+  Response: 'readonly',
+  AbortController: 'readonly',
 };
 
 const nodeGlobals = {

@@ -232,8 +232,8 @@ export function calculateBranchMetrics(project: Project): BranchComparisonMetric
  * Performs a deep side-by-side comparative analysis between two architecture branches.
  */
 export function compareBranches(
-  branchA: ArchitectureBranch,
-  branchB: ArchitectureBranch
+  branchA: Pick<ArchitectureBranch, 'project'>,
+  branchB: Pick<ArchitectureBranch, 'project'>
 ): ScenarioComparison {
   const metricsA = calculateBranchMetrics(branchA.project);
   const metricsB = calculateBranchMetrics(branchB.project);

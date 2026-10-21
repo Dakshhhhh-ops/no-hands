@@ -1,5 +1,6 @@
 import { validateProject, validateProposal } from '../types/schema.ts';
 import { normalizeArchitectureCommand } from './commandParser.js';
+import { applyOperations } from './applyOperations.ts';
 
 export const makeCommerceProject = () => {
   const project = {
@@ -76,10 +77,13 @@ export function proposeChange(text) {
   assumptions.push(...unresolvedTerms);
   assumptions.push(items.some((item) => item.key === 'unresolved') ? 'No architecture facts will be added for unresolved portions until the request is clarified.' : 'A recorded requirement does not mean the behavior is implemented.');
 
-  return validateProposal({ text, items, assumptions });
+  return validateProposal({ text, items, assumptions, source: 'rules' });
 }
 
 export function applyChange(project, proposal, decisions = {}) {
+  // Claude-interpreted proposals carry explicit operations; run them through the
+  // deterministic applier. Offline rule proposals keep the keyword path below.
+  if (proposal.source === 'ai' && Array.isArray(proposal.operations)) return applyOperations(project, proposal).project;
   const next = structuredClone(project);
   const { normalized: lower } = normalizeArchitectureCommand(proposal.text);
   const changes = [];

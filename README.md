@@ -1,17 +1,21 @@
 # VoiceArchitect
 
-VoiceArchitect is a deterministic React + Vite prototype for the WeMakeDevs × Wispr Flow challenge. It turns reviewed natural-language architecture requests into a current project model, an interactive diagram, OpenAPI views, evidence-based risks, proposed engineering tasks, and export files. It runs offline and needs no API key.
+Architecture diagrams go stale because updating them is slow. VoiceArchitect starts from your real docker-compose file, and you describe changes in plain language, typed or dictated. Claude turns each request into a short list of explicit operations. A deterministic applier checks every operation against the current model and the Zod schema, so nothing reaches the diagram, API contract, risks, or tasks until you have reviewed the exact diff.
+
+Without an API key the app still runs, using a small set of offline rules.
 
 ## Features
 
-- **Voice-first input** — Dictate with Wispr Flow or type; transcription corrections handled locally
+- **Claude interpretation** — Claude Opus 5.5 returns structured operations; invalid ones are skipped and shown to the reviewer, never applied
+- **Import docker-compose** — Builds the starting diagram from services, `depends_on`, and connection strings in environment variables
+- **Plain-language input** — Type or dictate; common transcription errors are corrected locally
 - **Interactive diagram** — Dagre layout, blast radius, cycle detection, deployment order, keyboard navigation
 - **Multi-service OpenAPI 3.1** — Contract synthesis with drift detection vs requirements
 - **Evidence-based risk audit** — Deterministic findings with explicit requirement foreign keys
 - **Traceable engineering tasks** — Acceptance criteria, priority, requirement provenance
 - **Scenario branching** — Serverless vs K8s comparison with cost/complexity deltas
 - **Semantic 3-way merge** — Conflict detection with user resolution
-- **Chaos engineering** — Redis/Postgres outage simulation with cascading failure modeling (Web Worker)
+- **Chaos engineering** — Redis/Postgres outage simulation with cascading failure modeling
 - **CRDT collaborative studio** — OrSet + peer cursors for real-time co-editing
 - **ADR workflow** — Architecture Decision Records with multi-role governance sign-off
 - **Verified exports** — ZIP bundles (artifacts, DevOps, IaC, SDK) with integrity checks
@@ -23,35 +27,46 @@ VoiceArchitect is a deterministic React + Vite prototype for the WeMakeDevs × W
 
 ```sh
 npm ci
+cp .env.example .env.local   # then set ANTHROPIC_API_KEY
 npm run dev
 ```
+
+The key is read only by the Vite dev and preview servers, which expose `/api/status` and `/api/interpret`. It is never bundled into the browser code. Without a key, the instruction box shows "Offline rules only" and the app falls back to the built-in rules.
 
 Open the local URL printed by Vite. The app is a single-page React app under `src/`; `index.html` is the Vite entry point.
 
 ## Verify
 
 ```sh
-npm test           # 51 unit tests
-npm run test:vitest  # 41 component tests (Vitest + RTL)
+npm test           # 61 unit tests
+npm run test:vitest  # 43 component tests (Vitest + RTL)
 npm run typecheck    # TypeScript strict mode
 npm run lint         # ESLint (0 errors)
-npm run build        # Production build (554 kB, under 600 kB warning)
+npm run build        # Production build
 ```
 
-## Docker
+## Deploy
+
+Production runs a small Node server that serves the built app and the Claude API routes. Pass the key as an environment variable at run time; it is never baked into the image or the browser bundle.
 
 ```sh
-# Production
-docker compose up --build
+# Without Docker
+npm run build
+npm start                      # reads ANTHROPIC_API_KEY from the environment or .env.local
 
-# Development (hot reload)
+# Docker (serves on http://localhost:8080)
+ANTHROPIC_API_KEY=sk-ant-... docker compose up --build
+
+# Development with hot reload
 docker compose --profile dev up --build
 ```
 
+Any host that runs a Docker image or a Node process works, for example Render, Railway, or Fly.io. Set `ANTHROPIC_API_KEY` in the host's secret settings. A static-only host serves the app in offline mode.
+
 ## Demo Walkthrough
 
-1. **Load sample** — Choose Commerce Platform or Food Delivery → **Load sample**
-2. **Dictate/enter instruction** — Use Wispr Flow or type; try the example cards
+1. **Load a system** — **Import docker-compose** with your own file, **Try example stack**, or **Load sample**
+2. **Enter instruction** — Type or dictate; try the example cards
 3. **Preview change** — Review interpretation, before/after diff, unresolved assumptions
 4. **Apply** — Creates versioned, undoable history entry
 5. **Explore tabs** — Diagram, API Contract, Risks, Tasks, Change Impact, Telemetry
@@ -85,16 +100,16 @@ src/
 
 | Suite | Command | Tests |
 |-------|---------|-------|
-| Unit (Node) | `npm test` | 51 |
-| Component (Vitest + RTL) | `npm run test:vitest` | 41 |
+| Unit (Node) | `npm test` | 61 |
+| Component (Vitest + RTL) | `npm run test:vitest` | 43 |
 | E2E (Playwright) | `npm run test:e2e` | Demo flow, PWA, a11y |
 
 CI runs on every push: Lint → Typecheck → Tests → Build.
 
 ## Limitations
 
-- Wispr Flow writes into the instruction field; no direct Wispr API integration
-- Command parsing uses deterministic local rules and a small transcription correction set
+- Claude interpretation needs the Node server (`npm run dev`, `npm run preview`, `npm start`, or the Docker image); static-only hosting runs on offline rules
+- Offline mode understands only a handful of request patterns; full understanding needs Claude
 - OpenAPI output is derived from the demo model; not validated by a full OpenAPI validator
 - Risks are deterministic findings from modeled evidence, not calibrated production telemetry
 - Tasks are proposed work; not sent to GitHub/Jira

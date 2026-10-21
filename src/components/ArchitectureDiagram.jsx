@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import {
   getDiagramNeighborhood,
   relationshipKey,
@@ -19,9 +19,13 @@ import {
   Download,
   Copy,
   Zap,
+  Sparkles,
+  Zap as ZapIcon,
+  Layers,
+  Activity,
+  Target,
 } from 'lucide-react';
 import { sound } from '../utils/sound.js';
-import { simulateChaosAndTelemetry } from '../data/chaosSimulator.ts';
 import { useChaosWorker } from '../hooks/useChaosWorker.ts';
 import { CollaborativeStudioRoom } from '../data/crdtStudio.ts';
 import { generateAdrFromChange, formatAdrMarkdown } from '../data/adrWorkflow.ts';
@@ -34,6 +38,8 @@ export default function ArchitectureDiagram({ project }) {
   const [layoutEngine, setLayoutEngine] = useState('auto'); // auto (Dagre) vs manual (fixed coordinates)
   const [showDeploymentModal, setShowDeploymentModal] = useState(false);
   const [chaosInjections, setChaosInjections] = useState([]);
+  // Advanced tools stay hidden until asked for, so the default view is the diagram itself.
+  const [showTools, setShowTools] = useState(false);
   const [collaborativeMode, setCollaborativeMode] = useState(false);
   const [showAdrModal, setShowAdrModal] = useState(false);
   const [adrSignoffOverrides, setAdrSignoffOverrides] = useState({});
@@ -262,114 +268,131 @@ export default function ArchitectureDiagram({ project }) {
           </div>
           <span>
             {viewMode === 'baseline'
-              ? `Model v${model.version} · original sample snapshot`
+              ? `Model v${model.version} · original baseline snapshot`
               : `Model v${model.version}${project.changed ? ' · reviewed changes applied to graph' : ' · baseline loaded'}`}
           </span>
         </div>
 
         <div className="diagram-actions-cluster">
-          {/* Layout Mode Toggle: Auto (Dagre) vs Fixed */}
-          <div className="diagram-grid-toggle" title="Graph Layout Mode">
-            <button
-              type="button"
-              className={layoutEngine === 'auto' ? 'active' : ''}
-              onClick={() => {
-                sound.click();
-                setLayoutEngine('auto');
-              }}
-              title="Dynamic Dagre Hierarchical Layout"
-            >
-              Auto-Flow
-            </button>
-            <button
-              type="button"
-              className={layoutEngine === 'manual' ? 'active' : ''}
-              onClick={() => {
-                sound.click();
-                setLayoutEngine('manual');
-              }}
-              title="Fixed Baseline Coordinates"
-            >
-              Manual Grid
-            </button>
-          </div>
-
-          {/* Deployment Sequence Trigger */}
           <button
             type="button"
-            className="button compact outline"
+            className={`button compact outline ${showTools ? 'active' : ''}`}
+            aria-expanded={showTools}
             onClick={() => {
               sound.click();
-              setShowDeploymentModal(true);
+              setShowTools((v) => !v);
             }}
-            title="View Topological Boot and Deployment Order"
+            title="Show deployment order, pairing, ADR sign-off, layout options, and the chaos simulator"
           >
-            <ListOrdered size={13} style={{ marginRight: 4 }} /> Deployment
+            {showTools ? 'Fewer tools' : 'More tools'}
           </button>
 
-          {/* CRDT Collaborative Pairing Toggle */}
-          <button
-            type="button"
-            className={`button compact outline ${collaborativeMode ? 'active' : ''}`}
-            onClick={() => {
-              sound.click();
-              setCollaborativeMode((v) => !v);
-            }}
-            title="Toggle Real-Time Multi-User Collaborative Pairing"
-          >
-            <Users size={13} style={{ marginRight: 4 }} />
-            {collaborativeMode ? 'Pairing (3)' : 'Pairing'}
-          </button>
+          {showTools && (
+            <>
+            {/* Layout Mode Toggle: Auto (Dagre) vs Fixed */}
+            <div className="diagram-grid-toggle" title="Graph Layout Mode">
+              <button
+                type="button"
+                className={layoutEngine === 'auto' ? 'active' : ''}
+                onClick={() => {
+                  sound.click();
+                  setLayoutEngine('auto');
+                }}
+                title="Dynamic Dagre Hierarchical Layout"
+              >
+                Auto-Flow
+              </button>
+              <button
+                type="button"
+                className={layoutEngine === 'manual' ? 'active' : ''}
+                onClick={() => {
+                  sound.click();
+                  setLayoutEngine('manual');
+                }}
+                title="Fixed Baseline Coordinates"
+              >
+                Manual Grid
+              </button>
+            </div>
 
-          {/* ADR Governance Sign-Off Trigger */}
-          <button
-            type="button"
-            className="button compact outline"
-            onClick={() => {
-              sound.click();
-              setShowAdrModal(true);
-            }}
-            title="View Architecture Decision Record & Governance Sign-Off"
-          >
-            <FileCheck2 size={13} style={{ marginRight: 4 }} /> ADR Sign-Off
-          </button>
+            {/* Deployment Sequence Trigger */}
+            <button
+              type="button"
+              className="button compact outline"
+              onClick={() => {
+                sound.click();
+                setShowDeploymentModal(true);
+              }}
+              title="View Topological Boot and Deployment Order"
+            >
+              <ListOrdered size={13} style={{ marginRight: 4 }} /> Deployment
+            </button>
 
-          {/* Grid Style Toggle */}
-          <div className="diagram-grid-toggle" title="Toggle Canvas Grid Style">
+            {/* CRDT Collaborative Pairing Toggle */}
             <button
               type="button"
-              className={gridStyle === 'blueprint' ? 'active' : ''}
+              className={`button compact outline ${collaborativeMode ? 'active' : ''}`}
               onClick={() => {
                 sound.click();
-                setGridStyle('blueprint');
+                setCollaborativeMode((v) => !v);
               }}
-              title="Blueprint Grid"
+              title="Toggle Real-Time Multi-User Collaborative Pairing"
             >
-              Grid
+              <Users size={13} style={{ marginRight: 4 }} />
+              {collaborativeMode ? 'Pairing (3)' : 'Pairing'}
             </button>
+
+            {/* ADR Governance Sign-Off Trigger */}
             <button
               type="button"
-              className={gridStyle === 'dots' ? 'active' : ''}
+              className="button compact outline"
               onClick={() => {
                 sound.click();
-                setGridStyle('dots');
+                setShowAdrModal(true);
               }}
-              title="Matrix Dots"
+              title="View Architecture Decision Record & Governance Sign-Off"
             >
-              Dots
+              <FileCheck2 size={13} style={{ marginRight: 4 }} /> ADR Sign-Off
             </button>
-            <button
-              type="button"
-              className={gridStyle === 'clean' ? 'active' : ''}
-              onClick={() => {
-                sound.click();
-                setGridStyle('clean');
-              }}
-              title="Minimalist Clean"
-            >
-              Clear
-            </button>
-          </div>
+
+            {/* Grid Style Toggle */}
+            <div className="diagram-grid-toggle" title="Toggle Canvas Grid Style">
+              <button
+                type="button"
+                className={gridStyle === 'blueprint' ? 'active' : ''}
+                onClick={() => {
+                  sound.click();
+                  setGridStyle('blueprint');
+                }}
+                title="Blueprint Grid"
+              >
+                Grid
+              </button>
+              <button
+                type="button"
+                className={gridStyle === 'dots' ? 'active' : ''}
+                onClick={() => {
+                  sound.click();
+                  setGridStyle('dots');
+                }}
+                title="Matrix Dots"
+              >
+                Dots
+              </button>
+              <button
+                type="button"
+                className={gridStyle === 'clean' ? 'active' : ''}
+                onClick={() => {
+                  sound.click();
+                  setGridStyle('clean');
+                }}
+                title="Minimalist Clean"
+              >
+                Clear
+              </button>
+            </div>
+            </>
+          )}
 
           {/* Zoom Controls */}
           <div className="diagram-zoom-controls">
@@ -408,77 +431,79 @@ export default function ArchitectureDiagram({ project }) {
       </div>
 
       {/* Phase 5: Chaos Engineering & Live Telemetry Stream Bar */}
-      <div className="diagram-chaos-bar">
-        <div className="chaos-actions">
-          <span className="chaos-label">
-            <Flame size={13} style={{ color: '#ef4444' }} /> Chaos Simulator:
-          </span>
-          <button
-            type="button"
-            className={`chaos-btn ${chaosInjections.some((c) => c.targetComponentId === 'redis') ? 'active-kill' : ''}`}
-            onClick={() => toggleChaos('redis', 'NODE_OUTAGE', 'Kill Redis')}
-            title="Simulate Redis session cache crash"
-          >
-            <Zap size={11} /> Kill Redis
-          </button>
-          <button
-            type="button"
-            className={`chaos-btn ${chaosInjections.some((c) => c.targetComponentId === 'postgres') ? 'active-kill' : ''}`}
-            onClick={() => toggleChaos('postgres', 'NODE_OUTAGE', 'Kill Postgres')}
-            title="Simulate PostgreSQL primary database crash"
-          >
-            <Zap size={11} /> Kill Postgres
-          </button>
-          <button
-            type="button"
-            className={`chaos-btn ${chaosInjections.some((c) => c.targetComponentId === 'gateway') ? 'active-warn' : ''}`}
-            onClick={() => toggleChaos('gateway', 'LATENCY_SPIKE', '+1500ms Spike', { latencyMs: 1500 })}
-            title="Inject 1500ms network latency spike on API Gateway"
-          >
-            <Clock size={11} /> +1500ms Spike
-          </button>
-          {chaosInjections.length > 0 && (
+      {showTools && (
+        <div className="diagram-chaos-bar">
+          <div className="chaos-actions">
+            <span className="chaos-label">
+              <Flame size={13} style={{ color: '#ef4444' }} /> Chaos Simulator:
+            </span>
             <button
               type="button"
-              className="chaos-btn restore-btn"
-              onClick={restoreAllChaos}
-              title="Restore all killed nodes and clear latency spikes"
+              className={`chaos-btn ${chaosInjections.some((c) => c.targetComponentId === 'redis') ? 'active-kill' : ''}`}
+              onClick={() => toggleChaos('redis', 'NODE_OUTAGE', 'Kill Redis')}
+              title="Simulate Redis session cache crash"
             >
-              <RotateCcw size={11} /> Restore All
+              <Zap size={11} /> Kill Redis
             </button>
-          )}
-        </div>
+            <button
+              type="button"
+              className={`chaos-btn ${chaosInjections.some((c) => c.targetComponentId === 'postgres') ? 'active-kill' : ''}`}
+              onClick={() => toggleChaos('postgres', 'NODE_OUTAGE', 'Kill Postgres')}
+              title="Simulate PostgreSQL primary database crash"
+            >
+              <Zap size={11} /> Kill Postgres
+            </button>
+            <button
+              type="button"
+              className={`chaos-btn ${chaosInjections.some((c) => c.targetComponentId === 'gateway') ? 'active-warn' : ''}`}
+              onClick={() => toggleChaos('gateway', 'LATENCY_SPIKE', '+1500ms Spike', { latencyMs: 1500 })}
+              title="Inject 1500ms network latency spike on API Gateway"
+            >
+              <Clock size={11} /> +1500ms Spike
+            </button>
+            {chaosInjections.length > 0 && (
+              <button
+                type="button"
+                className="chaos-btn restore-btn"
+                onClick={restoreAllChaos}
+                title="Restore all killed nodes and clear latency spikes"
+              >
+                <RotateCcw size={11} /> Restore All
+              </button>
+            )}
+          </div>
 
-        <div className="chaos-telemetry-stats">
-          <div className={`telemetry-health-badge ${telemetry.overallSystemHealth.toLowerCase()}`}>
-            {telemetry.overallSystemHealth}
-          </div>
-          <div className="telemetry-pill">
-            <span>Flow:</span> <b>{telemetry.totalRpsThroughput} RPS</b>
-          </div>
-          {telemetry.droppedRps > 0 && (
-            <div className="telemetry-pill" style={{ color: '#fca5a5' }}>
-              <span>Drop:</span> <b>{telemetry.droppedRps} RPS</b>
+          <div className="chaos-telemetry-stats">
+            <div className={`telemetry-health-badge ${telemetry.overallSystemHealth.toLowerCase()}`}>
+              {telemetry.overallSystemHealth}
             </div>
-          )}
-          <div className="telemetry-pill">
-            <span>Latency:</span> <b>{telemetry.averageLatencyMs}ms</b>
-          </div>
-          <div className="telemetry-pill">
-            <span>P99:</span> <b>{telemetry.p99LatencyMs}ms</b>
-          </div>
-          {collaborativeMode && (
-            <div className="peer-presence-bar">
-              {studioRoom.getActivePeers().map((peer) => (
-                <span key={peer.peerId} className="peer-chip">
-                  <span className="peer-dot" style={{ backgroundColor: peer.color }} />
-                  <b>{peer.name}</b>
-                </span>
-              ))}
+            <div className="telemetry-pill">
+              <span>Flow:</span> <b>{telemetry.totalRpsThroughput} RPS</b>
             </div>
-          )}
+            {telemetry.droppedRps > 0 && (
+              <div className="telemetry-pill" style={{ color: '#fca5a5' }}>
+                <span>Drop:</span> <b>{telemetry.droppedRps} RPS</b>
+              </div>
+            )}
+            <div className="telemetry-pill">
+              <span>Latency:</span> <b>{telemetry.averageLatencyMs}ms</b>
+            </div>
+            <div className="telemetry-pill">
+              <span>P99:</span> <b>{telemetry.p99LatencyMs}ms</b>
+            </div>
+            {collaborativeMode && (
+              <div className="peer-presence-bar">
+                {studioRoom.getActivePeers().map((peer) => (
+                  <span key={peer.peerId} className="peer-chip">
+                    <span className="peer-dot" style={{ backgroundColor: peer.color }} />
+                    <b>{peer.name}</b>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Cycle Detection Warning Banner */}
       {neighborhood.cycleReport?.hasCycle && (
@@ -518,8 +543,111 @@ export default function ArchitectureDiagram({ project }) {
             viewBox={`0 0 ${width} ${height}`}
             role="group"
             aria-label={`${model.name} architecture diagram. Select a component to inspect it and highlight its relationships.`}
+            style={{ 
+              filter: 'drop-shadow(0 4px 24px rgba(78, 242, 210, 0.08))',
+            }}
           >
             <defs>
+              {/* 3D Node Gradients */}
+              <linearGradient id="node-gradient-base" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#1e2430" />
+                <stop offset="50%" stopColor="#1a1e26" />
+                <stop offset="100%" stopColor="#13161c" />
+              </linearGradient>
+              <linearGradient id="node-gradient-selected" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#0e1a2a" />
+                <stop offset="50%" stopColor="#0a1624" />
+                <stop offset="100%" stopColor="#05101c" />
+              </linearGradient>
+              <linearGradient id="node-gradient-changed" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#1a2a1e" />
+                <stop offset="50%" stopColor="#142016" />
+                <stop offset="100%" stopColor="#0e1810" />
+              </linearGradient>
+              <linearGradient id="node-gradient-down" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#2a1414" />
+                <stop offset="50%" stopColor="#200e0e" />
+                <stop offset="100%" stopColor="#180808" />
+              </linearGradient>
+              <linearGradient id="node-gradient-degraded" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#2a2414" />
+                <stop offset="50%" stopColor="#20180e" />
+                <stop offset="100%" stopColor="#181008" />
+              </linearGradient>
+
+              {/* 3D Edge Gradients */}
+              <linearGradient id="edge-gradient-base" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#384456" stopOpacity="0.6" />
+                <stop offset="50%" stopColor="#4a5a6e" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#384456" stopOpacity="0.6" />
+              </linearGradient>
+              <linearGradient id="edge-gradient-direct" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#4ef2d2" stopOpacity="0.8" />
+                <stop offset="50%" stopColor="#7ecad2" stopOpacity="1" />
+                <stop offset="100%" stopColor="#4ef2d2" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="edge-gradient-downstream" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#b5a2ff" stopOpacity="0.8" />
+                <stop offset="50%" stopColor="#c8bbff" stopOpacity="1" />
+                <stop offset="100%" stopColor="#b5a2ff" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="edge-gradient-upstream" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.8" />
+                <stop offset="50%" stopColor="#fbbf24" stopOpacity="1" />
+                <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="edge-gradient-changed" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#4ef2d2" stopOpacity="1" />
+                <stop offset="50%" stopColor="#7ecad2" stopOpacity="1" />
+                <stop offset="100%" stopColor="#4ef2d2" stopOpacity="1" />
+              </linearGradient>
+              <linearGradient id="edge-gradient-severed" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.6" />
+                <stop offset="50%" stopColor="#f87171" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#ef4444" stopOpacity="0.6" />
+              </linearGradient>
+
+              {/* Glow Filters */}
+              <filter id="glow-subtle" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="8" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="glow-accent" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="6" result="blur" />
+                <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.3 0 0 0 0 0.95 0 0 0 0 0.82 0 0 0 1 0" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="glow-danger" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="6" result="blur" />
+                <feColorMatrix in="blur" type="matrix" values="0.93 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+
+              {/* 3D Depth Shadow */}
+              <filter id="depth-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="4" stdDeviation="8" floodColor="#000" floodOpacity="0.3" />
+              </filter>
+              <filter id="depth-shadow-strong" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="8" stdDeviation="16" floodColor="#000" floodOpacity="0.4" />
+              </filter>
+
+              {/* Edge Markers */}
               <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
                 <path d="M0,0 L0,6 L7,3 z" fill="#52647c" />
               </marker>
@@ -535,11 +663,67 @@ export default function ArchitectureDiagram({ project }) {
               <marker id="arrow-upstream" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
                 <path d="M0,0 L0,6 L7,3 z" fill="#f59e0b" />
               </marker>
-              <linearGradient id="edge-laser-glow" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#4ef2d2" stopOpacity="0.8" />
-                <stop offset="50%" stopColor="#7ecad2" stopOpacity="1" />
-                <stop offset="100%" stopColor="#4ef2d2" stopOpacity="0.8" />
-              </linearGradient>
+
+              {/* Particle Definitions */}
+              <radialGradient id="particle-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#4ef2d2" stopOpacity="1" />
+                <stop offset="70%" stopColor="#4ef2d2" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#4ef2d2" stopOpacity="0" />
+              </radialGradient>
+              <radialGradient id="particle-glow-downstream" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#b5a2ff" stopOpacity="1" />
+                <stop offset="70%" stopColor="#b5a2ff" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#b5a2ff" stopOpacity="0" />
+              </radialGradient>
+              <radialGradient id="particle-glow-upstream" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#f59e0b" stopOpacity="1" />
+                <stop offset="70%" stopColor="#f59e0b" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+              </radialGradient>
+
+              {/* Node Type Icons as Patterns */}
+              <pattern id="pattern-service" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+                <circle cx="4" cy="4" r="1.5" fill="#4ef2d2" opacity="0.15" />
+              </pattern>
+              <pattern id="pattern-datastore" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+                <rect x="2" y="2" width="4" height="4" fill="#b5a2ff" opacity="0.15" />
+              </pattern>
+              <pattern id="pattern-external" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+                <path d="M2,6 L6,2 M2,2 L6,6" stroke="#f59e0b" strokeWidth="1" opacity="0.15" />
+              </pattern>
+
+              {/* Animation Keyframes */}
+              <style type="text/css">{`
+                /* Opacity only: a CSS transform here would override each node's
+                   SVG translate() and stack every node at the origin. */
+                @keyframes node-enter {
+                  from { opacity: 0; }
+                  to { opacity: 1; }
+                }
+                @keyframes pulse-ring {
+                  0% { r: 4; opacity: 0.6; }
+                  100% { r: 16; opacity: 0; }
+                }
+                @keyframes photon-pulse {
+                  0% { r: 2; opacity: 1; }
+                  50% { r: 4; opacity: 0.8; }
+                  100% { r: 2; opacity: 1; }
+                }
+                @keyframes float {
+                  0%, 100% { transform: translateY(0); }
+                  50% { transform: translateY(-4px); }
+                }
+                @keyframes shimmer {
+                  0% { opacity: 0.3; }
+                  50% { opacity: 1; }
+                  100% { opacity: 0.3; }
+                }
+                .node-enter { animation: node-enter 0.4s ease-out; }
+                .pulse-photon { animation: photon-pulse 1.5s ease-in-out infinite; }
+                .pulse-ring { animation: pulse-ring 2s ease-out infinite; }
+                .float { animation: float 3s ease-in-out infinite; }
+                .shimmer { animation: shimmer 2s ease-in-out infinite; }
+              `}</style>
             </defs>
 
             {/* Architecture Connectors */}
@@ -588,20 +772,48 @@ export default function ArchitectureDiagram({ project }) {
 
               const pathD = `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2 - 7} ${y2}`;
 
+              // Determine edge gradient based on state
+              let edgeGradient = 'url(#edge-gradient-base)';
+              let edgeFilter = 'none';
+              if (isSevered) {
+                edgeGradient = 'url(#edge-gradient-severed)';
+                edgeFilter = 'url(#glow-danger)';
+              } else if (isChanged) {
+                edgeGradient = 'url(#edge-gradient-changed)';
+                edgeFilter = 'url(#glow-accent)';
+              } else if (isDirect) {
+                edgeGradient = 'url(#edge-gradient-direct)';
+                edgeFilter = 'url(#glow-accent)';
+              } else if (isDownstream) {
+                edgeGradient = 'url(#edge-gradient-downstream)';
+              } else if (isUpstream) {
+                edgeGradient = 'url(#edge-gradient-upstream)';
+              }
+
               return (
                 <g
                   key={relationshipKey(edge)}
                   className={`diagram-relationship ${isDirect ? 'direct' : ''} ${isDownstream ? 'downstream' : ''} ${isUpstream ? 'upstream' : ''} ${dimmed ? 'dimmed' : ''}`}
                 >
+                  {/* Edge glow background */}
+                  <path
+                    d={pathD}
+                    stroke={edgeGradient}
+                    strokeWidth={isSevered ? 2.5 : isDirect || isChanged ? 3 : 2}
+                    fill="none"
+                    style={{ filter: edgeFilter, markerEnd: marker }}
+                    className={`edge-glow ${isChanged ? 'changed' : ''} ${isSevered ? 'severed' : ''} ${isCongested ? 'congested' : ''}`}
+                  />
+                  {/* Main edge path */}
                   <path
                     className={`edge ${isChanged ? 'changed' : ''} ${isSevered ? 'severed' : ''} ${isCongested ? 'congested' : ''}`}
                     d={pathD}
                     style={{ markerEnd: marker }}
                   />
-                  {/* Dynamic Animated Edge Traffic Particles */}
+                  {/* Dynamic Animated Edge Traffic Particles with glow */}
                   {!isSevered && (
                     <>
-                      <circle r="2.8" fill={particleColor} className="pulse-photon">
+                      <circle r="3.5" fill="url(#particle-glow)" className="pulse-photon">
                         <animateMotion
                           path={pathD}
                           dur={`${particleSpeed}s`}
@@ -609,7 +821,7 @@ export default function ArchitectureDiagram({ project }) {
                         />
                       </circle>
                       {particleDensity >= 2 && (
-                        <circle r="2.2" fill={particleColor} opacity="0.8" className="pulse-photon">
+                        <circle r="2.8" fill="url(#particle-glow)" opacity="0.85" className="pulse-photon">
                           <animateMotion
                             path={pathD}
                             dur={`${particleSpeed}s`}
@@ -619,7 +831,7 @@ export default function ArchitectureDiagram({ project }) {
                         </circle>
                       )}
                       {particleDensity >= 3 && (
-                        <circle r="1.8" fill={particleColor} opacity="0.6" className="pulse-photon">
+                        <circle r="2.2" fill="url(#particle-glow)" opacity="0.7" className="pulse-photon">
                           <animateMotion
                             path={pathD}
                             dur={`${particleSpeed}s`}
@@ -627,6 +839,29 @@ export default function ArchitectureDiagram({ project }) {
                             repeatCount="indefinite"
                           />
                         </circle>
+                      )}
+                      {/* Downstream/Upstream colored particles */}
+                      {isDownstream && (
+                        <>
+                          <circle r="3" fill="url(#particle-glow-downstream)" className="pulse-photon">
+                            <animateMotion
+                              path={pathD}
+                              dur={`${particleSpeed}s`}
+                              repeatCount="indefinite"
+                            />
+                          </circle>
+                        </>
+                      )}
+                      {isUpstream && (
+                        <>
+                          <circle r="3" fill="url(#particle-glow-upstream)" className="pulse-photon">
+                            <animateMotion
+                              path={pathD}
+                              dur={`${particleSpeed}s`}
+                              repeatCount="indefinite"
+                            />
+                          </circle>
+                        </>
                       )}
                     </>
                   )}
@@ -651,21 +886,129 @@ export default function ArchitectureDiagram({ project }) {
               const isDown = nodeMetric?.status === 'DOWN';
               const isDegraded = nodeMetric?.status === 'DEGRADED';
 
-              return (
+              // Extract template literals to avoid JSX parsing issues
+              const nodeTransform = 'translate(' + node.x + ',' + node.y + ')';
+              const iconTransform = 'translate(' + (nodeW - 28) + ',' + (nodeH - 28) + ')';
+              const nodeFilter = isSelected || isChanged ? 'url(#glow-accent)' : isDown ? 'url(#glow-danger)' : isDegraded ? 'url(#glow-subtle)' : 'url(#depth-shadow)';
+
+return (
                 <g
-                  className={`node ${isChanged ? 'changed' : ''} ${isSelected ? 'selected' : ''} ${isDirect ? 'direct' : ''} ${isDownstream ? 'downstream' : ''} ${isUpstream ? 'upstream' : ''} ${isDown ? 'node-down' : isDegraded ? 'node-degraded' : ''} ${dimmed ? 'dimmed' : ''}`}
-                  transform={`translate(${node.x},${node.y})`}
+                  className={`node ${isChanged ? 'changed' : ''} ${isSelected ? 'selected' : ''} ${isDirect ? 'direct' : ''} ${isDownstream ? 'downstream' : ''} ${isUpstream ? 'upstream' : ''} ${isDown ? 'node-down' : isDegraded ? 'node-degraded' : ''} ${dimmed ? 'dimmed' : ''} node-enter`}
+                  transform={nodeTransform}
                   key={node.id}
                   role="button"
                   tabIndex={0}
-                  aria-label={`${node.name}, ${node.type}. ${description}`}
+                  aria-label={node.name + ', ' + node.type + '. ' + description}
                   aria-pressed={isSelected}
                   onClick={(event) => selectNode(event, node.id)}
                   onKeyDown={(event) => handleNodeKeyDown(event, node.id)}
+                  style={{ 
+                    filter: nodeFilter,
+                    transition: 'filter 0.3s ease-out, transform 0.2s ease-out',
+                  }}
                 >
-                  <title>
-                    {node.name}: {description}
-                  </title>
+                  <rect x="2" y="2" width={nodeW} height={nodeH} rx="8" fill="#000" opacity="0.15" />
+                  
+                  {/* Selection Ring */}
+                  {isSelected && (
+                    <g className="selection-ring">
+                      <rect
+                        x="-4"
+                        y="-4"
+                        width={nodeW + 8}
+                        height={nodeH + 8}
+                        rx="12"
+                        fill="none"
+                        stroke="#4ef2d2"
+                        strokeWidth="2"
+                        strokeDasharray="6 4"
+                        opacity="0.9"
+                      />
+                      <rect
+                        x="-6"
+                        y="-6"
+                        width={nodeW + 12}
+                        height={nodeH + 12}
+                        rx="14"
+                        fill="none"
+                        stroke="#4ef2d2"
+                        strokeWidth="1"
+                        opacity="0.3"
+                        className="pulse-ring"
+                      />
+                    </g>
+                  )}
+                  
+                  {/* Changed Indicator Ring */}
+                  {isChanged && !isSelected && (
+                    <rect
+                      x="-2"
+                      y="-2"
+                      width={nodeW + 4}
+                      height={nodeH + 4}
+                      rx="10"
+                      fill="none"
+                      stroke="#4ef2d2"
+                      strokeWidth="1.5"
+                      strokeDasharray="5 3"
+                      opacity="0.7"
+                      className="shimmer"
+                    />
+                  )}
+                  
+                  {/* Node Background with 3D Gradient */}
+                  <rect 
+                    width={nodeW} 
+                    height={nodeH} 
+                    rx="8" 
+                    fill={
+                      isSelected ? 'url(#node-gradient-selected)' :
+                      isChanged ? 'url(#node-gradient-changed)' :
+                      isDown ? 'url(#node-gradient-down)' :
+                      isDegraded ? 'url(#node-gradient-degraded)' :
+                      'url(#node-gradient-base)'
+                    }
+                    style={{ 
+                      filter: isDown ? 'url(#glow-danger)' : isDegraded ? 'url(#glow-subtle)' : 'none',
+                      transition: 'fill 0.3s ease-out',
+                    }}
+                  />
+                  
+                  {/* Type Pattern Overlay */}
+                  <rect 
+                    width={nodeW} 
+                    height={nodeH} 
+                    rx="8" 
+                    fill={
+                      node.type === 'SERVICE' ? 'url(#pattern-service)' :
+                      node.type === 'DATASTORE' ? 'url(#pattern-datastore)' :
+                      'url(#pattern-external)'
+                    }
+                    opacity={0.1}
+                  />
+                  
+                  {/* Top Highlight for 3D Effect */}
+                  <rect 
+                    x="4" 
+                    y="4" 
+                    width={nodeW - 8} 
+                    height="8" 
+                    rx="4" 
+                    fill="#4ef2d2" 
+                    opacity={isSelected ? 0.2 : isChanged ? 0.15 : 0.08} 
+                  />
+                  
+                  {/* Left Highlight for 3D Effect */}
+                  <rect 
+                    x="4" 
+                    y="4" 
+                    width="4" 
+                    height={nodeH - 8} 
+                    rx="2" 
+                    fill="#4ef2d2" 
+                    opacity={isSelected ? 0.15 : 0.05} 
+                  />
+                  
                   {isSelected && (
                     <rect
                       x="-3"
@@ -680,7 +1023,7 @@ export default function ArchitectureDiagram({ project }) {
                       opacity="0.8"
                     />
                   )}
-                  <rect width={nodeW} height={nodeH} rx="8" />
+                  
                   <text className="node-type" x="11" y="17">
                     {node.type}
                   </text>
@@ -690,6 +1033,8 @@ export default function ArchitectureDiagram({ project }) {
                   <text className="node-sub" x="11" y="49">
                     {node.sub}
                   </text>
+                  
+                  {/* 3D Corner Indicator */}
                   <path
                     d={`M ${nodeW - 12} 4 L ${nodeW - 4} 4 L ${nodeW - 4} 12`}
                     fill="none"
@@ -704,9 +1049,10 @@ export default function ArchitectureDiagram({ project }) {
                               ? '#f59e0b'
                               : '#334155'
                     }
-                    strokeWidth="1.2"
+                    strokeWidth="1.5"
+                    style={{ filter: isSelected ? 'drop-shadow(0 0 4px #4ef2d2)' : 'none' }}
                   />
-
+  
                   {/* Telemetry Status Badge on Node */}
                   {nodeMetric && nodeMetric.status !== 'HEALTHY' && (
                     <g transform={`translate(${nodeW - 58}, 5)`}>
@@ -715,7 +1061,8 @@ export default function ArchitectureDiagram({ project }) {
                         height="13"
                         rx="3"
                         fill={isDown ? '#ef4444' : '#f59e0b'}
-                        opacity="0.9"
+                        opacity="0.95"
+                        style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}
                       />
                       <text
                         x="27"
@@ -730,6 +1077,28 @@ export default function ArchitectureDiagram({ project }) {
                       </text>
                     </g>
                   )}
+                  
+                  {/* Node Type Icon */}
+                  <g transform={iconTransform} opacity="0.6">
+                    {node.type === 'SERVICE' && (
+                      <>
+                        <circle cx="10" cy="10" r="8" fill="#4ef2d2" opacity="0.2" />
+                        <path d="M6,10 L10,6 L14,10 L10,14 Z" fill="#4ef2d2" opacity="0.8" />
+                      </>
+                    )}
+                    {node.type === 'DATASTORE' && (
+                      <>
+                        <rect x="2" y="2" width="16" height="16" rx="2" fill="#b5a2ff" opacity="0.2" />
+                        <rect x="6" y="6" width="8" height="8" rx="1" fill="#b5a2ff" opacity="0.8" />
+                      </>
+                    )}
+                    {node.type === 'EXTERNAL' && (
+                      <>
+                        <circle cx="10" cy="10" r="8" fill="#f59e0b" opacity="0.2" />
+                        <path d="M6,10 L14,10 M10,6 L10,14" stroke="#f59e0b" strokeWidth="1.5" />
+                      </>
+                    )}
+                  </g>
                 </g>
               );
             })}
@@ -892,7 +1261,7 @@ export default function ArchitectureDiagram({ project }) {
         </section>
       ) : (
         <p className="diagram-help">
-          <span className="text-cyan">[TIP]</span> Click any component node to inspect upstream outage blast radius, downstream dependencies with hop distance, and direct connections. Use the Auto-Flow toggle to switch between Dagre hierarchical layout and manual positioning.
+          <span className="text-cyan">[TIP]</span> Click any component node to inspect upstream outage blast radius, downstream dependencies with hop distance, and direct connections. Layout options and simulation tools are under More tools.
         </p>
       )}
 

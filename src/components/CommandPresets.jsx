@@ -2,6 +2,7 @@ import { Check, Sparkles, Terminal } from 'lucide-react';
 import { DEMO_COMMAND } from '../data/commerce.js';
 import { FOOD_DELIVERY_DEMO_COMMAND } from '../data/foodDelivery.js';
 import { sound } from '../utils/sound.js';
+import { suggestInstructions } from '../data/suggestions.ts';
 
 const PRESET_COMMANDS = [
   {
@@ -47,8 +48,11 @@ const FOOD_PRESETS = [{
   highlights: ['PostgreSQL Ownership', 'Checkout Rate Limit', 'Manual Decisions'],
 }];
 
-export default function CommandPresets({ onSelectPreset, currentCommand, sampleKind = 'commerce' }) {
-  const presets = sampleKind === 'food' ? FOOD_PRESETS : PRESET_COMMANDS;
+export default function CommandPresets({ onSelectPreset, currentCommand, sampleKind = 'commerce', project = null, isImported = false }) {
+  // Imported systems get examples that name their own components; samples keep the
+  // presets the offline rules understand.
+  const suggested = isImported ? suggestInstructions(project) : [];
+  const presets = suggested.length ? suggested : sampleKind === 'food' ? FOOD_PRESETS : PRESET_COMMANDS;
   return (
     <div className="presets-container" aria-label="Architecture command presets">
       <div className="presets-header">

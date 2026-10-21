@@ -53,8 +53,6 @@ button, textarea { font: inherit; }
 .nh-brand-copy b { color: #f4f8ff; font-size: 15px; letter-spacing: -.45px; }
 .nh-brand-copy small { color: #8194ab; font: 8px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: .8px; }
 .nh-topbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
-.nh-wispr-status { display: inline-flex; align-items: center; gap: 7px; margin-right: 5px; color: #a8c9d3; font-size: 9px; white-space: nowrap; }
-.nh-wispr-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--nh-cyan); box-shadow: 0 0 8px #5ad9e877; }
 .nh-button {
   display: inline-flex; min-height: 37px; align-items: center; justify-content: center; gap: 7px;
   padding: 8px 11px; border: 1px solid #304158; border-radius: 8px;
@@ -230,7 +228,6 @@ button, textarea { font: inherit; }
 @media (max-width: 1180px) {
   .nh-topbar { align-items: flex-start; }
   .nh-topbar-actions { flex-wrap: wrap; }
-  .nh-wispr-status { display: none; }
   .nohands-app .workspace { grid-template-columns: minmax(300px, .8fr) minmax(0, 1.3fr); }
   .nohands-app .tab { padding: 0 6px; font-size: 8px; }
   .nohands-app .tab-code { display: none; }

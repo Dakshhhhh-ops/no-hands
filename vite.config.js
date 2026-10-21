@@ -1,10 +1,31 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { apiMiddleware } from './server/interpret.ts';
 
-export default defineConfig({
+/** Serves /api/status and /api/interpret from the dev and preview servers.
+ * API keys are read server-side only and never bundled into the client. */
+function voiceArchitectApi() {
+  return {
+    name: 'voicearchitect-api',
+    configureServer(server) {
+      server.middlewares.use(apiMiddleware);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(apiMiddleware);
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => {
+  const serverEnv = loadEnv(mode, process.cwd(), ['ANTHROPIC_', 'GROQ_', 'VOICEARCHITECT_']);
+  for (const [key, value] of Object.entries(serverEnv)) {
+    if (!process.env[key]) process.env[key] = value;
+  }
+  return {
   plugins: [
     react(),
+    voiceArchitectApi(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt'],
@@ -35,6 +56,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         cleanupOutdatedCaches: true,
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -84,4 +106,5 @@ export default defineConfig({
       },
     },
   },
+};
 });

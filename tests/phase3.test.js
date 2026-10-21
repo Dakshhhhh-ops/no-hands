@@ -158,7 +158,7 @@ test('sequential commands propose against the latest applied model', () => {
   assert.equal(history.redo().version, 3);
 });
 
-test('Wispr dictation normalizes common transcription errors without changing source text', () => {
+test('Dictation normalizes common transcription errors without changing source text', () => {
   const raw = 'Please, move session storage to red is and keep post gress as the source of truth';
   const parsed = proposeChange(raw);
   assert.deepEqual(parsed.items.map((item) => item.key), ['redis-session', 'postgres-owner']);

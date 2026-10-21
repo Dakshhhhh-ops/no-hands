@@ -211,20 +211,6 @@ body {
   color: var(--text-pure);
 }
 
-.wispr-pill {
-  background: rgba(78, 242, 210, 0.08);
-  border-color: rgba(78, 242, 210, 0.35);
-  color: var(--cyan);
-}
-
-.wispr-hotkey-tag {
-  background: rgba(0, 0, 0, 0.4);
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 9px;
-  color: var(--text-mid);
-}
-
 .audio-btn.active {
   border-color: var(--cyan);
   color: var(--cyan);
@@ -3064,7 +3050,7 @@ body {
 }
 
 /* ==========================================================================
-   Wispr Flow Modal & Proposal Review Modal
+   Proposal Review Modal
    ========================================================================== */
 
 .modal-backdrop {
@@ -3078,7 +3064,7 @@ body {
   backdrop-filter: blur(12px);
 }
 
-.wispr-modal, .review-modal {
+.review-modal {
   width: min(640px, 100%);
   max-height: 90vh;
   overflow-y: auto;
@@ -3100,7 +3086,7 @@ body {
   margin-bottom: 14px;
 }
 
-.wispr-title, #review-title {
+#review-title {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3137,20 +3123,6 @@ body {
   margin: 0 0 18px;
 }
 
-.wispr-steps-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-.wispr-step-card {
-  padding: 14px;
-  background: var(--surface-card);
-  border: 1px solid var(--line-dim);
-  border-radius: 10px;
-}
-
 .step-num-tag {
   font-family: var(--font-mono);
   font-size: 8.5px;
@@ -3174,38 +3146,6 @@ body {
 .step-icon-wrap.active-mic {
   background: rgba(78, 242, 210, 0.15);
   border-color: var(--cyan);
-}
-
-.wispr-step-card h4 {
-  margin: 0 0 4px;
-  font-size: 12px;
-  color: var(--text-pure);
-}
-
-.wispr-step-card p {
-  margin: 0;
-  font-size: 10px;
-  color: var(--text-mid);
-  line-height: 1.5;
-}
-
-.wispr-step-card kbd {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  background: var(--bg-deep);
-  border: 1px solid var(--line-bright);
-  border-radius: 3px;
-  padding: 1px 4px;
-  color: var(--cyan);
-}
-
-.wispr-callout-box {
-  position: relative;
-  padding: 14px 16px;
-  background: rgba(78, 242, 210, 0.04);
-  border: 1px solid rgba(78, 242, 210, 0.2);
-  border-radius: 10px;
-  margin-bottom: 18px;
 }
 
 .callout-header {
@@ -3419,9 +3359,6 @@ body {
   }
   .risk-kpi-row {
     grid-template-columns: 1fr 1fr;
-  }
-  .wispr-steps-grid {
-    grid-template-columns: 1fr;
   }
 }
 

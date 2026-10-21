@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Activity, Clock, Compass, Cpu, HelpCircle, Radio, Volume2, VolumeX, Wifi } from 'lucide-react';
+import { Activity, Clock, Compass, Cpu, HelpCircle, Volume2, VolumeX, Wifi } from 'lucide-react';
 import { sound } from '../utils/sound.js';
 
-export default function StudioTelemetryBar({ project, onOpenWisprGuide }) {
+export default function StudioTelemetryBar({ project }) {
   const [timeUtc, setTimeUtc] = useState('');
   const [timeCet, setTimeCet] = useState('');
   const [timeLocal, setTimeLocal] = useState('');
@@ -67,17 +67,6 @@ export default function StudioTelemetryBar({ project, onOpenWisprGuide }) {
       </div>
 
       <div className="telemetry-group telemetry-right">
-        <button
-          type="button"
-          className="telemetry-action-btn wispr-pill"
-          onClick={onOpenWisprGuide}
-          title="Wispr Flow Voice Dictation Guide"
-        >
-          <Radio size={12} className="text-cyan animate-pulse" />
-          <span className="wispr-label">Wispr Flow Ready</span>
-          <span className="wispr-hotkey-tag">Ctrl+Space</span>
-        </button>
-
         <button
           type="button"
           className={`telemetry-action-btn audio-btn ${soundOn ? 'active' : ''}`}

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "start": "node --env-file-if-exists=.env.local server/serve.ts",
     "test": "node --experimental-vm-modules --test --require ./tests/setup.js",
     "test:vitest": "vitest run",
     "test:ui": "vitest --ui",
@@ -18,6 +19,7 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.137.0",
     "@types/dagre": "^0.7.54",
     "@vitejs/plugin-react": "latest",
     "dagre": "^0.8.5",
@@ -25,7 +27,9 @@
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "vite": "latest"
+    "vite": "latest",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -48,7 +52,6 @@
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.72.0",
     "vite-plugin-pwa": "^2.0.0",
-    "vitest": "^5.0.5",
-    "zod": "^4.6.7"
+    "vitest": "^5.0.5"
   }
 }

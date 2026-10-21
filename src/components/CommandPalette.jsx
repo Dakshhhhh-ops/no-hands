@@ -2,6 +2,28 @@ import React from 'react';
 import { Search, X, Keyboard, ArrowUp, ArrowDown, ExternalLink, Zap, GitBranch, FileArchive, RotateCcw, HelpCircle } from 'lucide-react';
 import { sound } from '../utils/sound.js';
 
+const CATEGORIES = [
+  { id: 'actions', label: 'Actions', icon: Zap, color: 'var(--va-accent)' },
+  { id: 'navigation', label: 'Navigation', icon: GitBranch, color: 'var(--va-downstream)' },
+  { id: 'export', label: 'Export', icon: FileArchive, color: 'var(--va-warn)' },
+  { id: 'view', label: 'View', icon: ExternalLink, color: 'var(--va-ok)' },
+  { id: 'help', label: 'Help', icon: HelpCircle, color: 'var(--va-faint)' },
+];
+
+function highlightMatch(text, query) {
+  if (!query.trim()) return <span>{text}</span>;
+  const parts = text.split(new RegExp(`(${query})`, 'gi'));
+  return (
+    <span>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ?
+          <mark key={i} className="va-highlight">{part}</mark> :
+          <span key={i}>{part}</span>
+      )}
+    </span>
+  );
+}
+
 export function CommandPalette({ isOpen, onClose, commands }) {
   const [query, setQuery] = React.useState('');
   const [selectedIndex, setSelectedIndex] = React.useState(0);
@@ -17,6 +39,17 @@ export function CommandPalette({ isOpen, onClose, commands }) {
       (cmd.keys && cmd.keys.some(k => k.toLowerCase().includes(q)))
     );
   }, [commands, query]);
+
+  // Group commands by category
+  const groupedCommands = React.useMemo(() => {
+    const groups = {};
+    filteredCommands.forEach(cmd => {
+      const cat = cmd.category || 'actions';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(cmd);
+    });
+    return groups;
+  }, [filteredCommands]);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -40,13 +73,13 @@ export function CommandPalette({ isOpen, onClose, commands }) {
     }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex(i => Math.min(i + 1, filteredCommands.length - 1));
+      setSelectedIndex(i => Math.min(i + 1, getFlattenedCommands().length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIndex(i => Math.max(i - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      const cmd = filteredCommands[selectedIndex];
+      const cmd = getFlattenedCommands()[selectedIndex];
       if (cmd) {
         sound.click();
         cmd.action();
@@ -54,6 +87,21 @@ export function CommandPalette({ isOpen, onClose, commands }) {
       }
     }
   };
+
+  function getFlattenedCommands() {
+    const flat = [];
+    CATEGORIES.forEach(cat => {
+      const cmds = groupedCommands[cat.id] || [];
+      cmds.forEach(cmd => flat.push(cmd));
+    });
+    // Add uncategorized
+    Object.keys(groupedCommands).forEach(catId => {
+      if (!CATEGORIES.find(c => c.id === catId)) {
+        (groupedCommands[catId] || []).forEach(cmd => flat.push(cmd));
+      }
+    });
+    return flat;
+  }
 
   if (!isOpen) return null;
 
@@ -78,32 +126,44 @@ export function CommandPalette({ isOpen, onClose, commands }) {
       React.createElement('ul', { className: 'va-palette-list', ref: listRef, role: 'listbox', 'aria-label': 'Available commands' },
         filteredCommands.length === 0 ?
           React.createElement('li', { className: 'va-palette-empty' }, 'No commands match "' + query + '"') :
-          filteredCommands.map((cmd, index) =>
-            React.createElement('li', {
-              key: cmd.id,
-              'data-index': index,
-              className: 'va-palette-item' + (index === selectedIndex ? ' selected' : ''),
-              role: 'option',
-              'aria-selected': index === selectedIndex,
-              onMouseEnter: () => setSelectedIndex(index),
-              onClick: () => { sound.click(); cmd.action(); onClose(); }
-            },
-              React.createElement('span', { className: 'va-palette-item-icon' }, cmd.icon),
-              React.createElement('div', { className: 'va-palette-item-content' },
-                React.createElement('span', { className: 'va-palette-item-label' }, cmd.label),
-                React.createElement('span', { className: 'va-palette-item-desc' }, cmd.description)
+          CATEGORIES.map((cat) => {
+            const cmds = groupedCommands[cat.id] || [];
+            if (!cmds.length) return null;
+            return React.createElement(React.Fragment, { key: cat.id },
+              React.createElement('li', { className: 'va-palette-category' },
+                React.createElement('span', { className: 'va-category-icon', style: { color: cat.color } }, cat.icon),
+                React.createElement('span', { className: 'va-category-label' }, cat.label),
+                React.createElement('span', { className: 'va-category-count' }, cmds.length)
               ),
-              React.createElement('div', { className: 'va-palette-item-keys' },
-                cmd.keys?.map((k, i) => React.createElement('kbd', { key: i, className: 'va-kbd' }, k))
-              )
-            )
-          )
+              cmds.map((cmd, cmdIndex) => {
+                const globalIndex = getFlattenedCommands().indexOf(cmd);
+                return React.createElement('li', {
+                  key: cmd.id,
+                  'data-index': globalIndex,
+                  className: 'va-palette-item' + (globalIndex === selectedIndex ? ' selected' : ''),
+                  role: 'option',
+                  'aria-selected': globalIndex === selectedIndex,
+                  onMouseEnter: () => setSelectedIndex(globalIndex),
+                  onClick: () => { sound.click(); cmd.action(); onClose(); }
+                },
+                  React.createElement('span', { className: 'va-palette-item-icon' }, cmd.icon),
+                  React.createElement('div', { className: 'va-palette-item-content' },
+                    React.createElement('span', { className: 'va-palette-item-label' }, highlightMatch(cmd.label, query)),
+                    React.createElement('span', { className: 'va-palette-item-desc' }, highlightMatch(cmd.description, query))
+                  ),
+                  React.createElement('div', { className: 'va-palette-item-keys' },
+                    cmd.keys?.map((k, i) => React.createElement('kbd', { key: i, className: 'va-kbd' }, k))
+                  )
+                );
+              })
+            );
+          })
       ),
       React.createElement('div', { className: 'va-palette-footer' },
         React.createElement('kbd', { className: 'va-kbd' }, '↑'),
         React.createElement('kbd', { className: 'va-kbd' }, '↓'), ' Navigate ',
         React.createElement('kbd', { className: 'va-kbd' }, '⏎'), ' Execute ',
-        React.createElement('kbd', { className: 'va-kbd' }, '⎋'), ' Close'
+        React.createElement('kbd', { className: 'va-kbd' }, '⎋'), ' Close '
       )
     )
   );

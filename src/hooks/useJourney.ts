@@ -66,7 +66,7 @@ export function useJourney(
     if (!instructionReady) {
       if (isDictatingSim) return 'The sample instruction is being entered. It will be ready to preview in a moment.';
       if (isListening) return 'Listening now. Finish speaking, then preview the instruction when it is ready.';
-      return 'The sample is ready. Type a change below, use Wispr Flow in the text box, or play the sample dictation.';
+      return 'The sample is ready. Type a change below, or play the sample dictation.';
     }
     if (!proposal && !project.changed) return 'Your instruction is ready. Preview it to see what the prototype understood before anything changes.';
     if (proposal) return 'Review the proposed changes and the decisions that still need your team. Nothing changes until you apply it.';

@@ -1,3 +1,5 @@
+@import './ui-effects.css';
+
 /* VoiceArchitect app shell. All classes are prefixed va-.
    Load LAST (after tokens.css and bridge.css). Colors, type and radii come from tokens.css. */
 
@@ -504,3 +506,11 @@ body { margin: 0; overflow-x: visible; background: var(--va-bg); }
   .va-sample-picker { width: 100%; }
   .va-sample-picker select { flex: 1; max-width: none; min-width: 0; }
 }
+
+/* Which interpreter handles the instruction */
+.va-app .va-engine { display: inline-flex; align-items: center; gap: 6px; }
+.va-app .va-engine::before {
+  content: ''; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--va-muted);
+}
+.va-app .va-engine[data-ai='true']::before { background: var(--va-ok); }

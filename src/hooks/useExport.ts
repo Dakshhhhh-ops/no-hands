@@ -4,10 +4,15 @@ import { sound } from '../utils/sound.js';
 import { createVerifiedExportZip, createVerifiedDevOpsZip } from '../data/export.js';
 import { renderArchitecturePng, makeArchitectureSvg, makeArchitectureMermaid } from '../data/diagramExport.js';
 
+interface ExportBundle {
+  data: Uint8Array;
+  files: string[];
+}
+
 interface UseExportReturn {
   exportOpen: boolean;
   setExportOpen: (_open: boolean) => void;
-  exportMenuRef: React.RefObject<HTMLDivElement>;
+  exportMenuRef: React.RefObject<HTMLDivElement | null>;
   exportAll: () => Promise<void>;
   exportDevOps: () => Promise<void>;
   exportDiagram: (_format: 'svg' | 'png' | 'mermaid') => Promise<void>;
@@ -34,7 +39,7 @@ export function useExport(project: Project | null): UseExportReturn {
   }, [exportOpen]);
 
   const downloadBundle = useCallback(async (
-    factory: (_model: Project) => Promise<{ data: Uint8Array; files: string[] }>,
+    factory: (_model: Project) => ExportBundle | Promise<ExportBundle>,
     suffix: string,
     label: string
   ) => {

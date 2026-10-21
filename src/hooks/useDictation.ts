@@ -11,6 +11,38 @@ interface UseDictationOptions {
   interimResults?: boolean;
 }
 
+// Minimal local typings for the Web Speech API (not in TypeScript's DOM lib).
+interface SpeechRecognitionAlternativeLike {
+  transcript: string;
+}
+
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<ArrayLike<SpeechRecognitionAlternativeLike>>;
+}
+
+interface SpeechRecognitionErrorEventLike {
+  error: string;
+}
+
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onend: (() => void) | null;
+  onstart: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+type WindowWithSpeechRecognition = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
+
 interface UseDictationReturn {
   isListening: boolean;
   isSupported: boolean;
@@ -35,10 +67,11 @@ export function useDictation(options: UseDictationOptions = {}): UseDictationRet
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
-    const SpeechRec = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    const speechWindow = typeof window !== 'undefined' ? (window as WindowWithSpeechRecognition) : undefined;
+    const SpeechRec = speechWindow && (speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition);
     if (!SpeechRec) {
       setIsSupported(false);
       return;

@@ -27,9 +27,11 @@ interface UseProjectStateReturn {
   canRedo: boolean;
   setCanUndo: (_v: boolean) => void;
   setCanRedo: (_v: boolean) => void;
-  timelineEntries: Array<{ version: number; label: string; patchCount: number; timestamp: number; changeId: string }>;
+  timelineEntries: Array<{ version: number; label: string; patchCount: number; timestamp: number; changeId?: string }>;
   scenarioComparison: ReturnType<typeof compareBranches> | null;
-  loadSample: () => void;
+  loadSample: (_kind?: 'commerce' | 'food') => void;
+  loadProject: (_project: Project) => void;
+  isImported: boolean;
   reset: () => void;
   setBranchProject: (_branchId: string, _next: Project) => void;
   syncHistory: (_history: HistoryTimeline) => void;
@@ -65,6 +67,8 @@ export function useProjectState(): UseProjectStateReturn {
   const [sampleChoice, setSampleChoice] = useState<'commerce' | 'food'>('commerce');
   const [project, setProject] = useState<Project>(() => makeCommerceProject());
   const [currentBranchId, setCurrentBranchId] = useState('main');
+  // An imported project replaces the sample as the baseline that Reset returns to.
+  const [importedProject, setImportedProject] = useState<Project | null>(null);
   const [branches, setBranches] = useState<Record<string, BranchState>>(() => ({
     main: makeMainBranch(makeCommerceProject()),
   }));
@@ -116,8 +120,23 @@ export function useProjectState(): UseProjectStateReturn {
     setBranches((b) => ({ ...b, [branchId]: { ...b[branchId], project: next } }));
   }
 
-  function loadSample() {
-    const fresh = sampleChoice === 'food' ? makeFoodDeliveryProject() : makeCommerceProject();
+  function startFrom(fresh: Project) {
+    setProject(fresh);
+    setCurrentBranchId('main');
+    setBranches({ main: makeMainBranch(fresh) });
+    setCanUndo(false);
+    setCanRedo(false);
+  }
+
+  function loadProject(next: Project) {
+    setImportedProject(next);
+    startFrom(structuredClone(next));
+  }
+
+  function loadSample(kind: 'commerce' | 'food' = sampleChoice) {
+    setImportedProject(null);
+    setSampleChoice(kind);
+    const fresh = kind === 'food' ? makeFoodDeliveryProject() : makeCommerceProject();
     setProject(fresh);
     setCurrentBranchId('main');
     setBranches({ main: makeMainBranch(fresh) });
@@ -126,6 +145,10 @@ export function useProjectState(): UseProjectStateReturn {
   }
 
   function reset() {
+    if (importedProject) {
+      startFrom(structuredClone(importedProject));
+      return;
+    }
     const kind = project?.name === 'Food Delivery Platform' ? 'food' : sampleChoice;
     const fresh = kind === 'food' ? makeFoodDeliveryProject() : makeCommerceProject();
     setSampleChoice(kind);
@@ -187,11 +210,12 @@ export function useProjectState(): UseProjectStateReturn {
     if (analysis.canAutoMerge) {
       const result = executeMerge(base.project, target.project, source.project, {});
       if (result.success && result.mergedProject) {
+        const mergedProject = result.mergedProject;
         const history = branches.main.history;
-        history.push(result.mergedProject, `Merged ${source.name}`, result.mergedProject.changes[0]?.id);
-        setBranches((b) => ({ ...b, main: { ...b.main, project: result.mergedProject, history } }));
+        history.push(mergedProject, `Merged ${source.name}`, mergedProject.changes[0]?.id);
+        setBranches((b) => ({ ...b, main: { ...b.main, project: mergedProject, history } }));
         setCurrentBranchId('main');
-        setProject(result.mergedProject);
+        setProject(mergedProject);
         syncHistory(history);
       }
     } else {
@@ -206,11 +230,12 @@ export function useProjectState(): UseProjectStateReturn {
     const target = branches.main;
     const result = executeMerge(target.project, target.project, source.project, resolutions);
     if (result.success && result.mergedProject) {
+      const mergedProject = result.mergedProject;
       const history = branches.main.history;
-      history.push(result.mergedProject, `Merged ${source.name} (resolved conflicts)`, result.mergedProject.changes[0]?.id);
-      setBranches((b) => ({ ...b, main: { ...b.main, project: result.mergedProject, history } }));
+      history.push(mergedProject, `Merged ${source.name} (resolved conflicts)`, mergedProject.changes[0]?.id);
+      setBranches((b) => ({ ...b, main: { ...b.main, project: mergedProject, history } }));
       setCurrentBranchId('main');
-      setProject(result.mergedProject);
+      setProject(mergedProject);
       setShowMergeModal(false);
       setMergeConflicts([]);
       setMergingBranchId(null);
@@ -234,6 +259,8 @@ export function useProjectState(): UseProjectStateReturn {
     timelineEntries,
     scenarioComparison,
     loadSample,
+    loadProject,
+    isImported: importedProject !== null,
     reset,
     setBranchProject,
     syncHistory,

@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import {
-  Activity, ArrowRight, AudioLines, Check, ChevronDown, CircleHelp, ClipboardCheck, ClipboardList,
+  Activity, ArrowRight, AudioLines, Check, ChevronDown, ClipboardCheck, ClipboardList,
   FileArchive, FileCode2, GitBranch, Layers, Mic, Network, Play, Redo2, RotateCcw, Server, ShieldAlert, Undo2, X,
-  Sun, Moon, Keyboard,
+  Sun, Moon, Keyboard, HelpCircle, Target, Zap,
 } from 'lucide-react';
-import WisprFlowModal from './components/WisprFlowModal.jsx';
 import CommandPresets from './components/CommandPresets.jsx';
 import ScenarioBranchingBar from './components/ScenarioBranchingBar.jsx';
 import ScenarioComparisonModal from './components/ScenarioComparisonModal.jsx';
@@ -13,6 +12,7 @@ import ErrorBoundary from './components/ErrorBoundary.tsx';
 import ShortcutsModal from './components/ShortcutsModal.jsx';
 import CommandPalette from './components/CommandPalette.jsx';
 import ConnectionStatus from './components/ConnectionStatus.jsx';
+import ParticleBackground from './components/ParticleBackground.jsx';
 import { DiagramSkeleton, TableSkeleton, ListSkeleton } from './components/Skeleton.jsx';
 import { getProjectSyncStatus } from './data/analysis.js';
 import { sound } from './utils/sound.js';
@@ -21,9 +21,11 @@ import { useDictation } from './hooks/useDictation.ts';
 import { useJourney } from './hooks/useJourney.ts';
 import { useExport } from './hooks/useExport.ts';
 import { useProposalReview } from './hooks/useProposalReview.ts';
+import { providerLabel } from './data/aiClient.ts';
 import { useToast } from './hooks/useToast.ts';
 import useLocalStorage from './hooks/useLocalStorage.ts';
 import { useTheme } from './hooks/useTheme.ts';
+import { useScrollReveal } from './hooks/useScrollAnimations.ts';
 import './app-shell.css';
 
 const ArchitectureDiagram = lazy(() => import('./components/ArchitectureDiagram.jsx'));
@@ -69,10 +71,10 @@ function PanelWrapper({ children, fallback }) {
 export default function App() {
   const [tab, setTab] = useState('diagram');
   const [showHistory, setShowHistory] = useState(false);
-  const [isWisprGuideOpen, setIsWisprGuideOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const exportMenuRef = useRef(null);
+  const composeInputRef = useRef(null);
 
   const { toast, notify } = useToast();
 
@@ -91,6 +93,8 @@ export default function App() {
     timelineEntries,
     scenarioComparison,
     loadSample: projectLoadSample,
+    loadProject: projectLoadProject,
+    isImported,
     reset: projectReset,
     setBranchProject,
     syncHistory,
@@ -145,12 +149,12 @@ export default function App() {
 
   const { theme, toggleTheme } = useTheme();
 
-  const proposalHooks = useProposalReview(project, sampleChoice, notify);
+  const proposalHooks = useProposalReview(project, sampleChoice, notify, { command, setCommand });
   const {
     proposal,
     setProposal,
     preview,
-    _proposedProject,
+    proposedProject,
     _proposedDiff,
     proposedDiffGroups,
     modalRef,
@@ -164,6 +168,8 @@ export default function App() {
     unresolvedProposalAssumptions,
     isDictatingSim,
     setIsDictatingSim,
+    aiStatus,
+    isInterpreting,
   } = proposalHooks;
 
   const handleTabChange = (id) => {
@@ -234,10 +240,7 @@ export default function App() {
     setIsDictatingSim(isDictatingSim);
   }, [isDictatingSim, setIsDictatingSim]);
 
-  const resetWorkspace = (message, kind = sampleChoice) => {
-    sound.click();
-    projectLoadSample();
-    projectReset(message, kind);
+  const clearWorkspaceUi = () => {
     setCommand('');
     setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
     setProposal(null);
@@ -245,11 +248,54 @@ export default function App() {
     setCurrentBranchId('main');
     setInspectedArtifacts(new Set());
     setShowHistory(false);
+  };
+
+  const resetWorkspace = (message, kind = sampleChoice) => {
+    sound.click();
+    projectLoadSample(kind);
+    clearWorkspaceUi();
     notify(message);
   };
 
   const loadSample = () => resetWorkspace(`${sampleChoice === 'food' ? 'Food Delivery' : 'Commerce Platform'} sample loaded.`, sampleChoice);
+  const importComposeText = async (text, fileName) => {
+    try {
+      // Loaded on demand so the YAML parser stays out of the main bundle.
+      const { projectFromCompose } = await import('./data/composeImport.ts');
+      const imported = projectFromCompose(text, fileName);
+      sound.click();
+      projectLoadProject(imported);
+      clearWorkspaceUi();
+      notify(`Imported ${imported.components.length} services and ${imported.relationships.length} connections from ${fileName}.`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Import failed.');
+    }
+  };
+
+  const onComposeFile = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) file.text().then((text) => importComposeText(text, file.name));
+  };
+
+  const importExampleCompose = async () => {
+    try {
+      const response = await fetch('/samples/ride-share-compose.yml');
+      if (!response.ok) throw new Error('The example stack could not be loaded.');
+      await importComposeText(await response.text(), 'ride-share-compose.yml');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Import failed.');
+    }
+  };
+
   const reset = () => {
+    if (isImported) {
+      sound.click();
+      projectReset();
+      clearWorkspaceUi();
+      notify(`Workspace reset to the imported ${project?.name || 'project'} baseline.`);
+      return;
+    }
     const kind = project?.name === 'Food Delivery Platform' ? 'food' : sampleChoice;
     resetWorkspace(`Workspace reset to the ${kind === 'food' ? 'Food Delivery' : 'Commerce Platform'} baseline.`, kind);
   };
@@ -263,7 +309,7 @@ export default function App() {
   function confirmChange() {
     if (!project || !proposal) return;
     sound.apply();
-    const appliedProject = _proposedProject;
+    const appliedProject = proposedProject;
     if (!appliedProject) return;
     const history = branches[currentBranchId]?.history;
     if (history) {
@@ -339,9 +385,6 @@ export default function App() {
           <a href="#capabilities">Capabilities</a>
         </nav>
         <div className="va-topbar-actions">
-          <button type="button" className="va-btn va-btn-ghost va-btn-collapse" onClick={() => setIsWisprGuideOpen(true)}>
-            <CircleHelp size={16} /> <span className="va-btn-label">Dictation guide</span>
-          </button>
           <button type="button" className="va-btn va-btn-ghost va-btn-icon" onClick={() => { setIsShortcutsOpen(true); sound.click(); }} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">
             <Keyboard size={18} />
           </button>
@@ -396,22 +439,65 @@ export default function App() {
       </header>
 
       <section className="va-hero" id="top" aria-labelledby="va-hero-title">
-        <div className="va-hero-copy">
-          <h1 id="va-hero-title">Say the architecture change out loud. See what it affects.</h1>
-          <p>
+        <div className="va-hero-background">
+          <div className="va-hero-orb va-hero-orb-1" />
+          <div className="va-hero-orb va-hero-orb-2" />
+          <div className="va-hero-orb va-hero-orb-3" />
+          <div className="va-hero-grid" />
+        </div>
+        <div className="va-hero-content">
+          <div className="va-hero-badge va-float">
+            <span className="va-badge-dot va-pulse" />
+            <span>VoiceArchitect v2.0</span>
+            <kbd className="va-kbd">Ctrl+K</kbd>
+          </div>
+          <h1 id="va-hero-title">
+            Say the architecture change
+            <br />
+            <span className="va-gradient-text">see what it affects</span>
+          </h1>
+          <p className="va-hero-description">
             VoiceArchitect turns a spoken instruction into a reviewable change, then updates the diagram,
             API contract, risks, and engineering tasks together.
           </p>
           <div className="va-hero-actions">
-            <button type="button" className="va-btn va-btn-primary va-btn-lg" onClick={startDemo}>
+            <button type="button" className="va-btn va-btn-primary va-btn-lg va-glow" onClick={startDemo}>
               <Play size={15} /> Start guided demo
             </button>
-            <a className="va-btn va-btn-lg" href="#workspace">Open the workspace <ArrowRight size={15} /></a>
+            <a className="va-btn va-btn-lg va-glass" href="#workspace">
+              Open the workspace <ArrowRight size={15} />
+            </a>
+          </div>
+          <div className="va-hero-stats">
+            <div className="va-stat va-float">
+              <span className="va-stat-value">51</span>
+              <span className="va-stat-label">Tests passing</span>
+            </div>
+            <div className="va-stat va-float" style={{ animationDelay: '0.2s' }}>
+              <span className="va-stat-value">92</span>
+              <span className="va-stat-label">Total tests</span>
+            </div>
+            <div className="va-stat va-float" style={{ animationDelay: '0.4s' }}>
+              <span className="va-stat-value">0</span>
+              <span className="va-stat-label">Lint errors</span>
+            </div>
+            <div className="va-stat va-float" style={{ animationDelay: '0.6s' }}>
+              <span className="va-stat-value">554kB</span>
+              <span className="va-stat-label">Bundle size</span>
+            </div>
           </div>
         </div>
-        <figure className="va-hero-card">
+        <figure className="va-hero-card va-card-3d va-glass-strong">
+          <div className="va-hero-card-header">
+            <span className="va-card-tag">Live Preview</span>
+            <div className="va-card-dots">
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
           <figcaption>You say</figcaption>
-            <blockquote>{activeDemoCommand}</blockquote>
+          <blockquote className="va-hero-command">{activeDemoCommand}</blockquote>
           <div className="va-hero-results">
             <span>You get</span>
             <ul>
@@ -420,6 +506,17 @@ export default function App() {
               <li><ShieldAlert size={15} /> Risks found in the new design</li>
               <li><ClipboardList size={15} /> Tasks your team can pick up</li>
             </ul>
+          </div>
+          <div className="va-hero-card-footer">
+            <span className="va-footer-item">
+              <Target size={12} /> Deterministic
+            </span>
+            <span className="va-footer-item">
+              <Activity size={12} /> Offline-first
+            </span>
+            <span className="va-footer-item">
+              <Zap size={12} /> 60fps
+            </span>
           </div>
         </figure>
       </section>
@@ -431,7 +528,7 @@ export default function App() {
             <li>
               <span className="va-step-n">1</span>
               <h3>Say it</h3>
-              <p>Dictate with Wispr Flow into the instruction box, or type it. Plain language is enough.</p>
+              <p>Describe the change in the instruction box. Plain language is enough.</p>
             </li>
             <li>
               <span className="va-step-n">2</span>
@@ -466,6 +563,20 @@ export default function App() {
             <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={loadSample}>
               <RotateCcw size={14} /> Load sample
             </button>
+            <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={() => composeInputRef.current?.click()}>
+              <FileCode2 size={14} /> Import docker-compose
+            </button>
+            <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={importExampleCompose}>
+              Try example stack
+            </button>
+            <input
+              ref={composeInputRef}
+              type="file"
+              accept=".yml,.yaml"
+              hidden
+              aria-label="docker-compose file"
+              onChange={onComposeFile}
+            />
           </div>
         </div>
         <ol className="va-journey-steps">
@@ -542,7 +653,11 @@ export default function App() {
               placeholder="Move session storage to Redis, keep PostgreSQL as the source of truth, add login rate limiting, and keep login working if Redis is down."
             />
             <div className="va-field-hint">
-              <span>Type here, or hold your Wispr Flow shortcut to dictate.</span>
+              <span className="va-engine" data-ai={aiStatus.ai}>
+                {aiStatus.ai
+                  ? `Interpreted by ${providerLabel(aiStatus.provider)}${aiStatus.model ? ` (${aiStatus.model})` : ''}, checked against the schema`
+                  : 'Offline rules only. Add GROQ_API_KEY or ANTHROPIC_API_KEY to .env.local for full understanding.'}
+              </span>
               <span><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to preview</span>
             </div>
           </div>
@@ -564,6 +679,8 @@ export default function App() {
             <p className="va-prompts-label">Or start from an example</p>
             <CommandPresets
               sampleKind={sampleChoice}
+              project={project}
+              isImported={isImported}
               onSelectPreset={(value) => {
                 setCommand(value);
                 setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
@@ -576,10 +693,11 @@ export default function App() {
             <button
               type="button"
               className="va-btn va-btn-primary"
-              disabled={!project || !command.trim()}
+              disabled={!project || !command.trim() || isInterpreting}
+              aria-busy={isInterpreting}
               onClick={showProposal}
             >
-              <ClipboardCheck size={16} /> Preview my change
+              <ClipboardCheck size={16} /> {isInterpreting ? 'Interpreting…' : 'Preview my change'}
             </button>
             <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={playDemoDictation} disabled={isDictatingSim}>
               <Play size={13} /> Play sample instruction
@@ -751,14 +869,7 @@ export default function App() {
 
       <footer className="va-footer">
         <span>Deterministic demo on a synthetic Commerce Platform model.</span>
-        <span>Wispr Flow types into the instruction box; there is no direct Wispr API connection.</span>
       </footer>
-
-      <WisprFlowModal
-        isOpen={isWisprGuideOpen}
-        onClose={() => setIsWisprGuideOpen(false)}
-        onSimulateVoice={playDemoDictation}
-      />
 
       {/* Review dialog */}
       {proposal && (
@@ -957,6 +1068,7 @@ export default function App() {
       <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
       <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} commands={paletteCommands} />
       <ConnectionStatus />
+      <ParticleBackground count={20} opacity={0.08} />
     </main>
   );
 }

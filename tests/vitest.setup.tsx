@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import type { ReactElement } from 'react';
 import { vi } from 'vitest';
 
 global.ResizeObserver = class ResizeObserver {
@@ -14,7 +15,7 @@ global.matchMedia = vi.fn(() => ({
   matches: false,
   addEventListener: vi.fn(),
   removeEventListener: vi.fn(),
-}));
+})) as unknown as typeof window.matchMedia;
 
 HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
   fillRect: vi.fn(),
@@ -41,7 +42,7 @@ HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
   transform: vi.fn(),
   rect: vi.fn(),
   clip: vi.fn(),
-}));
+})) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
 vi.mock('lucide-react', () => {
   const icons = {
@@ -96,7 +97,6 @@ vi.mock('lucide-react', () => {
     HelpCircle: 'HelpCircle',
     Wifi: 'Wifi',
     SlidersHorizontal: 'SlidersHorizontal',
-    SlidersHorizontal: 'SlidersHorizontal',
     ListOrdered: 'ListOrdered',
     Flame: 'Flame',
     Users: 'Users',
@@ -109,7 +109,7 @@ vi.mock('lucide-react', () => {
     ZoomOut: 'ZoomOut',
   };
 
-  const mockComponents: Record<string, React.FC<{ size?: number; className?: string }>> = {};
+  const mockComponents: Record<string, (props: { size?: number; className?: string }) => ReactElement> = {};
   for (const [key] of Object.entries(icons)) {
     mockComponents[key] = ({ size = 16, className = '' }) => (
       <svg data-testid={key.toLowerCase()} width={size} height={size} className={className} />

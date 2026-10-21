@@ -29,7 +29,7 @@
   .impact-source p, .impact-entry p, .entry-label, .impact-artifact b, .impact-group h4,
   .manual-decision b, .manual-heading h4, .panel-intro p, .gov-item p, .gov-item b,
   .protocol-item, .telemetry-table, .proposal-item p, .proposal-item b, .modal-summary,
-  .assumption-line, .callout-content p, .wispr-step-card p, .metric-row, .diff-row,
+  .assumption-line, .callout-content p, .metric-row, .diff-row,
   .signoff-role, .branch-chip, .time-travel-btn, .timeline-item, .branch-dropdown-item
 ) { font-size: var(--va-fs-sm); line-height: 1.55; }
 
@@ -197,16 +197,15 @@
 
 /* ---------- 7. Modals ---------- */
 .va-app .modal-backdrop { background: rgba(8, 10, 14, .72); backdrop-filter: blur(3px); }
-.va-app :is(.wispr-modal, .review-modal, .comparison-modal, .merge-modal) {
+.va-app :is(.review-modal, .comparison-modal, .merge-modal) {
   background: var(--va-panel); border: 1px solid var(--va-line-strong); border-radius: var(--va-r-xl);
   box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
 }
-.va-app :is(.wispr-step-card, .proposal-item, .scenario-card, .comparison-summary-strip, .adr-signoff-card, .wispr-callout-box) {
+.va-app :is(.proposal-item, .scenario-card, .comparison-summary-strip, .adr-signoff-card) {
   background: var(--va-bg); border: 1px solid var(--va-line); border-radius: var(--va-r-lg);
 }
-.va-app .wispr-title, .va-app #review-title { font-size: 20px; color: var(--va-ink); }
+.va-app #review-title { font-size: 20px; color: var(--va-ink); }
 .va-app .step-icon-wrap, .va-app .mic-icon { background: var(--va-panel-2); border-color: var(--va-line-strong); color: var(--va-accent); }
-.va-app .wispr-step-card kbd { background: var(--va-panel-2); border-color: var(--va-line-strong); color: var(--va-ink); font-size: var(--va-fs-xs); }
 
 /* ---------- 8. Misc ---------- */
 .va-app .status-dot.active, .va-app .telemetry-dot { background: var(--va-ok); box-shadow: none; }

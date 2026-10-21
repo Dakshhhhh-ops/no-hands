@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactElement } from 'react';
 
 vi.mock('lucide-react', () => {
   const icons = {
@@ -26,8 +27,16 @@ vi.mock('lucide-react', () => {
     Play: 'Play',
     Redo2: 'Redo2',
     Undo2: 'Undo2',
+    Mic: 'Mic',
+    Terminal: 'Terminal',
+    SlidersHorizontal: 'SlidersHorizontal',
+    RotateCw: 'RotateCw',
+    History: 'History',
+    Zap: 'Zap',
+    ExternalLink: 'ExternalLink',
+    Target: 'Target',
   };
-  const mockComponents = {};
+  const mockComponents: Record<string, (props: { size?: number; className?: string }) => ReactElement> = {};
   for (const [key] of Object.entries(icons)) {
     mockComponents[key] = ({ size = 16, className = '' }) => (
       <svg data-testid={key.toLowerCase()} width={size} height={size} className={className} />
@@ -117,7 +126,7 @@ describe('Accessibility', () => {
 
   it('has proper heading hierarchy', () => {
     renderApp();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Say the architecture change out loud');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Say the architecture change');
   });
 
   it('has landmark regions', () => {

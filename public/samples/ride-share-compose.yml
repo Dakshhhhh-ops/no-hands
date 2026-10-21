@@ -1,0 +1,50 @@
+# Example stack for VoiceArchitect's "Import docker-compose" demo.
+name: ride-share-platform
+
+services:
+  rider-app:
+    build: ./apps/rider
+    ports: ["3000:3000"]
+    environment:
+      API_URL: http://gateway:8080
+    depends_on: [gateway]
+
+  gateway:
+    image: traefik:v3.1
+    ports: ["8080:8080"]
+    depends_on: [trips-api, accounts-api]
+
+  accounts-api:
+    build: ./services/accounts
+    environment:
+      DATABASE_URL: postgres://app:app@postgres:5432/accounts
+      SESSION_STORE: redis://redis:6379/0
+    depends_on: [postgres, redis]
+
+  trips-api:
+    build: ./services/trips
+    environment:
+      DATABASE_URL: postgres://app:app@postgres:5432/trips
+      KAFKA_BROKERS: kafka:9092
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+  pricing-worker:
+    build: ./services/pricing
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+      - CACHE_URL=redis://redis:6379/1
+
+  postgres:
+    image: postgres:16
+    healthcheck:
+      test: ["CMD", "pg_isready"]
+
+  redis:
+    image: redis:7-alpine
+
+  kafka:
+    image: bitnami/kafka:3.7

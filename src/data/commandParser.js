@@ -1,6 +1,6 @@
 const FILLERS = /\b(please|um+|uh+|erm+|basically|just|kind of|you know)\b/gi;
 
-/** Normalize common Wispr transcription variants for deterministic matching.
+/** Normalize common speech-to-text transcription variants for deterministic matching.
  * Keep the original utterance elsewhere for traceability; this is only a match key.
  */
 export function normalizeArchitectureCommand(input = '') {

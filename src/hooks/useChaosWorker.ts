@@ -1,45 +1,23 @@
-import { useEffect, useRef, useState } from 'react';
+import { useMemo } from 'react';
+import type { Project } from '../types/schema.ts';
+import { simulateChaosAndTelemetry } from '../data/chaosSimulator.ts';
+import type { ChaosInjection, ChaosSimulationResult } from '../data/chaosSimulator.ts';
 
-export function useChaosWorker(project, chaosInjections) {
-  const [telemetry, setTelemetry] = useState(null);
-  const workerRef = useRef(null);
-  const pendingRef = useRef(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const worker = new Worker('/chaos-worker.js', { type: 'module' });
-    workerRef.current = worker;
-
-    worker.onmessage = (e) => {
-      const { type, payload } = e.data;
-      if (type === 'RESULT') {
-        setTelemetry(payload);
-        pendingRef.current = false;
-      } else if (type === 'ERROR') {
-        console.error('Chaos worker error:', payload);
-        pendingRef.current = false;
-      }
-    };
-
-    worker.onerror = (err) => {
-      console.error('Chaos worker error:', err);
-      pendingRef.current = false;
-    };
-
-    return () => {
-      worker.terminate();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!project || !workerRef.current || pendingRef.current) return;
-
-    pendingRef.current = true;
-    workerRef.current.postMessage({ type: 'SET_PROJECT', payload: project });
-    workerRef.current.postMessage({ type: 'SET_CHAOS_INJECTIONS', payload: chaosInjections });
-    workerRef.current.postMessage({ type: 'SIMULATE' });
-  }, [project, chaosInjections]);
-
-  return telemetry;
+/**
+ * Chaos and telemetry simulation for the diagram.
+ *
+ * This used to run in a Web Worker served from /public, but that worker imported
+ * the simulator by a path that does not exist at runtime, so it never answered and
+ * the diagram crashed on its first render. The simulation is a small graph walk, so
+ * it now runs synchronously and is memoized on its inputs. The name is kept so
+ * existing imports and test mocks keep working.
+ */
+export function useChaosWorker(
+  project: Project | null | undefined,
+  chaosInjections: ChaosInjection[],
+): ChaosSimulationResult | null {
+  return useMemo(
+    () => (project ? simulateChaosAndTelemetry(project, chaosInjections) : null),
+    [project, chaosInjections],
+  );
 }
