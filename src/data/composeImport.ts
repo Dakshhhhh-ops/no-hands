@@ -64,7 +64,7 @@ function inferType(name: string, image: string): ComponentType {
 }
 
 function imageName(service: ComposeService): string {
-  if (typeof service.image === 'string') return service.image;
+  if (typeof service.image === 'string') return resolveComposeDefaults(service.image);
   if (typeof service.build === 'string') return `build: ${service.build}`;
   if (service.build && typeof service.build === 'object') {
     const context = (service.build as { context?: unknown }).context;
@@ -89,12 +89,29 @@ function environmentValues(service: ComposeService): string[] {
   return [];
 }
 
+/**
+ * Resolve Compose variable interpolation the way `docker compose` does without an
+ * .env file: `${VAR:-default}` and `${VAR-default}` become the default, and a bare
+ * `${VAR}` or `$VAR` stays visible as `$VAR` instead of being cut in half.
+ */
+export function resolveComposeDefaults(text: string): string {
+  return text
+    .replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)(?::?-([^}]*))?\}/g, (_match, name: string, fallback?: string) => (fallback !== undefined ? fallback : `$${name}`))
+    .replace(/\$\$/g, '$');
+}
+
+/** The published (host) port of a short-syntax mapping: "8000", "8000:80", "127.0.0.1:8000:80", "8000:80/tcp". */
+function publishedPort(mapping: string): string {
+  const parts = resolveComposeDefaults(mapping).replace(/\/(tcp|udp)$/i, '').split(':');
+  return parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+}
+
 function portSummary(service: ComposeService): string {
   if (!Array.isArray(service.ports) || !service.ports.length) return '';
   const first = service.ports[0];
   const text = typeof first === 'object' && first !== null
-    ? String((first as { published?: unknown; target?: unknown }).published ?? (first as { target?: unknown }).target ?? '')
-    : String(first).split(':')[0];
+    ? resolveComposeDefaults(String((first as { published?: unknown; target?: unknown }).published ?? (first as { target?: unknown }).target ?? ''))
+    : publishedPort(String(first));
   return text ? `port ${text}` : '';
 }
 

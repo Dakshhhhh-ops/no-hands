@@ -77,3 +77,34 @@ test('the outage simulator cascades on an imported stack, not just the sample id
   assert.equal(pgDown.droppedRps, ASSUMED_INGRESS_RPS);
   assert.equal(pgDown.overallSystemHealth, 'CRITICAL_FAILURE');
 });
+
+test('compose variable defaults resolve like docker compose and never cut a port in half', async () => {
+  const { projectFromCompose, resolveComposeDefaults } = await import('../src/data/composeImport.ts');
+  assert.equal(resolveComposeDefaults('${API_PORT:-8000}:8000'), '8000:8000');
+  assert.equal(resolveComposeDefaults('postgres:${PG_VERSION-16}'), 'postgres:16');
+  assert.equal(resolveComposeDefaults('${HOST_PORT}:80'), '$HOST_PORT:80');
+  const project = projectFromCompose(`
+services:
+  api:
+    build: .
+    ports: ["\${API_PORT:-8000}:8000"]
+  web:
+    image: nginx:\${NGINX_TAG:-1.27}
+    ports: ["127.0.0.1:8080:80/tcp"]
+  worker:
+    build: ./worker
+    ports: ["\${WORKER_PORT}:9000"]
+`, 'docker-compose.yml');
+  const sub = (id) => project.components.find((c) => c.id === id).sub;
+  assert.equal(sub('api'), 'build: . · port 8000');
+  assert.equal(sub('web'), 'nginx:1.27 · port 8080');
+  assert.equal(sub('worker'), 'build: ./worker · port $WORKER_PORT');
+});
+
+test('a port mapping that only becomes configurable is not reported as drift', async () => {
+  const { projectFromCompose } = await import('../src/data/composeImport.ts');
+  const { detectCodeDrift } = await import('../src/data/driftCheck.ts');
+  const before = projectFromCompose('services:\n  api:\n    build: .\n    ports: ["8000:8000"]\n', 'docker-compose.yml');
+  const report = detectCodeDrift(before, 'services:\n  api:\n    build: .\n    ports: ["${API_PORT:-8000}:8000"]\n', 'docker-compose.yml');
+  assert.equal(report.inSync, true);
+});
