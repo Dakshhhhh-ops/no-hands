@@ -20,7 +20,7 @@ export type Provider = 'groq' | 'anthropic';
 const MAX_BODY_BYTES = 256 * 1024;
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-const SYSTEM_PROMPT = `You turn a spoken or typed instruction into precise edits to a software architecture model.
+export const SYSTEM_PROMPT = `You turn a spoken or typed instruction into precise edits to a software architecture model.
 
 The model has components (id, name, type, sub, responsibilities), directed relationships (from -> to, label, optional protocol), API operations owned by a component, and requirements (REQ-* ids). Component types: CLIENT, GATEWAY, SERVICE, CACHE, DATABASE, QUEUE, EXTERNAL.
 
@@ -34,6 +34,8 @@ Return operations that make exactly the change the instruction asks for:
 - Do not add anything the instruction does not ask for or clearly imply. If a detail is needed but not stated (a threshold, a retry policy, which database), do not guess it: leave it out and list it in assumptions as an open question.
 - In update operations, set every field you are not changing to null. Set protocol to null unless the instruction names one.
 - The text may come from speech-to-text. Read through transcription slips such as "red is" for Redis, "post gress" for PostgreSQL, or "cue" for queue.
+- The instruction may be in English, Hindi written in Latin letters, or Hinglish (the two mixed). Read it for meaning. Common Hinglish: "laga do" / "lagao" / "daal do" = add or put; "hata do" / "hatao" / "nikal do" = remove; "jodo" / "connect karo" = connect; "X ko Y se connect karo" = connect X to Y; "X ke aage" = in front of X; "seedha" = directly; "alag container mein daalo" = run as its own service; "aur" = and; "bhi" = also; "mat karo" = do not.
+- Always write items and assumptions in English, whatever language the instruction uses.
 
 items: one entry per logical change, with a short imperative title and a one-sentence detail a reviewer can check.
 assumptions: open questions and anything you interpreted rather than read literally, written for an engineer reviewing the change. Never mention schema field names such as sub or id.

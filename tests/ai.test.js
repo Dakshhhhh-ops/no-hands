@@ -217,3 +217,10 @@ test('VOICEARCHITECT_PROVIDER=offline ignores configured keys', async () => {
     }
   }
 });
+
+test('the interpretation prompt accepts Hinglish and answers reviewers in English', async () => {
+  const { SYSTEM_PROMPT } = await import('../server/interpret.ts');
+  assert.match(SYSTEM_PROMPT, /Hinglish/);
+  assert.match(SYSTEM_PROMPT, /"hata do"/);
+  assert.match(SYSTEM_PROMPT, /Always write items and assumptions in English/);
+});

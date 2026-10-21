@@ -83,7 +83,9 @@ export function proposeChange(text) {
 export function applyChange(project, proposal, decisions = {}) {
   // Claude-interpreted proposals carry explicit operations; run them through the
   // deterministic applier. Offline rule proposals keep the keyword path below.
-  if (['ai', 'drift', 'resolve'].includes(proposal.source) && Array.isArray(proposal.operations)) return applyOperations(project, proposal).project;
+  // Proposals that carry explicit operations (model, drift sync, risk fixes, offline patterns)
+  // go through the deterministic applier; the older keyword rules have no operations.
+  if (Array.isArray(proposal.operations)) return applyOperations(project, proposal).project;
   const next = structuredClone(project);
   const { normalized: lower } = normalizeArchitectureCommand(proposal.text);
   const changes = [];
