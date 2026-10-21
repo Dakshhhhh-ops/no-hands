@@ -55,7 +55,15 @@ const tabs = [
   { id: 'risk', label: 'Risks', icon: ShieldAlert },
   { id: 'tasks', label: 'Tasks', icon: ClipboardList },
   { id: 'impact', label: 'What changed', icon: Activity },
-  { id: 'topology', label: 'Topology', icon: Layers },
+];
+// Opened from the Advanced menu; it appears in the tab row only while it is open.
+const TOPOLOGY_TAB = { id: 'topology', label: 'Topology', icon: Layers };
+
+// The guided demo on the example ride-share stack. Each step works without a model key.
+const GUIDED_STEPS = [
+  { language: 'English', say: 'Add a Redis cache in front of the trips API', changes: 'trips-api gets a connection to Redis. You see the exact diff before anything applies.' },
+  { language: 'Hinglish', say: 'payment service ko alag container mein daalo', changes: 'A new Payment Service appears behind the gateway, drawn dashed because it is planned and not in code yet.' },
+  { drift: true, say: 'Check the diagram against the next docker-compose file', changes: 'The newer file adds two services, retires one, and upgrades PostgreSQL. Your planned Payment Service is kept, not deleted.' },
 ];
 
 function describeProposalValue(value) {
@@ -87,6 +95,26 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [showSourceMenu, setShowSourceMenu] = useState(false);
   const sourceMenuRef = useRef(null);
+  const [showAdvancedMenu, setShowAdvancedMenu] = useState(false);
+  const advancedMenuRef = useRef(null);
+  const [advancedTools, setAdvancedTools] = useState(false);
+  const [guidedStep, setGuidedStep] = useState(0);
+  const guidedBaseline = useRef(0);
+  useEffect(() => {
+    if (!showAdvancedMenu) return undefined;
+    const onPointer = (event) => {
+      if (!advancedMenuRef.current?.contains(event.target)) setShowAdvancedMenu(false);
+    };
+    const onKey = (event) => {
+      if (event.key === 'Escape') setShowAdvancedMenu(false);
+    };
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [showAdvancedMenu]);
   useEffect(() => {
     if (!showSourceMenu) return undefined;
     const onPointer = (event) => {
@@ -220,7 +248,8 @@ export default function App() {
     journeyHandleTabChange(id);
   };
 
-  const activeTab = tabs.find((item) => item.id === tab) || tabs[0];
+  const visibleTabs = tab === TOPOLOGY_TAB.id ? [...tabs, TOPOLOGY_TAB] : tabs;
+  const activeTab = visibleTabs.find((item) => item.id === tab) || tabs[0];
 
   // Tier counts for the 3D model section, computed from the loaded model.
   const layerSummary = useMemo(() => {
@@ -382,10 +411,35 @@ export default function App() {
     resetWorkspace(`Workspace reset to the ${kind === 'food' ? 'Food Delivery' : 'Commerce Platform'} baseline.`, kind);
   };
 
-  const startDemo = () => {
-    resetWorkspace(`${sampleChoice === 'food' ? 'Food Delivery' : 'Commerce Platform'} demo is ready.`, sampleChoice);
+  const startDemo = async () => {
+    await importExampleCompose();
+    setCommand('');
+    guidedBaseline.current = 0;
+    setGuidedStep(1);
     document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' });
-    setTimeout(playDemoDictation, 450);
+  };
+
+  // Each applied change moves the guided demo one step forward; leaving the example stack ends it.
+  useEffect(() => {
+    if (!guidedStep || guidedStep > GUIDED_STEPS.length) return;
+    if (project?.name !== 'ride-share-platform') {
+      setGuidedStep(0);
+      return;
+    }
+    const count = project.changes?.length || 0;
+    if (count < guidedBaseline.current) guidedBaseline.current = count;
+    if (count > guidedBaseline.current) {
+      guidedBaseline.current = count;
+      setGuidedStep((step) => step + 1);
+    }
+  }, [project, guidedStep]);
+
+  const typeGuidedStep = (text) => {
+    sound.click();
+    setCommand(text);
+    const box = document.getElementById('architecture-command');
+    box?.focus({ preventScroll: true });
+    box?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   };
 
   // A spoken "undo" outside a review undoes the last applied change; "apply" or "cancel"
@@ -465,7 +519,7 @@ export default function App() {
         </div>
       );
     }
-    if (tab === 'diagram') return <Suspense fallback={<DiagramSkeleton />}><PanelWrapper fallback={<div>Diagram unavailable</div>}><ArchitectureDiagram project={project} /></PanelWrapper></Suspense>;
+    if (tab === 'diagram') return <Suspense fallback={<DiagramSkeleton />}><PanelWrapper fallback={<div>Diagram unavailable</div>}><ArchitectureDiagram project={project} toolsOpen={advancedTools} onToolsOpenChange={setAdvancedTools} /></PanelWrapper></Suspense>;
     if (tab === 'openapi') return <Suspense fallback={<TableSkeleton rows={6} columns={4} />}><PanelWrapper fallback={<div>API contract unavailable</div>}><OpenApiPanel project={project} onNotify={notify} /></PanelWrapper></Suspense>;
     if (tab === 'risk') return <Suspense fallback={<TableSkeleton rows={5} columns={5} />}><PanelWrapper fallback={<div>Risks unavailable</div>}><RiskPanel project={project} onResolve={reviewResolution} /></PanelWrapper></Suspense>;
     if (tab === 'tasks') return <Suspense fallback={<TableSkeleton rows={5} columns={6} />}><PanelWrapper fallback={<div>Tasks unavailable</div>}><TaskPanel project={project} /></PanelWrapper></Suspense>;
@@ -541,10 +595,6 @@ export default function App() {
                 <button type="button" role="menuitem" className="va-menu-item" onClick={exportAll}>
                   <FileArchive size={16} />
                   <span><b>Engineering artifacts</b><small>Model, diagram, API contract, risks, tasks</small></span>
-                </button>
-                <button type="button" role="menuitem" className="va-menu-item" onClick={exportDevOps}>
-                  <Server size={16} />
-                  <span><b>DevOps bundle</b><small>Terraform, Kubernetes manifests, SDK, OpenAPI 3.1</small></span>
                 </button>
                 <button type="button" role="menuitem" className="va-menu-item" onClick={() => exportDiagram('svg')}>
                   <FileCode2 size={16} />
@@ -689,6 +739,9 @@ export default function App() {
                 v{project.version}{project.changed ? ' · updated' : ' · baseline'}
               </span>
             )}
+            {currentBranchId !== 'main' && (
+              <span className="va-branch-chip"><GitBranch size={13} /> {currentBranch?.name}</span>
+            )}
             {project && (
               <span className="va-stats">
                 <span>{project.components.length} components</span>
@@ -766,15 +819,38 @@ export default function App() {
             <span className="va-toolbar-sep" aria-hidden="true" />
 
             <div className="va-history">
-              <button
-                type="button"
-                className="va-btn va-btn-ghost va-btn-sm va-branch-btn"
-                aria-expanded={showHistory}
-                aria-label={`Branches and history, on ${currentBranch?.name || 'Main Branch'}`}
-                onClick={() => setShowHistory((open) => !open)}
-              >
-                <GitBranch size={14} /> {currentBranch?.name || 'Main Branch'} <ChevronDown size={14} />
-              </button>
+              <div className="va-pop" ref={advancedMenuRef}>
+                <button
+                  type="button"
+                  className="va-btn va-btn-ghost va-btn-sm"
+                  aria-expanded={showAdvancedMenu}
+                  aria-controls="va-advanced-menu"
+                  onClick={() => setShowAdvancedMenu((open) => !open)}
+                >
+                  <Layers size={14} /> Advanced <ChevronDown size={14} />
+                </button>
+                {showAdvancedMenu && (
+                  <div className="va-pop-panel" id="va-advanced-menu">
+                    <button type="button" aria-expanded={showHistory} onClick={() => { setShowAdvancedMenu(false); setShowHistory((open) => !open); }}>
+                      Branches and history
+                      <small aria-hidden="true">On {currentBranch?.name || 'Main Branch'}. Fork, compare, merge, and go back in time.</small>
+                    </button>
+                    <button type="button" aria-pressed={advancedTools} onClick={() => { setShowAdvancedMenu(false); setAdvancedTools((open) => !open); if (!advancedTools) handleTabChange('diagram'); }}>
+                      {advancedTools ? 'Hide outage simulator and decision records' : 'Outage simulator and decision records'}
+                      <small aria-hidden="true">Simulated outages, deployment order, and ADR sign-off on the diagram.</small>
+                    </button>
+                    <button type="button" onClick={() => { setShowAdvancedMenu(false); handleTabChange(TOPOLOGY_TAB.id); }}>
+                      Topology
+                      <small aria-hidden="true">Components by type, protocols, and model checks.</small>
+                    </button>
+                    <hr />
+                    <button type="button" disabled={!project} onClick={() => { setShowAdvancedMenu(false); exportDevOps(); }}>
+                      DevOps bundle
+                      <small aria-hidden="true">Terraform, Kubernetes manifests, TypeScript SDK, OpenAPI 3.1 (ZIP).</small>
+                    </button>
+                  </div>
+                )}
+              </div>
               <button type="button" className="va-btn va-btn-ghost va-btn-icon va-btn-sm" onClick={handleUndo} disabled={!canUndo} aria-label="Undo last change" title="Undo (Ctrl+Z)">
                 <Undo2 size={15} />
               </button>
@@ -817,6 +893,48 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {guidedStep > 0 && (
+          <section className="va-guide" aria-label="Guided demo" aria-live="polite">
+            {guidedStep <= GUIDED_STEPS.length ? (() => {
+              const step = GUIDED_STEPS[guidedStep - 1];
+              return (
+                <>
+                  <div className="va-guide-head">
+                    <span className="va-guide-step">Guided demo · step {guidedStep} of {GUIDED_STEPS.length}</span>
+                    <button type="button" className="va-link-btn" onClick={() => setGuidedStep(0)}>Exit demo</button>
+                  </div>
+                  {step.drift ? (
+                    <p className="va-guide-say">The code moved on. {step.say}.</p>
+                  ) : (
+                    <p className="va-guide-say">
+                      <span>Hold your Wispr Flow hotkey and say, in {step.language}:</span>
+                      <q>{step.say}</q>
+                    </p>
+                  )}
+                  <p className="va-guide-changes">{step.changes}</p>
+                  <div className="va-guide-actions">
+                    {step.drift ? (
+                      <button type="button" className="va-btn va-btn-primary va-btn-sm" onClick={checkExampleDrift}>Run the code check</button>
+                    ) : (
+                      <button type="button" className="va-btn va-btn-sm" onClick={() => typeGuidedStep(step.say)}>Type it for me</button>
+                    )}
+                    <span className="va-guide-note">{step.drift ? 'Review the sync, then apply it.' : 'Then preview, review the diff, and apply.'}</span>
+                  </div>
+                </>
+              );
+            })() : (
+              <>
+                <div className="va-guide-head">
+                  <span className="va-guide-step">Guided demo · done</span>
+                  <button type="button" className="va-link-btn" onClick={() => setGuidedStep(0)}>Close</button>
+                </div>
+                <p className="va-guide-say">The diagram changed by voice in English and Hinglish, then caught up with the code.</p>
+                <p className="va-guide-changes">Every tab followed: API contract, Risks, Tasks, and What changed. Try your own stack with From code → Import docker-compose.</p>
+              </>
+            )}
+          </section>
+        )}
 
         {showHistory && (
           <div className="va-history-panel">
@@ -962,19 +1080,19 @@ export default function App() {
               role="tablist"
               aria-label="Architecture outputs"
               onKeyDown={(event) => {
-                const current = tabs.findIndex((item) => item.id === tab);
+                const current = visibleTabs.findIndex((item) => item.id === tab);
                 let _next;
-                if (event.key === 'ArrowRight') _next = (current + 1) % tabs.length;
-                else if (event.key === 'ArrowLeft') _next = (current - 1 + tabs.length) % tabs.length;
+                if (event.key === 'ArrowRight') _next = (current + 1) % visibleTabs.length;
+                else if (event.key === 'ArrowLeft') _next = (current - 1 + visibleTabs.length) % visibleTabs.length;
                 else if (event.key === 'Home') _next = 0;
-                else if (event.key === 'End') _next = tabs.length - 1;
+                else if (event.key === 'End') _next = visibleTabs.length - 1;
                 else return;
                 event.preventDefault();
-                handleTabChange(tabs[_next].id);
-                document.getElementById(`tab-${tabs[_next].id}`)?.focus();
+                handleTabChange(visibleTabs[_next].id);
+                document.getElementById(`tab-${visibleTabs[_next].id}`)?.focus();
               }}
             >
-              {tabs.map(({ id, label, icon: Icon }) => (
+              {visibleTabs.map(({ id, label, icon: Icon }) => (
                 <button
                   id={`tab-${id}`}
                   key={id}

@@ -466,3 +466,17 @@
   .va-voicebar { margin-top: 20px; border-radius: 14px; }
   .va-voicebar-foot .va-btn-primary { width: 100%; justify-content: center; }
 }
+
+/* ---------- Guided demo card ---------- */
+.va-guide {
+  display: grid; gap: 8px; padding: 16px 18px; border-bottom: 1px solid var(--va-line);
+  background: color-mix(in srgb, var(--va-accent) 6%, var(--va-panel));
+}
+.va-guide-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.va-guide-step { color: var(--va-accent-strong); font: 600 11.5px/1 var(--va-mono); letter-spacing: .08em; text-transform: uppercase; }
+.va-guide-say { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin: 0; color: var(--va-ink); font-size: 15px; }
+.va-guide-say span { color: var(--va-muted); font-size: 13.5px; }
+.va-guide-say q { font-family: var(--va-serif); font-style: italic; font-size: 21px; line-height: 1.3; quotes: '“' '”'; }
+.va-guide-changes { margin: 0; color: var(--va-muted); font-size: 13.5px; line-height: 1.5; }
+.va-guide-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 2px; }
+.va-guide-note { color: var(--va-faint); font-size: 12.5px; }

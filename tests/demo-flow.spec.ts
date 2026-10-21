@@ -126,7 +126,6 @@ test.describe('VoiceArchitect demo flow', () => {
   test('every export menu item downloads its file when clicked with the mouse', async ({ page }) => {
     const items: Array<[RegExp, RegExp]> = [
       [/Engineering artifacts/, /^commerce-platform-v\d+\.zip$/],
-      [/DevOps bundle/, /^commerce-platform-devops-v\d+\.zip$/],
       [/Architecture SVG/, /\.svg$/],
       [/Architecture PNG/, /\.png$/],
       [/Mermaid source/, /\.mmd$/],
@@ -138,6 +137,36 @@ test.describe('VoiceArchitect demo flow', () => {
       expect((await download).suggestedFilename()).toMatch(file);
       await expect(page.getByRole('menu')).toHaveCount(0);
     }
+    await page.getByRole('button', { name: /Advanced/ }).click();
+    const devops = page.waitForEvent('download');
+    await page.getByRole('button', { name: /^DevOps bundle/ }).click();
+    expect((await devops).suggestedFilename()).toMatch(/^commerce-platform-devops-v\d+\.zip$/);
+  });
+
+  test('guided demo walks an English step, a Hinglish step, and the code check', async ({ page }) => {
+    await page.getByRole('button', { name: 'Start guided demo' }).click();
+    const guide = page.getByRole('region', { name: 'Guided demo' });
+    await expect(guide.getByText('step 1 of 3')).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: 'ride-share-platform' })).toBeVisible();
+
+    for (const say of ['Add a Redis cache in front of the trips API', 'payment service ko alag container mein daalo']) {
+      await guide.getByRole('button', { name: 'Type it for me' }).click();
+      await expect(page.getByLabel('Your instruction')).toHaveValue(say);
+      await page.getByRole('button', { name: /Preview my change/ }).click();
+      const review = page.getByRole('dialog', { name: 'Review this change' });
+      await review.getByLabel('Follow up by voice or text').fill('apply');
+      await review.getByLabel('Follow up by voice or text').press('Enter');
+      await expect(review).toBeHidden();
+    }
+
+    await expect(guide.getByText('step 3 of 3')).toBeVisible();
+    await guide.getByRole('button', { name: 'Run the code check' }).click();
+    const sync = page.getByRole('dialog', { name: 'Review this change' });
+    await expect(sync.getByText('Add 2 services found in ride-share-compose.v2.yml')).toBeVisible({ timeout: 20000 });
+    await sync.getByRole('button', { name: /Apply change/ }).click();
+    await expect(guide.getByText(/Guided demo · done/)).toBeVisible();
+    await page.getByRole('tab', { name: 'Diagram' }).click();
+    await expect(page.getByRole('button', { name: /^Payment Service, SERVICE/ })).toBeVisible();
   });
 
   test('diagram nodes are keyboard selectable', async ({ page }) => {

@@ -14,7 +14,12 @@ import { useChaosWorker } from '../hooks/useChaosWorker.ts';
 import { ASSUMED_INGRESS_RPS, ASSUMED_HOP_LATENCY_MS, ASSUMED_CACHE_FALLBACK_PENALTY_MS } from '../data/chaosSimulator.ts';
 import { generateAdrFromChange, formatAdrMarkdown } from '../data/adrWorkflow.ts';
 
-export default function ArchitectureDiagram({ project }) {
+/**
+ * @param {{ project: any, toolsOpen?: boolean, onToolsOpenChange?: (open: boolean) => void }} props
+ * Pass toolsOpen to control the advanced tools from outside (the app's Advanced menu);
+ * without it the diagram shows its own More tools toggle.
+ */
+export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenChange }) {
   const [selectedId, setSelectedId] = useState(null);
   const [viewMode, setViewMode] = useState('current');
   const [zoom, setZoom] = useState(1);
@@ -23,7 +28,14 @@ export default function ArchitectureDiagram({ project }) {
   const [showDeploymentModal, setShowDeploymentModal] = useState(false);
   const [chaosInjections, setChaosInjections] = useState([]);
   // Advanced tools stay hidden until asked for, so the default view is the diagram itself.
-  const [showTools, setShowTools] = useState(false);
+  const [ownTools, setOwnTools] = useState(false);
+  const toolsControlled = typeof toolsOpen === 'boolean';
+  const showTools = toolsControlled ? toolsOpen : ownTools;
+  const setShowTools = (update) => {
+    const next = typeof update === 'function' ? update(showTools) : update;
+    if (toolsControlled) onToolsOpenChange?.(next);
+    else setOwnTools(next);
+  };
   const [showAdrModal, setShowAdrModal] = useState(false);
   const [adrSignoffOverrides, setAdrSignoffOverrides] = useState({});
   const [copiedAdr, setCopiedAdr] = useState(false);
@@ -259,7 +271,7 @@ export default function ArchitectureDiagram({ project }) {
         </div>
 
         <div className="diagram-actions-cluster">
-          <button
+          {!toolsControlled && <button
             type="button"
             className={`button compact outline ${showTools ? 'active' : ''}`}
             aria-expanded={showTools}
@@ -270,7 +282,7 @@ export default function ArchitectureDiagram({ project }) {
             title="Show deployment order, pairing, ADR sign-off, layout options, and the chaos simulator"
           >
             {showTools ? 'Fewer tools' : 'More tools'}
-          </button>
+          </button>}
 
           {showTools && (
             <>

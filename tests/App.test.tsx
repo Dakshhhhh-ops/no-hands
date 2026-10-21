@@ -88,7 +88,10 @@ describe('App component', () => {
     expect(screen.getByText('Risks')).toBeInTheDocument();
     expect(screen.getByText('Tasks')).toBeInTheDocument();
     expect(screen.getByText('What changed')).toBeInTheDocument();
-    expect(screen.getByText('Topology')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Topology' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Advanced/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Topology/ }));
+    expect(screen.getByRole('tab', { name: 'Topology', selected: true })).toBeInTheDocument();
   });
 
   it('opens export menu', () => {
@@ -96,12 +99,15 @@ describe('App component', () => {
     fireEvent.click(screen.getByText('Load sample'));
     fireEvent.click(screen.getByRole('button', { name: /export/i }));
     expect(screen.getByText('Engineering artifacts')).toBeInTheDocument();
-    expect(screen.getByText('DevOps bundle')).toBeInTheDocument();
+    expect(screen.queryByText('DevOps bundle')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Advanced/ }));
+    expect(screen.getByRole('button', { name: /^DevOps bundle/ })).toBeInTheDocument();
   });
 
   it('toggles history panel', () => {
     renderApp();
     fireEvent.click(screen.getByText('Load sample'));
+    fireEvent.click(screen.getByRole('button', { name: /Advanced/ }));
     fireEvent.click(screen.getByRole('button', { name: /branches and history/i }));
     const branchChips = screen.getAllByText('Main Branch');
     expect(branchChips.length).toBeGreaterThan(0);
