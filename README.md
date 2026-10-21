@@ -23,6 +23,19 @@ Without an API key the app still runs, using a small set of offline rules.
 - Exports: artifact ZIP, DevOps ZIP (Terraform and Kubernetes scaffolding, TypeScript client), SVG, PNG, Mermaid
 - Light and dark themes, offline PWA, Docker image
 
+## Voice-first with Wispr Flow
+
+[Wispr Flow](https://wisprflow.ai) is a system-wide dictation app: you hold your Wispr Flow hotkey, speak, and the text is typed into whichever field has focus. VoiceArchitect is built around that.
+
+- **The instruction box is the hero of the page** and takes focus on load, so you can hold your hotkey and speak straight away. Dictation lands there as plain text; no Wispr code is involved.
+- **English and Hinglish.** Wispr Flow supports Hinglish, and so does the interpreter: "order service ko Kafka se connect karo" becomes the same operations as "connect the order service to Kafka". Without a model key, offline rules still understand four common change shapes in both languages.
+- **Follow-ups by voice.** In the review dialog, say "make it PostgreSQL instead" to revise the change, "undo that" to step back, "cancel" to discard it, or "apply" (or "haan apply karo") to apply it. Nothing applies without an explicit apply.
+- **Cleanup for architecture words.** Flow's Backtrack already removes fillers and self-corrections. The app also fixes product names that dictation tends to get wrong, such as "post gres" → PostgreSQL and "rabbit mq" → RabbitMQ.
+- **Command Mode works here** because the box is ordinary text: select your instruction and use Flow's Command Mode to rewrite it in place. Command Mode needs a paid Wispr Flow plan or trial.
+- **Dictionary help.** One click copies the loaded model's component and technology names so you can add them to your Flow dictionary.
+
+What is *not* integrated: the app does not call any Wispr Flow API (none is documented for web pages), does not connect to Wispr's MCP server (it is read-only, for AI clients, and does not expose dictation), and does not produce a dictionary import file (the format is undocumented). Without Wispr Flow you can type, or use the **Browser mic (fallback)** button, which uses the browser's own speech recognition. Sources for every statement are in [docs/wispr-notes.md](docs/wispr-notes.md).
+
 ## Quick Start
 
 ```sh
