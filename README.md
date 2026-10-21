@@ -17,27 +17,21 @@ Without an API key the app still runs: recorded model answers cover the guided d
 - **Check against code** — Compare the diagram with a newer docker-compose file. New services, retired services, image changes, and new connections become one reviewable sync; components planned in the diagram but not built yet are reported, kept, and shown dashed as "planned"
 - **Import from Wispr Flow** — Sign in to Wispr Flow, pick a recent Notetaker meeting summary or Scratchpad note, and the decisions in it become an ordinary proposal you review like a spoken one. Pasted notes work the same way without Wispr Flow
 
-### Also included
+The page is built around that one loop: a short landing with **Start guided demo**, three steps explaining the loop, and the workspace with a single instruction box. The diagram and **What changed** are the two tabs; the API contract, risks, and tasks it generates sit in one **Generated docs** menu and update with every applied change.
 
-- A guided demo: one click imports an example stack and walks an English change, a Hinglish change, and a check against the next compose file
-- Interactive diagram: layout, blast radius, cycle detection, deployment order, keyboard navigation
-- OpenAPI 3.1 contract derived only from the model's API operations
-- Risks with the facts behind each finding, and fixes you choose and review in one step
-- Engineering tasks with acceptance criteria and requirement provenance
-- Topology tab: components by type, recorded protocols, and checks for referential integrity, cycles, isolated components, and open requirements
-- Branches with computed comparison and a semantic three-way merge
-- Outage simulator, labeled simulated: cascades come from component types and connections, numbers from stated assumptions
-- ADR drafts generated from each change, with sign-off pending until a reviewer marks it
-- Exports: artifact ZIP, DevOps ZIP (Terraform and Kubernetes scaffolding, TypeScript client), SVG, PNG, Mermaid
-- Server limits for a public deploy: per-IP rate limit, daily cap, timeout, and a badge when a preview falls back to the offline rules
-- Recorded answers: saved model answers, keyed by a hash of the exact request, answer the guided demo without a key and stand in when the live model is limited or down, labelled "Recorded answer"
-- Light and dark themes, WCAG AA contrast checked with axe in the browser tests, offline PWA, Docker image
+### In the More menu
+
+Kept out of the way so they don't compete with the loop: branches and history, an outage simulator and decision records (labelled simulated), the Topology checks, reset to baseline, and a DevOps bundle (Terraform and Kubernetes scaffolding). **Export** (artifact ZIP, SVG, PNG, Mermaid) sits next to it.
+
+### For a public deploy
+
+Per-IP rate limit, daily cap, timeout, and a badge when a preview falls back; recorded answers (keyed by a hash of the exact request) for the guided demo when there is no key; light and dark themes with WCAG AA contrast checked by axe in the browser tests; a Docker image.
 
 ## Voice-first with Wispr Flow
 
 [Wispr Flow](https://wisprflow.ai) is a system-wide dictation app: you hold your Wispr Flow hotkey, speak, and the text is typed into whichever field has focus. VoiceArchitect is built around that.
 
-- **The instruction box is the hero of the page** and takes focus on load, so you can hold your hotkey and speak straight away. Dictation lands there as plain text; no Wispr code is involved.
+- **One instruction box.** Click it, hold your hotkey, and speak. Dictation lands there as plain text; no Wispr code is involved. The guided demo asks you to say each step, with "Type it for me" only as the fallback for people without Wispr Flow.
 - **English and Hinglish.** Wispr Flow supports Hinglish, and so does the interpreter: "order service ko Kafka se connect karo" becomes the same operations as "connect the order service to Kafka". Without a model key, offline rules still understand four common change shapes in both languages.
 - **Follow-ups by voice.** In the review dialog, say "make it PostgreSQL instead" to revise the change, "undo that" to step back, "cancel" to discard it, or "apply" (or "haan apply karo") to apply it. Nothing applies without an explicit apply.
 - **Cleanup for architecture words.** Flow's Backtrack already removes fillers and self-corrections. The app also fixes product names that dictation tends to get wrong, such as "post gres" → PostgreSQL and "rabbit mq" → RabbitMQ.
@@ -90,6 +84,8 @@ docker compose --profile dev up --build
 
 **Render.** [render.yaml](render.yaml) is a Render Blueprint for one Docker web service with `/api/health` as its health check, `VOICEARCHITECT_TRUST_PROXY=1`, and both keys as secrets that Render asks for when you create the service. Leave the keys empty to run on recorded answers and the offline rules. Render's free plan spins the service down after 15 minutes without traffic, and the next visit waits about a minute while it starts.
 
+To avoid the cold start, [.github/workflows/keep-warm.yml](.github/workflows/keep-warm.yml) pings `/api/health` every 10 minutes once you add a repository variable `LIVE_URL`; it does nothing until then. Check Render's free-hours allowance before leaving it on all month.
+
 Any other host that runs a Node process or a Docker image works too. Set these as environment variables or secrets on the host:
 
 | Variable | Default | Purpose |
@@ -123,8 +119,8 @@ When a limit is reached, the provider rate-limits, a preview times out, or there
 4. **Explore** Diagram, API contract, Risks, Tasks, and What changed. In Risks, choose fixes for open findings and review them together.
 5. **Check against code** from the **From code** menu with a newer compose file, or **Try example update**. New and retired services become one reviewable sync; planned work is kept.
 6. **Undo** by saying "undo" in the instruction box, or with Ctrl+Z.
-7. **Advanced** holds branches and history, the outage simulator and decision records, Topology, and the DevOps bundle.
-8. **Export** the artifact ZIP, SVG, PNG, or Mermaid source.
+7. **More** holds branches and history, the outage simulator and decision records, Topology, reset to baseline, and the DevOps bundle.
+8. **Export**, next to More, downloads the artifact ZIP, SVG, PNG, or Mermaid source.
 
 ## Evals
 

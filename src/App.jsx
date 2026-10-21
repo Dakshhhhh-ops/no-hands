@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import {
   Activity, ArrowRight, AudioLines, Check, ChevronDown, ClipboardCheck, ClipboardList, FileArchive,
   FileCode2, GitBranch, Layers, Mic, Network, Play, Redo2, RotateCcw, Server, ShieldAlert, Undo2, X,
-  Sun, Moon, Keyboard, HelpCircle, FileText,
+  Sun, Moon, HelpCircle, FileText,
 } from 'lucide-react';
 import CommandPresets from './components/CommandPresets.jsx';
 import ScenarioBranchingBar from './components/ScenarioBranchingBar.jsx';
@@ -13,7 +13,6 @@ import ShortcutsModal from './components/ShortcutsModal.jsx';
 import CommandPalette from './components/CommandPalette.jsx';
 import WisprImportDialog from './components/WisprImportDialog.jsx';
 import ConnectionStatus from './components/ConnectionStatus.jsx';
-import ParticleBackground from './components/ParticleBackground.jsx';
 import { DiagramSkeleton, TableSkeleton, ListSkeleton } from './components/Skeleton.jsx';
 import { countOpenDecisions, getProjectSyncStatus } from './data/analysis.js';
 import { sound } from './utils/sound.js';
@@ -26,21 +25,17 @@ import { fallbackLabel, providerLabel } from './data/aiClient.ts';
 import { useToast } from './hooks/useToast.ts';
 import useLocalStorage from './hooks/useLocalStorage.ts';
 import { useTheme } from './hooks/useTheme.ts';
-import { useRevealOnScroll, useScrollProgress } from './hooks/useMotion.ts';
-import HeroStack3D from './components/HeroStack3D.jsx';
-import TiltCard from './components/TiltCard.jsx';
+import { useRevealOnScroll } from './hooks/useMotion.ts';
+import { SplitWords } from './components/landing/Interactions.jsx';
+import { HeroFragments } from './components/landing/HeroCanvas.jsx';
+import LoopSteps from './components/landing/LoopSteps.jsx';
 import VoiceField from './components/landing/VoiceField.jsx';
-import StoryScroll from './components/landing/StoryScroll.jsx';
-import { CustomCursor, Magnetic, SplitWords } from './components/landing/Interactions.jsx';
-import { HeroFragments, SelectionFrame, CodeLine } from './components/landing/HeroCanvas.jsx';
-import { SectionLabel, RedlineStatement } from './components/landing/Editorial.jsx';
 import { useScrollSpy } from './hooks/useScrollSpy.ts';
 import { isDialogOpen } from './hooks/useDialog.ts';
-import { isAutomated, useSmoothScroll } from './hooks/useSmoothScroll.ts';
 import { parseFollowUp } from './data/reviewCommands.ts';
 import { dictionaryWords } from './data/dictation.ts';
 
-const NAV_SECTIONS = ['top', 'how', 'workspace', 'capabilities'];
+const NAV_SECTIONS = ['how', 'workspace'];
 import './app-shell.css';
 
 const ArchitectureDiagram = lazy(() => import('./components/ArchitectureDiagram.jsx'));
@@ -57,7 +52,15 @@ const tabs = [
   { id: 'tasks', label: 'Tasks', icon: ClipboardList },
   { id: 'impact', label: 'What changed', icon: Activity },
 ];
-// Opened from the Advanced menu; it appears in the tab row only while it is open.
+// Diagram and What changed are always tabs. The generated documents live in one menu
+// and join the tab row only while one of them is open, so the row stays short.
+const DOC_TABS = [
+  { ...tabs[1], hint: 'OpenAPI 3.1, derived from the model' },
+  { ...tabs[2], hint: 'Findings with the facts behind them' },
+  { ...tabs[3], hint: 'Engineering work with acceptance criteria' },
+];
+const PRIMARY_TABS = tabs.filter((item) => !DOC_TABS.some((doc) => doc.id === item.id));
+// Opened from the More menu; it appears in the tab row only while it is open.
 const TOPOLOGY_TAB = { id: 'topology', label: 'Topology', icon: Layers };
 
 // The guided demo on the example ride-share stack. Each step works without a model key.
@@ -98,6 +101,23 @@ export default function App() {
   const sourceMenuRef = useRef(null);
   const [showAdvancedMenu, setShowAdvancedMenu] = useState(false);
   const advancedMenuRef = useRef(null);
+  const [showDocsMenu, setShowDocsMenu] = useState(false);
+  const docsMenuRef = useRef(null);
+  useEffect(() => {
+    if (!showDocsMenu) return undefined;
+    const onPointer = (event) => {
+      if (!docsMenuRef.current?.contains(event.target)) setShowDocsMenu(false);
+    };
+    const onKey = (event) => {
+      if (event.key === 'Escape') setShowDocsMenu(false);
+    };
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [showDocsMenu]);
   const [advancedTools, setAdvancedTools] = useState(false);
   const [guidedStep, setGuidedStep] = useState(0);
   const guidedBaseline = useRef(0);
@@ -198,7 +218,6 @@ export default function App() {
   // Wispr Flow types into the focused text box, so it needs no code here. The browser
   // microphone (Web Speech API) is only a fallback for people without Wispr Flow.
   const { isListening, isSupported: micSupported, toggle: toggleDictation } = dictation;
-  const heroInputRef = useRef(null);
   const [followUp, setFollowUp] = useState('');
 
   const journey = useJourney(project, command, null, tab, false, isListening);
@@ -224,8 +243,6 @@ export default function App() {
 
   const { theme, toggleTheme } = useTheme();
   useRevealOnScroll();
-  useScrollProgress();
-  useSmoothScroll();
   const activeSection = useScrollSpy(NAV_SECTIONS);
 
   const proposalHooks = useProposalReview(project, sampleChoice, notify, { command, setCommand });
@@ -239,7 +256,6 @@ export default function App() {
     modalRef,
     showProposal,
     _confirmChange: _proposalConfirmChange,
-    playDemoDictation,
     proposalHasRateLimit,
     proposalHasRedisFallback,
     proposalCaveats,
@@ -263,20 +279,9 @@ export default function App() {
     journeyHandleTabChange(id);
   };
 
-  const visibleTabs = tab === TOPOLOGY_TAB.id ? [...tabs, TOPOLOGY_TAB] : tabs;
+  const activeDoc = DOC_TABS.find((item) => item.id === tab);
+  const visibleTabs = [...PRIMARY_TABS, ...(activeDoc ? [activeDoc] : []), ...(tab === TOPOLOGY_TAB.id ? [TOPOLOGY_TAB] : [])];
   const activeTab = visibleTabs.find((item) => item.id === tab) || tabs[0];
-
-  // Tier counts for the 3D model section, computed from the loaded model.
-  const layerSummary = useMemo(() => {
-    const comps = project?.components || [];
-    const count = (types) => comps.filter((c) => types.includes(c.type)).length;
-    return [
-      { label: 'Clients', count: count(['CLIENT']), tone: 'tone-violet' },
-      { label: 'Edge', count: count(['GATEWAY']), tone: 'tone-amber' },
-      { label: 'Services', count: count(['SERVICE']), tone: 'tone-indigo' },
-      { label: 'Data & events', count: count(['DATABASE', 'CACHE', 'QUEUE', 'EXTERNAL']), tone: 'tone-teal' },
-    ];
-  }, [project]);
 
   // Counted from the model's own risk findings, so imported stacks get their own decisions.
   const openDecisionCount = countOpenDecisions(project);
@@ -365,10 +370,6 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    if (isAutomated() || typeof window.matchMedia !== 'function' || !window.matchMedia('(pointer: fine)').matches) return;
-    heroInputRef.current?.focus({ preventScroll: true });
-  }, []);
 
   // Fixes chosen in the Risks tab open the same review dialog as any other change.
   const reviewResolution = (resolution) => {
@@ -431,7 +432,7 @@ export default function App() {
     setCommand('');
     guidedBaseline.current = 0;
     setGuidedStep(1);
-    document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' });
+    document.querySelector('.va-studio')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   // Each applied change moves the guided demo one step forward; leaving the example stack ends it.
@@ -574,18 +575,10 @@ export default function App() {
           <b>VoiceArchitect</b>
         </a>
         <nav className="va-nav" aria-label="Page sections">
-          <a href="#top" aria-current={activeSection === 'top' ? 'true' : undefined}>Overview</a>
           <a href="#how" aria-current={activeSection === 'how' ? 'true' : undefined}>How it works</a>
           <a href="#workspace" aria-current={activeSection === 'workspace' ? 'true' : undefined}>Workspace</a>
-          <a href="#capabilities" aria-current={activeSection === 'capabilities' ? 'true' : undefined}>Capabilities</a>
         </nav>
         <div className="va-topbar-actions">
-          <button type="button" className="va-btn va-btn-ghost va-btn-icon" onClick={() => { setIsShortcutsOpen(true); sound.click(); }} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">
-            <Keyboard size={18} />
-          </button>
-          <button type="button" className="va-btn va-btn-ghost va-btn-collapse" onClick={reset}>
-            <RotateCcw size={15} /> <span className="va-btn-label">Reset sample</span>
-          </button>
           <button
             type="button"
             className="va-btn va-btn-ghost va-btn-icon"
@@ -595,155 +588,56 @@ export default function App() {
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <div className="va-menu" ref={exportMenuRef}>
-            <button
-              type="button"
-              className="va-btn va-btn-primary"
-              aria-haspopup="menu"
-              aria-expanded={exportOpen}
-              onClick={() => setExportOpen((open) => !open)}
-            >
-              <FileArchive size={15} /> Export <ChevronDown size={14} />
-            </button>
-            {exportOpen && (
-              <div className="va-menu-list" role="menu">
-                <button type="button" role="menuitem" className="va-menu-item" onClick={exportAll}>
-                  <FileArchive size={16} />
-                  <span><b>Engineering artifacts</b><small>Model, diagram, API contract, risks, tasks</small></span>
-                </button>
-                <button type="button" role="menuitem" className="va-menu-item" onClick={() => exportDiagram('svg')}>
-                  <FileCode2 size={16} />
-                  <span><b>Architecture SVG</b><small>Current model as a scalable vector diagram</small></span>
-                </button>
-                <button type="button" role="menuitem" className="va-menu-item" onClick={() => exportDiagram('png')}>
-                  <FileCode2 size={16} />
-                  <span><b>Architecture PNG</b><small>Current model as a rendered image</small></span>
-                </button>
-                <button type="button" role="menuitem" className="va-menu-item" onClick={() => exportDiagram('mermaid')}>
-                  <FileCode2 size={16} />
-                  <span><b>Mermaid source</b><small>Editable architecture flowchart text</small></span>
-                </button>
-              </div>
-            )}
-          </div>
+          <button type="button" className="va-btn va-btn-primary va-topbar-demo" onClick={startDemo}>
+            <Play size={14} /> Guided demo
+          </button>
         </div>
       </header>
 
-      <section className="va-hero va-hero-canvas" id="top" aria-labelledby="va-hero-title" data-cursor-zone>
+      <section className="va-hero va-hero-canvas va-hero-simple" id="top" aria-labelledby="va-hero-title">
         <span className="va-canvas-grid" aria-hidden="true" />
         <VoiceField />
         <HeroFragments project={project} />
 
         <div className="va-canvas-center">
-          <SelectionFrame label="h1 · say the change">
-            <h1 id="va-hero-title" className="va-display">
-              <SplitWords text="Say the change." />
-              <SplitWords text="See what it touches." offset={3} className="va-display-serif" />
-            </h1>
-          </SelectionFrame>
-          <p className="va-hero-description" data-reveal style={{ '--d': 4 }}>
-            Voice keeps your architecture diagram in sync with your code. Say a change, review the exact diff, then check it
-            against your docker-compose file.
+          <p className="va-hero-eyebrow" data-reveal>
+            <span className="va-live-dot" aria-hidden="true" /> Built for Wispr Flow · English and Hinglish
           </p>
-          <form
-            className="va-voicebar"
-            data-reveal
-            style={{ '--d': 5 }}
-            onSubmit={(event) => { event.preventDefault(); runInstruction(); }}
-          >
-            <label htmlFor="va-hero-command" className="va-sr-only">Describe an architecture change</label>
-            <textarea
-              id="va-hero-command"
-              ref={heroInputRef}
-              rows={2}
-              value={command}
-              onChange={(event) => setCommand(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-                  event.preventDefault();
-                  runInstruction();
-                }
-              }}
-              placeholder={'Add a Redis cache in front of the catalog service\norder service ko Kafka se connect karo'}
-            />
-            <div className="va-voicebar-foot">
-              <p className="va-voicebar-hint">
-                <Mic size={14} aria-hidden="true" /> Hold your Wispr Flow hotkey and speak, in English or Hinglish.
-              </p>
-              <button type="submit" className="va-btn va-btn-primary" disabled={!command.trim() || isInterpreting}>
-                {isInterpreting ? 'Interpreting…' : 'Preview change'} <ArrowRight size={15} />
-              </button>
-            </div>
-          </form>
-          <div className="va-hero-secondary" data-reveal style={{ '--d': 6 }}>
-            <Magnetic strength={0.2}>
-              <button type="button" className="va-link-btn" onClick={startDemo} data-cursor="Play">
-                <Play size={13} /> Start guided demo
-              </button>
-            </Magnetic>
-            {micSupported && (
-              <button type="button" className="va-link-btn" onClick={toggleDictation} aria-pressed={isListening}>
-                <Mic size={13} /> {isListening ? 'Stop browser mic' : 'Browser mic (fallback)'}
-              </button>
-            )}
-            <a className="va-link-btn" href="#workspace">
-              Open the workspace <ArrowRight size={13} />
+          <h1 id="va-hero-title" className="va-display" data-reveal>
+            <SplitWords text="Say the change." />
+            <SplitWords text="See what it touches." offset={3} className="va-display-serif" />
+          </h1>
+          <p className="va-hero-description" data-reveal style={{ '--d': 4 }}>
+            Speak a change to your architecture with Wispr Flow, in English or Hinglish. Review the exact diff before
+            anything applies, then check the diagram against your docker-compose file.
+          </p>
+          <div className="va-hero-actions" data-reveal style={{ '--d': 5 }}>
+            <button type="button" className="va-btn va-btn-primary va-btn-lg" onClick={startDemo}>
+              <Play size={16} /> Start guided demo
+            </button>
+            <a className="va-btn va-btn-lg" href="#workspace">
+              Use my own stack <ArrowRight size={16} />
             </a>
           </div>
-          <div data-reveal style={{ '--d': 6 }}>
-            <CodeLine name="interpreter">
-              {aiStatus.ai ? `${providerLabel(aiStatus.provider)} · ${aiStatus.model}` : 'offline rules · add a key for full understanding'}
-            </CodeLine>
-          </div>
-        </div>
-
-        <a className="va-scroll-cue" href="#statement" aria-label="Scroll to the next section">
-          <span>Scroll</span><i />
-        </a>
-      </section>
-
-      <div id="statement">
-        <RedlineStatement id="va-statement-title" />
-      </div>
-
-      <section className="va-section va-layers" id="layers" aria-labelledby="va-layers-title" data-cursor-zone>
-        <div className="va-section-inner">
-          <SectionLabel index={1}>Your model</SectionLabel>
-          <h2 id="va-layers-title" className="va-section-title" data-reveal style={{ '--d': 1 }}>
-            Every layer, <em>in one</em> view
-          </h2>
-          <div className="va-layers-body">
-            <div className="va-layers-stage" data-reveal style={{ '--d': 2 }}>
-              <HeroStack3D project={project} />
-            </div>
-            <ul className="va-layers-legend" data-reveal style={{ '--d': 3 }}>
-              {layerSummary.map((row) => (
-                <li key={row.label} className={row.tone}>
-                  <span className="va-layers-count">{String(row.count).padStart(2, '0')}</span>
-                  <span>{row.label}</span>
-                </li>
-              ))}
-              <li className="va-layers-note">Counted live from {project?.name || 'the loaded model'}. Move your pointer to tilt it.</li>
-            </ul>
-          </div>
+          <p className="va-hero-note" data-reveal style={{ '--d': 6 }}>
+            No sign-in. Three steps: an English change, a Hinglish change, and a check against newer code.
+          </p>
         </div>
       </section>
 
-      <section className="va-section va-how va-how-v3" id="how" aria-labelledby="va-how-title" data-cursor-zone>
+      <section className="va-section va-loop" id="how" aria-labelledby="va-how-title">
         <div className="va-section-inner">
-          <SectionLabel index={2}>How it works</SectionLabel>
           <h2 id="va-how-title" className="va-section-title" data-reveal style={{ '--d': 1 }}>
-            From a sentence to a <em>reviewed</em> change
+            One loop, <em>by voice</em>
           </h2>
-          <StoryScroll />
+          <LoopSteps />
         </div>
       </section>
 
       <section className="va-section va-section-work" id="workspace" aria-labelledby="va-work-title">
-        <div className="va-section-inner">
-          <SectionLabel index={3}>Try it</SectionLabel>
+        <div className="va-section-inner va-work-intro">
           <h2 id="va-work-title" data-reveal style={{ '--d': 1 }}>Workspace</h2>
-          <p className="va-section-lead" data-reveal style={{ '--d': 2 }}>Load a system, describe a change in everyday language, and review exactly what it would affect before anything is applied.</p>
+          <p className="va-section-lead" data-reveal style={{ '--d': 2 }}>Start from a sample or your own docker-compose file, say a change, and review exactly what it affects before anything applies.</p>
         </div>
       <div className="va-studio">
         <header className="va-studio-head">
@@ -769,7 +663,82 @@ export default function App() {
             )}
           </div>
 
-          <div className="va-studio-tools">
+          <div className="va-studio-tools va-studio-actions">
+              <div className="va-menu" ref={exportMenuRef}>
+                <button
+                  type="button"
+                  className="va-btn va-btn-ghost va-btn-sm"
+                  aria-haspopup="menu"
+                  aria-expanded={exportOpen}
+                  onClick={() => setExportOpen((open) => !open)}
+                >
+                  <FileArchive size={14} /> Export <ChevronDown size={14} />
+                </button>
+                {exportOpen && (
+                  <div className="va-menu-list" role="menu">
+                    <button type="button" role="menuitem" className="va-menu-item" onClick={exportAll}>
+                      <FileArchive size={16} />
+                      <span><b>Engineering artifacts</b><small>Model, diagram, API contract, risks, tasks</small></span>
+                    </button>
+                    <button type="button" role="menuitem" className="va-menu-item" onClick={() => exportDiagram('svg')}>
+                      <FileCode2 size={16} />
+                      <span><b>Architecture SVG</b><small>Current model as a scalable vector diagram</small></span>
+                    </button>
+                    <button type="button" role="menuitem" className="va-menu-item" onClick={() => exportDiagram('png')}>
+                      <FileCode2 size={16} />
+                      <span><b>Architecture PNG</b><small>Current model as a rendered image</small></span>
+                    </button>
+                    <button type="button" role="menuitem" className="va-menu-item" onClick={() => exportDiagram('mermaid')}>
+                      <FileCode2 size={16} />
+                      <span><b>Mermaid source</b><small>Editable architecture flowchart text</small></span>
+                    </button>
+                  </div>
+                )}
+              </div>
+              <span className="va-toolbar-sep" aria-hidden="true" />
+              <button type="button" className="va-btn va-btn-ghost va-btn-icon va-btn-sm" onClick={handleUndo} disabled={!canUndo} aria-label="Undo last change" title="Undo (Ctrl+Z)">
+                <Undo2 size={15} />
+              </button>
+              <button type="button" className="va-btn va-btn-ghost va-btn-icon va-btn-sm" onClick={handleRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Ctrl+Y)">
+                <Redo2 size={15} />
+              </button>
+          </div>
+        </header>
+
+        <div className="va-studio-progress va-studio-bar">
+          <div className="va-studio-journey" data-hidden={guidedStep > 0}>
+          <ol className="va-journey-steps" aria-label="Demo walkthrough progress">
+            {journeySteps.map((step, index) => {
+              const done = step.complete;
+              const current = !done && index === currentJourneyStep;
+              return (
+                <li key={step.title} data-state={done ? 'done' : current ? 'current' : 'upcoming'} title={step.title}>
+                  <span className="va-journey-marker" aria-hidden="true">{done ? <Check size={11} /> : index + 1}</span>
+                  <span className={current ? 'va-journey-title' : 'va-sr-only'}>{step.title}</span>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="va-sr-only" aria-live="polite">{journeyGuidance}</p>
+          {project?.changed && (
+            <div className="va-journey-outputs" aria-label="Updated output review progress">
+              <span className="va-journey-outputs-label">Review</span>
+              {journeyOutputs.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  data-viewed={inspectedArtifacts.has(item.id)}
+                  aria-pressed={tab === item.id}
+                  aria-label={`View updated ${item.label}`}
+                  onClick={() => handleTabChange(item.id)}
+                >
+                  {inspectedArtifacts.has(item.id) && <Check size={12} />} {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+          </div>
+          <div className="va-studio-tools va-studio-source">
             <div className="va-sample-picker">
               <select
                 id="va-sample-choice"
@@ -843,8 +812,6 @@ export default function App() {
             </div>
 
             <span className="va-toolbar-sep" aria-hidden="true" />
-
-            <div className="va-history">
               <div className="va-pop" ref={advancedMenuRef}>
                 <button
                   type="button"
@@ -853,7 +820,7 @@ export default function App() {
                   aria-controls="va-advanced-menu"
                   onClick={() => setShowAdvancedMenu((open) => !open)}
                 >
-                  <Layers size={14} /> Advanced <ChevronDown size={14} />
+                  <Layers size={14} /> More <ChevronDown size={14} />
                 </button>
                 {showAdvancedMenu && (
                   <div className="va-pop-panel" id="va-advanced-menu">
@@ -869,6 +836,10 @@ export default function App() {
                       Topology
                       <small aria-hidden="true">Components by type, protocols, and model checks.</small>
                     </button>
+                    <button type="button" disabled={!project} onClick={() => { setShowAdvancedMenu(false); reset(); }}>
+                      Reset to baseline
+                      <small aria-hidden="true">Discard changes and return to the loaded sample or imported stack.</small>
+                    </button>
                     <hr />
                     <button type="button" disabled={!project} onClick={() => { setShowAdvancedMenu(false); exportDevOps(); }}>
                       DevOps bundle
@@ -877,47 +848,7 @@ export default function App() {
                   </div>
                 )}
               </div>
-              <button type="button" className="va-btn va-btn-ghost va-btn-icon va-btn-sm" onClick={handleUndo} disabled={!canUndo} aria-label="Undo last change" title="Undo (Ctrl+Z)">
-                <Undo2 size={15} />
-              </button>
-              <button type="button" className="va-btn va-btn-ghost va-btn-icon va-btn-sm" onClick={handleRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Ctrl+Y)">
-                <Redo2 size={15} />
-              </button>
-            </div>
           </div>
-        </header>
-
-        <div className="va-studio-progress">
-          <ol className="va-journey-steps" aria-label="Demo walkthrough progress">
-            {journeySteps.map((step, index) => {
-              const done = step.complete;
-              const current = !done && index === currentJourneyStep;
-              return (
-                <li key={step.title} data-state={done ? 'done' : current ? 'current' : 'upcoming'} title={step.title}>
-                  <span className="va-journey-marker" aria-hidden="true">{done ? <Check size={11} /> : index + 1}</span>
-                  <span className={current ? 'va-journey-title' : 'va-sr-only'}>{step.title}</span>
-                </li>
-              );
-            })}
-          </ol>
-          <p className="va-sr-only" aria-live="polite">{journeyGuidance}</p>
-          {project?.changed && (
-            <div className="va-journey-outputs" aria-label="Updated output review progress">
-              <span className="va-journey-outputs-label">Review</span>
-              {journeyOutputs.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  data-viewed={inspectedArtifacts.has(item.id)}
-                  aria-pressed={tab === item.id}
-                  aria-label={`View updated ${item.label}`}
-                  onClick={() => handleTabChange(item.id)}
-                >
-                  {inspectedArtifacts.has(item.id) && <Check size={12} />} {item.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {guidedStep > 0 && (
@@ -943,9 +874,12 @@ export default function App() {
                     {step.drift ? (
                       <button type="button" className="va-btn va-btn-primary va-btn-sm" onClick={checkExampleDrift}>Run the code check</button>
                     ) : (
-                      <button type="button" className="va-btn va-btn-sm" onClick={() => typeGuidedStep(step.say)}>Type it for me</button>
+                      <>
+                        <span className="va-guide-note">Then preview, review the diff, and say &ldquo;apply&rdquo;. No Wispr Flow?</span>
+                        <button type="button" className="va-btn va-btn-sm" onClick={() => typeGuidedStep(step.say)}>Type it for me</button>
+                      </>
                     )}
-                    <span className="va-guide-note">{step.drift ? 'Review the sync, then apply it.' : 'Then preview, review the diff, and apply.'}</span>
+                    {step.drift && <span className="va-guide-note">Review the sync, then apply it.</span>}
                   </div>
                 </>
               );
@@ -988,6 +922,20 @@ export default function App() {
         <section className="va-composer" aria-labelledby="va-composer-title">
           <div className="va-composer-head">
             <h2 id="va-composer-title">What should change?</h2>
+            {command && (
+              <button
+                type="button"
+                className="va-link-btn"
+                onClick={() => {
+                  sound.click();
+                  setCommand('');
+                  setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
+                  setProposal(null);
+                }}
+              >
+                Clear
+              </button>
+            )}
           </div>
           <p className="va-composer-hint">
             <Mic size={14} aria-hidden="true" /> Hold your Wispr Flow hotkey and speak, or type. English and Hinglish both work.
@@ -1053,40 +1001,32 @@ export default function App() {
           <div className="va-composer-actions">
             <button
               type="button"
-              className="va-btn va-btn-primary"
+              className="va-btn va-btn-primary va-composer-preview"
               disabled={!project || !command.trim() || isInterpreting}
               aria-busy={isInterpreting}
               onClick={runInstruction}
             >
               <ClipboardCheck size={16} /> {isInterpreting ? 'Interpreting…' : 'Preview my change'}
             </button>
-            <div className="va-composer-links">
-              <button type="button" className="va-link-btn" onClick={playDemoDictation} disabled={isDictatingSim}>
-                <Play size={12} /> Play sample instruction
+          <p className="va-composer-note">Nothing applies until you review it.</p>
+          </div>
+
+          <div className="va-voice-tools" role="group" aria-labelledby="va-voice-tools-title">
+            <h3 id="va-voice-tools-title">Wispr Flow tools</h3>
+            <button type="button" className="va-tool-row" onClick={() => setNotesImport({ returned: null })} disabled={!project || isInterpreting}>
+              <span className="va-tool-icon" aria-hidden="true"><FileText size={15} /></span>
+              <span><b>Import from Wispr Flow or paste notes</b><small>A meeting summary or Scratchpad note becomes a reviewed proposal.</small></span>
+            </button>
+            <button type="button" className="va-tool-row" onClick={copyDictionaryWords} disabled={!project}>
+              <span className="va-tool-icon" aria-hidden="true"><ClipboardList size={15} /></span>
+              <span><b>Copy names for your Flow dictionary</b><small>So Flow spells this model's services and technologies right.</small></span>
+            </button>
+            {micSupported && (
+              <button type="button" className="va-tool-row" onClick={toggleDictation} aria-pressed={isListening}>
+                <span className="va-tool-icon" aria-hidden="true"><Mic size={15} /></span>
+                <span><b>{isListening ? 'Stop browser mic' : 'Browser mic (fallback)'}</b><small>Only for people without Wispr Flow.</small></span>
               </button>
-              <button type="button" className="va-link-btn" onClick={() => setNotesImport({ returned: null })} disabled={!project || isInterpreting}>
-                <FileText size={12} /> Import from Wispr Flow or paste notes
-              </button>
-              {micSupported && (
-                <button type="button" className="va-link-btn" onClick={toggleDictation} aria-pressed={isListening}>
-                  <Mic size={12} /> {isListening ? 'Stop browser mic' : 'Browser mic (fallback)'}
-                </button>
-              )}
-              {command && (
-                <button
-                  type="button"
-                  className="va-link-btn"
-                  onClick={() => {
-                    sound.click();
-                    setCommand('');
-                    setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
-                    setProposal(null);
-                  }}
-                >
-                  Clear
-                </button>
-              )}
-            </div>
+            )}
           </div>
 
           <details className="va-examples">
@@ -1103,15 +1043,12 @@ export default function App() {
             />
           </details>
 
-          <p className="va-composer-note">Nothing applies until you review it.</p>
-          <button type="button" className="va-link-btn va-composer-dict" onClick={copyDictionaryWords} disabled={!project}>
-            <ClipboardList size={12} /> Copy this model's names for your Wispr Flow dictionary
-          </button>
         </section>
 
         {/* ---------------- Output ---------------- */}
         <section className="va-output" aria-label="Generated architecture">
           <div className="va-card">
+            <div className="va-tabs-row">
             <div
               className="va-tabs"
               role="tablist"
@@ -1145,6 +1082,33 @@ export default function App() {
                 </button>
               ))}
             </div>
+            <div className="va-pop va-docs-menu" ref={docsMenuRef}>
+              <button
+                type="button"
+                className="va-docs-trigger"
+                aria-expanded={showDocsMenu}
+                aria-controls="va-docs-menu"
+                onClick={() => setShowDocsMenu((open) => !open)}
+              >
+                <FileCode2 size={15} /> Generated docs <ChevronDown size={14} />
+              </button>
+              {showDocsMenu && (
+                <div className="va-pop-panel" id="va-docs-menu">
+                  {DOC_TABS.map(({ id, label, hint }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-current={tab === id ? 'true' : undefined}
+                      onClick={() => { setShowDocsMenu(false); handleTabChange(id); }}
+                    >
+                      <span>{label}{id === 'risk' && openDecisionCount > 0 ? ` · ${openDecisionCount} open` : ''}</span>
+                      <small aria-hidden="true">{hint}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            </div>
             <span
               className="va-sync va-sr-only"
               data-unresolved={Boolean(project && syncStatus.includes('unresolved'))}
@@ -1169,79 +1133,10 @@ export default function App() {
       </div>
       </section>
 
-      <section className="va-section va-caps-section" id="capabilities" aria-labelledby="va-cap-title" data-cursor-zone>
-        <div className="va-section-inner">
-          <SectionLabel index={4}>Capabilities</SectionLabel>
-          <h2 id="va-cap-title" className="va-section-title" data-reveal style={{ '--d': 1 }}>
-            Go beyond <em>one</em> change
-          </h2>
-          <div className="va-bento">
-            <TiltCard className="tone-indigo va-bento-tall" data-reveal style={{ '--d': 1 }}>
-              <span className="va-cap-icon"><GitBranch size={20} /></span>
-              <h3>Try an alternative safely</h3>
-              <p>Fork your model into a branch, try changes there, compare the branch with main, then merge what works.</p>
-              <div className="va-bento-art va-art-branch" aria-hidden="true"><i /><i /><i /><b /><b /><b /></div>
-              <button
-                type="button"
-                className="va-btn"
-                data-cursor="Fork"
-                onClick={() => {
-                  handleForkBranch();
-                  notify('Forked the current model into a new branch. Changes here stay off main until you merge.');
-                  document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-              >
-                Fork this version
-              </button>
-            </TiltCard>
-            <TiltCard className="tone-teal" data-reveal style={{ '--d': 2 }}>
-              <span className="va-cap-icon"><Undo2 size={20} /></span>
-              <h3>Go back in time</h3>
-              <p>Undo, redo, or jump to any earlier version of the model without losing your place.</p>
-              <div className="va-bento-art va-art-timeline" aria-hidden="true"><i /><i /><i /><i /><i /></div>
-              <button type="button" className="va-btn" data-cursor="Open" onClick={() => { setShowHistory(true); document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' }); }}>
-                Open history
-              </button>
-            </TiltCard>
-            <TiltCard className="tone-amber" data-reveal style={{ '--d': 3 }}>
-              <span className="va-cap-icon"><FileArchive size={20} /></span>
-              <h3>Take it with you</h3>
-              <p>Export the model, contract, risks, and tasks, or a DevOps bundle with Terraform and Kubernetes scaffolding.</p>
-              <div className="va-cap-actions">
-                <button type="button" className="va-btn" onClick={exportAll}>Artifacts ZIP</button>
-                <button type="button" className="va-btn" onClick={exportDevOps}>DevOps ZIP</button>
-              </div>
-            </TiltCard>
-            <TiltCard className="tone-violet va-bento-wide" data-reveal style={{ '--d': 4 }}>
-              <span className="va-cap-icon"><ShieldAlert size={20} /></span>
-              <h3>Checked, never guessed</h3>
-              <p>
-                Every proposal is validated against your model before you see it. Unknown components are skipped and
-                explained, open questions stay open, and without an API key the app still runs on built-in rules.
-              </p>
-            </TiltCard>
-          </div>
-        </div>
-      </section>
-
-      <footer className="va-footer va-footer-v3" data-cursor-zone>
-        <div className="va-footer-cta">
-          <p className="va-eyebrow">Ready when you are</p>
-          <a className="va-footer-link" href="#workspace" data-cursor="Try">
-            Try it on your own stack <ArrowRight size={22} />
-          </a>
-        </div>
-        <div className="va-footer-wordmark" aria-hidden="true">
-          <span>Voice</span><span className="is-serif">Architect</span>
-        </div>
-        <div className="va-footer-meta">
-          <span className="va-footer-brand"><AudioLines size={14} /> VoiceArchitect</span>
-          <span>Architecture docs that stay true to the code. Nothing changes without your review.</span>
-        </div>
+      <footer className="va-footer va-footer-simple">
+        <span className="va-footer-brand"><AudioLines size={14} /> VoiceArchitect</span>
+        <span>Architecture docs that stay true to the code. Nothing changes without your review.</span>
       </footer>
-      <div className="va-scroll-progress" aria-hidden="true" />
-      <div className="va-grain" aria-hidden="true" />
-      <CustomCursor />
 
       {/* Review dialog */}
       {proposal && (
@@ -1478,7 +1373,6 @@ export default function App() {
       <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
       <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} commands={paletteCommands} />
       <ConnectionStatus />
-      <ParticleBackground count={20} opacity={0.08} />
     </main>
   );
 }

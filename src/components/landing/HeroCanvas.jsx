@@ -113,27 +113,3 @@ export function HeroFragments({ project }) {
     </div>
   );
 }
-
-/** Wraps the headline in a design-tool selection frame with resize handles. */
-export function SelectionFrame({ children, label }) {
-  return (
-    <div className="va-select" data-reveal>
-      <span className="va-select-label" aria-hidden="true">{label}</span>
-      <span className="va-select-h h-tl" aria-hidden="true" /><span className="va-select-h h-tm" aria-hidden="true" />
-      <span className="va-select-h h-tr" aria-hidden="true" /><span className="va-select-h h-ml" aria-hidden="true" />
-      <span className="va-select-h h-mr" aria-hidden="true" /><span className="va-select-h h-bl" aria-hidden="true" />
-      <span className="va-select-h h-bm" aria-hidden="true" /><span className="va-select-h h-br" aria-hidden="true" />
-      {children}
-    </div>
-  );
-}
-
-/** A code-styled line, in the spirit of an editor: <output name="...">value</output>. */
-export function CodeLine({ name, children }) {
-  return (
-    <p className="va-code-line">
-      <span className="t">&lt;output</span> <span className="a">name</span>=<span className="s">&quot;{name}&quot;</span>
-      <span className="t">&gt;</span>{children}<span className="t">&lt;/output&gt;</span>
-    </p>
-  );
-}

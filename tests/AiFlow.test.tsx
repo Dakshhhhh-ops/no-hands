@@ -52,7 +52,6 @@ describe('Model interpretation flow', () => {
     render(<App />);
 
     expect(await screen.findByText('Interpreted by Groq')).toBeInTheDocument();
-    expect(await screen.findByText(/Groq · openai\/gpt-oss-120b/)).toBeInTheDocument();
     fireEvent.click(screen.getByText('Load sample'));
 
     fireEvent.change(screen.getByLabelText('Your instruction'), {

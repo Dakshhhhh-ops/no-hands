@@ -1,0 +1,28 @@
+name: Keep the live demo warm
+
+# Render's free plan spins a service down after 15 minutes without traffic, and the
+# next visit waits about a minute. This pings the health check every 10 minutes so a
+# judge's first visit is fast. GitHub runs scheduled jobs on a best-effort basis, so
+# an occasional cold start is still possible.
+#
+# Off until you set it up: add a repository variable LIVE_URL (Settings → Secrets and
+# variables → Actions → Variables), for example https://voicearchitect.onrender.com.
+# Check your host's free-hours allowance before leaving this on all month.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    if: ${{ vars.LIVE_URL != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping /api/health
+        env:
+          LIVE_URL: ${{ vars.LIVE_URL }}
+        run: curl --fail --silent --show-error --max-time 120 --retry 2 "${LIVE_URL%/}/api/health"

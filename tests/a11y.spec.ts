@@ -6,6 +6,16 @@ import AxeBuilder from '@axe-core/playwright';
 // entrance animations to finish, so colors are measured as people see them.
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
+/** Opens an output view: Diagram and What changed are tabs; the generated docs are in a menu. */
+async function openView(page: Page, name: string) {
+  if (['API contract', 'Risks', 'Tasks'].includes(name)) {
+    await page.getByRole('button', { name: /Generated docs/ }).click();
+    await page.getByRole('button', { name: new RegExp(`^${name}`) }).click();
+  } else {
+    await page.getByRole('tab', { name }).click();
+  }
+}
+
 async function expectNoSeriousViolations(page: Page, label: string) {
   await page.waitForTimeout(700);
   const { violations } = await new AxeBuilder({ page }).withTags(WCAG).analyze();
@@ -35,19 +45,19 @@ for (const scheme of ['light', 'dark'] as const) {
       await expect(review).toBeHidden();
 
       for (const tab of ['Diagram', 'API contract', 'Risks', 'Tasks', 'What changed']) {
-        await page.getByRole('tab', { name: tab }).click();
+        await openView(page, tab);
         await expectNoSeriousViolations(page, `${tab} tab`);
       }
 
-      await page.getByRole('button', { name: /Advanced/ }).click();
-      await expectNoSeriousViolations(page, 'Advanced menu');
+      await page.getByRole('button', { name: /^More$/ }).click();
+      await expectNoSeriousViolations(page, 'More menu');
     });
   });
 }
 
 test('the voice loop works from the keyboard alone: instruction, preview, follow-up, apply', async ({ page }) => {
   await page.goto('/');
-  const box = page.getByLabel('Describe an architecture change');
+  const box = page.getByLabel('Your instruction');
   await box.focus();
   await page.keyboard.type('catalog service ke aage redis cache laga do');
   await page.keyboard.press('Control+Enter');

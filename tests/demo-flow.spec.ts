@@ -1,4 +1,15 @@
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
+
+/** Opens an output view: Diagram and What changed are tabs; the generated docs are in a menu. */
+async function openView(page: Page, name: string) {
+  if (['API contract', 'Risks', 'Tasks'].includes(name)) {
+    await page.getByRole('button', { name: /Generated docs/ }).click();
+    await page.getByRole('button', { name: new RegExp(`^${name}`) }).click();
+  } else {
+    await page.getByRole('tab', { name }).click();
+  }
+}
 
 // Browser tests for the demo path. Without ANTHROPIC_API_KEY the app uses the
 // offline rules, so these run anywhere; the Claude path is covered in AiFlow.test.tsx.
@@ -25,7 +36,7 @@ test.describe('VoiceArchitect demo flow', () => {
     await expect(page.getByRole('button', { name: /^Payment Service, SERVICE/ })).toBeVisible();
 
     for (const tab of ['API contract', 'Risks', 'Tasks', 'What changed']) {
-      await page.getByRole('tab', { name: tab }).click();
+      await openView(page, tab);
       await expect(page.getByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');
     }
 
@@ -42,7 +53,8 @@ test.describe('VoiceArchitect demo flow', () => {
     await expect(page.getByText('8 components', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /^pricing-worker, SERVICE/ })).toBeVisible();
 
-    await page.getByRole('button', { name: /Reset sample/ }).click();
+    await page.getByRole('button', { name: /^More$/ }).click();
+    await page.getByRole('button', { name: /^Reset to baseline/ }).click();
     await expect(page.getByRole('heading', { name: 'ride-share-platform' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Load sample' }).click();
@@ -80,7 +92,7 @@ test.describe('VoiceArchitect demo flow', () => {
     await page.getByRole('button', { name: /Preview my change/ }).click();
     await page.getByRole('dialog', { name: 'Review this change' }).getByRole('button', { name: /Apply change/ }).click();
 
-    await page.getByRole('tab', { name: 'Risks' }).click();
+    await openView(page, 'Risks');
     await expect(page.getByText('3 open findings can be resolved here')).toBeVisible();
     await page.getByRole('button', { name: 'Fall back to PostgreSQL' }).click();
     await page.getByLabel(/What limit should sign-in use\? Your own answer/).fill('5 attempts per minute per IP');
@@ -92,7 +104,7 @@ test.describe('VoiceArchitect demo flow', () => {
     await review.getByRole('button', { name: /Apply change/ }).click();
     await expect(review).toBeHidden();
 
-    await page.getByRole('tab', { name: 'Risks' }).click();
+    await openView(page, 'Risks');
     await expect(page.getByText('Nothing open')).toBeVisible();
     await expect(page.getByText('Rate limit recorded: 5 attempts per minute per IP')).toBeVisible();
     await expect(page.getByRole('button', { name: /open decision/ })).toHaveCount(0);
@@ -137,7 +149,7 @@ test.describe('VoiceArchitect demo flow', () => {
       expect((await download).suggestedFilename()).toMatch(file);
       await expect(page.getByRole('menu')).toHaveCount(0);
     }
-    await page.getByRole('button', { name: /Advanced/ }).click();
+    await page.getByRole('button', { name: /^More$/ }).click();
     const devops = page.waitForEvent('download');
     await page.getByRole('button', { name: /^DevOps bundle/ }).click();
     expect((await devops).suggestedFilename()).toMatch(/^commerce-platform-devops-v\d+\.zip$/);

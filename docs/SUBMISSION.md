@@ -14,7 +14,7 @@ Architecture diagrams go stale the week they are drawn. Updating them means open
 
 Wispr Flow is a system-wide dictation app: you hold your hotkey and the words are typed into the focused field. VoiceArchitect is designed around that, and it also reads meeting decisions from Wispr Flow:
 
-- The instruction box is the hero of the page and takes focus on load, so you can hold your Wispr Flow hotkey and speak immediately.
+- There is one instruction box. Click it, hold your Wispr Flow hotkey, and speak. The guided demo asks you to say each step; "Type it for me" is only the fallback for people without Wispr Flow.
 - English and Hinglish both work. The interpretation prompt reads Hinglish, and the offline rules understand four common change shapes in both languages.
 - The review dialog's follow-up field takes focus too, so the whole loop is spoken: describe, revise, undo, apply.
 - Flow's Command Mode can rewrite the instruction in place, because the box is ordinary text. It needs a paid plan or trial.

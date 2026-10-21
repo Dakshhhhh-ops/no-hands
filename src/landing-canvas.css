@@ -521,3 +521,132 @@
   border: 1px solid var(--va-line-strong); border-radius: 10px; background: var(--va-bg); color: var(--va-ink); font: inherit;
 }
 .va-notes-caveat[data-warn="true"] { border-left-color: var(--va-warn); background: color-mix(in srgb, var(--va-warn) 10%, transparent); }
+
+/* ---------- One loop: hero actions, the three steps, and a quiet footer ---------- */
+.va-btn.va-btn-lg { height: 48px; padding: 0 22px; font-size: 16px; border-radius: var(--va-r-lg); }
+.va-hero-simple .va-hero-actions { margin-bottom: 18px; }
+.va-hero-note { margin: 0; color: var(--va-muted); font-size: var(--va-fs-sm); }
+
+.va-app .va-loop .va-section-inner { max-width: 1320px; }
+.va-loop-steps {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;
+  margin: 28px 0 0; padding: 0; list-style: none; counter-reset: none;
+}
+.va-loop-steps li { padding: 24px; border: 1px solid var(--va-line); border-radius: var(--va-r-xl); background: var(--va-panel); }
+.va-loop-steps h3 { margin: 0 0 8px; font-size: var(--va-fs-lg); }
+.va-loop-steps p { margin: 0; line-height: 1.55; }
+.va-loop-num {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; margin-bottom: 14px;
+  border-radius: 50%; background: var(--va-accent); color: var(--va-accent-ink); font-weight: 650; font-size: 14px;
+}
+@media (max-width: 760px) {
+  .va-loop-steps { grid-template-columns: minmax(0, 1fr); }
+}
+
+.va-app .va-footer.va-footer-simple { padding: 20px 24px; }
+.va-footer-simple .va-footer-brand { display: inline-flex; align-items: center; gap: 6px; color: var(--va-ink); font-weight: 600; }
+.va-studio { scroll-margin-top: 72px; }
+@media (max-width: 640px) {
+  .va-topbar-demo { display: none; }
+}
+/* The export menu now sits in the studio toolbar, above the panels below it. */
+.va-studio .va-menu-list { z-index: 30; }
+/* Pipeline pointer labels: darken the tone so white 11px text keeps AA contrast. */
+:root[data-theme="light"] .va-pointer b { background: color-mix(in srgb, var(--tone) 72%, #000); }
+
+/* ---------- Hero eyebrow ---------- */
+.va-hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px; margin: 0 0 26px; padding: 6px 14px;
+  border: 1px solid var(--va-line-strong); border-radius: 999px;
+  background: color-mix(in srgb, var(--va-panel) 80%, transparent);
+  color: var(--va-ink); font: 600 12px/1 var(--va-mono); letter-spacing: .06em;
+}
+
+/* ---------- One loop, illustrated ---------- */
+.va-app .va-loop .va-loop-steps { gap: 20px; margin-top: 40px; align-items: stretch; }
+.va-app .va-loop .va-loop-steps > li {
+  display: flex; flex-direction: column; gap: 18px; padding: 14px;
+  border: 1px solid var(--va-line); border-radius: 22px; background: var(--va-panel);
+}
+.va-app .va-loop-visual {
+  display: flex; flex-direction: column; justify-content: center; width: 100%; min-height: 256px; padding: 20px;
+  border-radius: 14px; background: var(--va-bg); box-shadow: none; backdrop-filter: none;
+}
+.va-loop-visual .va-story-wave { height: 44px; margin-bottom: 14px; }
+.va-loop-visual .va-story-transcript { margin-bottom: 14px; font-size: 17px; }
+.va-loop-visual .va-story-diff { margin-bottom: 14px; font-size: 12.5px; }
+.va-loop-visual .va-story-code { margin-bottom: 12px; padding: 12px; font-size: 12px; }
+.va-loop-visual .va-story-chip { align-self: flex-start; }
+.va-loop-text { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 12px; padding: 0 8px 8px; }
+.va-loop-text .va-loop-num { margin: 0; }
+.va-app .va-loop-text h3 { margin: 0; }
+.va-loop-text p { grid-column: 1 / -1; margin: 10px 0 0; }
+
+.va-flow-strip {
+  margin-top: 24px; padding: 22px 24px; border: 1px solid var(--va-line); border-radius: 22px;
+  background: color-mix(in srgb, var(--va-accent) 5%, var(--va-panel));
+}
+.va-app .va-flow-strip .va-flow-strip-title {
+  margin: 0 0 18px; color: var(--va-muted); font: 600 11px/1 var(--va-mono); letter-spacing: .14em; text-transform: uppercase;
+}
+.va-flow-strip ul { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 20px; margin: 0; padding: 0; list-style: none; }
+.va-flow-strip li { display: grid; align-content: start; gap: 6px; }
+.va-flow-strip li b { font-size: 14.5px; }
+.va-flow-strip li > span:last-child { color: var(--va-muted); font-size: 13px; line-height: 1.5; }
+.va-flow-icon {
+  display: inline-grid; place-items: center; width: 32px; height: 32px; margin-bottom: 4px;
+  border: 1px solid var(--va-line); border-radius: 10px; background: var(--va-panel); color: var(--va-accent);
+}
+@media (max-width: 1100px) { .va-flow-strip ul { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .va-flow-strip ul { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Workspace: a compact intro, then a calmer studio ---------- */
+.va-app .va-work-intro { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 40px; }
+.va-app .va-work-intro > h2 { margin: 0; font-size: clamp(28px, 3vw, 40px); }
+.va-app .va-work-intro .va-section-lead { max-width: 52ch; font-size: 15.5px; }
+
+.va-studio-bar .va-studio-journey { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+/* The guided demo has its own step counter, so the walkthrough steps aside. */
+.va-studio-journey[data-hidden="true"] { display: none; }
+.va-studio-bar .va-studio-source { margin-left: auto; }
+.va-studio-actions { gap: 2px; }
+
+.va-composer-preview { gap: 8px; }
+.va-studio .va-composer-actions .va-composer-note { text-align: center; }
+.va-voice-tools { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--va-line); border-radius: 14px; background: var(--va-bg); }
+.va-app .va-voice-tools h3 { margin: 0 0 6px 4px; color: var(--va-muted); font: 600 10.5px/1 var(--va-mono); letter-spacing: .14em; text-transform: uppercase; }
+.va-tool-row {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 9px 8px;
+  border: 0; border-radius: 10px; background: transparent; color: var(--va-ink); font: inherit; text-align: left; cursor: pointer;
+}
+.va-tool-row:hover:not(:disabled) { background: var(--va-panel-2); }
+.va-tool-row:disabled { opacity: .5; cursor: not-allowed; }
+.va-tool-row[aria-pressed="true"] { background: color-mix(in srgb, var(--va-accent) 10%, transparent); }
+.va-tool-row b { display: block; font-size: 13.5px; font-weight: 600; }
+.va-tool-row small { display: block; margin-top: 2px; color: var(--va-muted); font-size: 12px; line-height: 1.4; }
+.va-tool-icon {
+  flex: none; display: grid; place-items: center; width: 28px; height: 28px;
+  border: 1px solid var(--va-line); border-radius: 8px; background: var(--va-panel); color: var(--va-accent);
+}
+
+/* ---------- Output views: two tabs, generated docs in one menu ---------- */
+.va-tabs-row { display: flex; align-items: flex-end; gap: 4px; padding-right: 12px; border-bottom: 1px solid var(--va-line); }
+.va-studio .va-tabs-row .va-tabs { flex: 0 1 auto; min-width: 0; border-bottom: 0; }
+.va-docs-menu { flex: none; }
+.va-docs-trigger {
+  display: inline-flex; align-items: center; gap: 7px; padding: 10px 12px;
+  border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--va-muted);
+  font: inherit; font-weight: 500; white-space: nowrap; cursor: pointer; transition: color .15s;
+}
+.va-docs-trigger:hover, .va-docs-trigger[aria-expanded="true"] { color: var(--va-ink); }
+.va-docs-menu .va-pop-panel { right: auto; left: 0; width: 290px; }
+.va-docs-menu .va-pop-panel button[aria-current="true"] { background: var(--va-panel-2); }
+
+/* The diagram's zoom and Baseline/Current controls float over the canvas instead of taking a row. */
+@media (min-width: 761px) {
+  .va-studio .architecture-view { position: relative; }
+  .va-studio .architecture-view:not(:has(.diagram-chaos-bar)) > .diagram-toolbar {
+    position: absolute; top: 12px; right: 12px; z-index: 6; margin: 0;
+  }
+  .va-studio .architecture-view:not(:has(.diagram-chaos-bar)) > .diagram-toolbar .diagram-toolbar-title-wrap { display: none; }
+}

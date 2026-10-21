@@ -5,6 +5,9 @@ vi.mock('lucide-react', () => {
   const icons = {
     HelpCircle: 'HelpCircle',
     FileText: 'FileText',
+    BookA: 'BookA',
+    Languages: 'Languages',
+    WandSparkles: 'WandSparkles',
     Link2: 'Link2',
     RefreshCw: 'RefreshCw',
     Unlink: 'Unlink',
@@ -87,13 +90,17 @@ describe('App component', () => {
   it('renders all tabs', () => {
     renderApp();
     fireEvent.click(screen.getByText('Load sample'));
-    expect(screen.getByText('Diagram')).toBeInTheDocument();
-    expect(screen.getByText('API contract')).toBeInTheDocument();
-    expect(screen.getByText('Risks')).toBeInTheDocument();
-    expect(screen.getByText('Tasks')).toBeInTheDocument();
-    expect(screen.getByText('What changed')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Diagram' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'What changed' })).toBeInTheDocument();
+    // The generated documents live in one menu and join the tab row when opened.
+    expect(screen.queryByRole('tab', { name: 'Risks' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Generated docs/ }));
+    expect(screen.getByRole('button', { name: /^API contract/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Tasks/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Risks/ }));
+    expect(screen.getByRole('tab', { name: 'Risks', selected: true })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'Topology' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Advanced/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^More$/ }));
     fireEvent.click(screen.getByRole('button', { name: /^Topology/ }));
     expect(screen.getByRole('tab', { name: 'Topology', selected: true })).toBeInTheDocument();
   });
@@ -104,14 +111,14 @@ describe('App component', () => {
     fireEvent.click(screen.getByRole('button', { name: /export/i }));
     expect(screen.getByText('Engineering artifacts')).toBeInTheDocument();
     expect(screen.queryByText('DevOps bundle')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Advanced/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^More$/ }));
     expect(screen.getByRole('button', { name: /^DevOps bundle/ })).toBeInTheDocument();
   });
 
   it('toggles history panel', () => {
     renderApp();
     fireEvent.click(screen.getByText('Load sample'));
-    fireEvent.click(screen.getByRole('button', { name: /Advanced/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^More$/ }));
     fireEvent.click(screen.getByRole('button', { name: /branches and history/i }));
     const branchChips = screen.getAllByText('Main Branch');
     expect(branchChips.length).toBeGreaterThan(0);
@@ -123,7 +130,7 @@ describe('App component', () => {
     const diagramTab = screen.getByRole('tab', { name: 'Diagram', selected: true });
     expect(diagramTab).toHaveAttribute('aria-selected', 'true');
     fireEvent.keyDown(diagramTab, { key: 'ArrowRight' });
-    expect(screen.getByRole('tab', { name: 'API contract', selected: true })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'What changed', selected: true })).toHaveAttribute('aria-selected', 'true');
   });
 });
 

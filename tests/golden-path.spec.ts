@@ -1,6 +1,17 @@
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+/** Opens an output view: Diagram and What changed are tabs; the generated docs are in a menu. */
+async function openView(page: Page, name: string) {
+  if (['API contract', 'Risks', 'Tasks'].includes(name)) {
+    await page.getByRole('button', { name: /Generated docs/ }).click();
+    await page.getByRole('button', { name: new RegExp(`^${name}`) }).click();
+  } else {
+    await page.getByRole('tab', { name }).click();
+  }
+}
 
 // The core story: import your compose file, say a change, review it, apply it,
 // and every view and export follows. Runs on the offline rules unless a test
@@ -25,9 +36,9 @@ test('import a compose file, say a change, apply it, see every tab follow, and e
 
   await page.getByRole('tab', { name: 'What changed' }).click();
   await expect(page.getByRole('heading', { level: 4, name: 'trips-api → redis' })).toBeVisible();
-  await page.getByRole('tab', { name: 'Risks' }).click();
+  await openView(page, 'Risks');
   await expect(page.getByRole('heading', { level: 3, name: 'Risks and open questions' })).toBeVisible();
-  await page.getByRole('tab', { name: 'Tasks' }).click();
+  await openView(page, 'Tasks');
   await expect(page.getByRole('heading', { level: 3, name: 'Engineering tasks' })).toBeVisible();
   await page.getByRole('tab', { name: 'Diagram' }).click();
   await expect(page.getByRole('button', { name: /^trips-api, SERVICE/ })).toBeVisible();
@@ -87,10 +98,10 @@ test('loading the app and opening every view logs no errors', async ({ page }) =
   await page.goto('/');
   await page.getByRole('button', { name: 'Load sample' }).click();
   for (const tab of ['API contract', 'Risks', 'Tasks', 'What changed', 'Diagram']) {
-    await page.getByRole('tab', { name: tab }).click();
+    await openView(page, tab);
     await expect(page.getByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');
   }
-  await page.getByRole('button', { name: /Advanced/ }).click();
+  await page.getByRole('button', { name: /^More$/ }).click();
   await page.getByRole('button', { name: /^Topology/ }).click();
   await expect(page.getByRole('tab', { name: 'Topology' })).toHaveAttribute('aria-selected', 'true');
   expect(errors).toEqual([]);
