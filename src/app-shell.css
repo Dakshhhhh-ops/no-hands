@@ -514,3 +514,13 @@ body { margin: 0; overflow-x: visible; background: var(--va-bg); }
   background: var(--va-muted);
 }
 .va-app .va-engine[data-ai='true']::before { background: var(--va-ok); }
+
+/* Outage simulator: make it obvious the numbers are modeled */
+.va-app .telemetry-simulated-tag {
+  display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
+  font-size: var(--va-fs-xs, 11px); font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--va-warn); border: 1px dashed var(--va-warn);
+}
+.va-app .chaos-assumptions {
+  flex-basis: 100%; margin: 6px 0 0; font-size: var(--va-fs-xs, 11px); color: var(--va-muted);
+}

@@ -108,11 +108,33 @@ describe('ArchitectureDiagram', () => {
     expect(screen.getByRole('button', { name: /deployment/i })).toBeInTheDocument();
   });
 
-  it('shows chaos injection buttons', () => {
+  it('labels the outage simulator as simulated and targets components from the model', () => {
+    const withData = {
+      ...mockProject,
+      components: [
+        ...mockProject.components,
+        { id: 'sessions', name: 'Session Cache', type: 'CACHE', sub: '', x: 0, y: 0 },
+        { id: 'main-db', name: 'Main DB', type: 'DATABASE', sub: '', x: 0, y: 0 },
+      ],
+    };
+    render(<ArchitectureDiagram project={withData} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More tools' }));
+    expect(screen.getByRole('button', { name: 'Kill Session Cache' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Kill Main DB' })).toBeInTheDocument();
+    expect(screen.getByText('Simulated')).toBeInTheDocument();
+    expect(screen.getByText(/Simulated, not measured/)).toBeInTheDocument();
+  });
+
+  it('offers no outage buttons for component types the model does not have', () => {
     render(<ArchitectureDiagram project={mockProject} />);
     fireEvent.click(screen.getByRole('button', { name: 'More tools' }));
-    expect(screen.getByRole('button', { name: /kill redis/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /kill postgres/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Kill / })).not.toBeInTheDocument();
+  });
+
+  it('has no simulated collaborators', () => {
+    render(<ArchitectureDiagram project={mockProject} />);
+    fireEvent.click(screen.getByRole('button', { name: 'More tools' }));
+    expect(screen.queryByRole('button', { name: /pairing/i })).not.toBeInTheDocument();
   });
 
   it('has zoom controls', () => {

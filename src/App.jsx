@@ -33,7 +33,7 @@ const OpenApiPanel = lazy(() => import('./components/OpenApiPanel.jsx'));
 const RiskPanel = lazy(() => import('./components/RiskPanel.jsx'));
 const TaskPanel = lazy(() => import('./components/TaskPanel.jsx'));
 const ChangeImpactPanel = lazy(() => import('./components/ChangeImpactPanel.jsx'));
-const SystemTelemetryPanel = lazy(() => import('./components/SystemTelemetryPanel.jsx'));
+const TopologyPanel = lazy(() => import('./components/TopologyPanel.jsx'));
 
 const tabs = [
   { id: 'diagram', label: 'Diagram', icon: Network },
@@ -41,7 +41,7 @@ const tabs = [
   { id: 'risk', label: 'Risks', icon: ShieldAlert },
   { id: 'tasks', label: 'Tasks', icon: ClipboardList },
   { id: 'impact', label: 'What changed', icon: Activity },
-  { id: 'telemetry', label: 'Telemetry', icon: Layers },
+  { id: 'topology', label: 'Topology', icon: Layers },
 ];
 
 function describeProposalValue(value) {
@@ -103,7 +103,7 @@ export default function App() {
     handleRedo,
     handleJumpToVersion,
     handleSwitchBranch,
-    _createScenarioBranches,
+    handleForkBranch,
     handleOpenComparison,
     handleInitiateMerge,
     handleConfirmMerge,
@@ -345,7 +345,7 @@ export default function App() {
     if (tab === 'risk') return <Suspense fallback={<TableSkeleton rows={5} columns={5} />}><PanelWrapper fallback={<div>Risks unavailable</div>}><RiskPanel project={project} /></PanelWrapper></Suspense>;
     if (tab === 'tasks') return <Suspense fallback={<TableSkeleton rows={5} columns={6} />}><PanelWrapper fallback={<div>Tasks unavailable</div>}><TaskPanel project={project} /></PanelWrapper></Suspense>;
     if (tab === 'impact') return <Suspense fallback={<ListSkeleton items={4} />}><PanelWrapper fallback={<div>Change impact unavailable</div>}><ChangeImpactPanel project={project} /></PanelWrapper></Suspense>;
-    return <Suspense fallback={<DiagramSkeleton />}><PanelWrapper fallback={<div>Telemetry unavailable</div>}><SystemTelemetryPanel project={project} /></PanelWrapper></Suspense>;
+    return <Suspense fallback={<DiagramSkeleton />}><PanelWrapper fallback={<div>Topology unavailable</div>}><TopologyPanel project={project} /></PanelWrapper></Suspense>;
   }
 
   const paletteCommands = [
@@ -364,9 +364,10 @@ export default function App() {
     { id: 'tab-risk', label: 'Risks Tab', description: 'Switch to risk audit', keys: ['→'], icon: <ShieldAlert size={14} />, category: 'navigation', action: () => handleTabChange('risk') },
     { id: 'tab-tasks', label: 'Tasks Tab', description: 'Switch to engineering tasks', keys: ['→'], icon: <ClipboardList size={14} />, category: 'navigation', action: () => handleTabChange('tasks') },
     { id: 'tab-impact', label: 'Change Impact Tab', description: 'Switch to change impact', keys: ['→'], icon: <Activity size={14} />, category: 'navigation', action: () => handleTabChange('impact') },
-    { id: 'tab-telemetry', label: 'Telemetry Tab', description: 'Switch to system telemetry', keys: ['→'], icon: <Layers size={14} />, category: 'navigation', action: () => handleTabChange('telemetry') },
+    { id: 'tab-topology', label: 'Topology Tab', description: 'Switch to the topology and model checks', keys: ['→'], icon: <Layers size={14} />, category: 'navigation', action: () => handleTabChange('topology') },
     { id: 'history', label: 'Show History', description: 'Open branches and history panel', keys: [], icon: <GitBranch size={14} />, category: 'view', action: () => setShowHistory(true) },
-    { id: 'compare', label: 'Compare Scenarios', description: 'Open scenario comparison modal', keys: [], icon: <GitBranch size={14} />, category: 'view', action: () => { if (scenarioComparison) setShowComparisonModal(true); } },
+    { id: 'fork', label: 'Fork Branch', description: 'Fork the current model into a new branch', keys: [], icon: <GitBranch size={14} />, category: 'actions', action: () => { handleForkBranch(); notify('Forked the current model into a new branch.'); } },
+    { id: 'compare', label: 'Compare With Main', description: 'Compare the current branch with main', keys: [], icon: <GitBranch size={14} />, category: 'view', action: () => { if (scenarioComparison) setShowComparisonModal(true); } },
     { id: 'shortcuts', label: 'Keyboard Shortcuts', description: 'Show all keyboard shortcuts', keys: ['?'], icon: <HelpCircle size={14} />, category: 'help', action: () => setIsShortcutsOpen(true) },
     { id: 'theme', label: 'Toggle Theme', description: 'Switch between dark and light mode', keys: [], icon: <Sun size={14} />, category: 'view', action: toggleTheme },
   ];
@@ -448,7 +449,7 @@ export default function App() {
         <div className="va-hero-content">
           <div className="va-hero-badge va-float">
             <span className="va-badge-dot va-pulse" />
-            <span>VoiceArchitect v2.0</span>
+            <span>VoiceArchitect</span>
             <kbd className="va-kbd">Ctrl+K</kbd>
           </div>
           <h1 id="va-hero-title">
@@ -468,28 +469,24 @@ export default function App() {
               Open the workspace <ArrowRight size={15} />
             </a>
           </div>
-          <div className="va-hero-stats">
-            <div className="va-stat va-float">
-              <span className="va-stat-value">51</span>
-              <span className="va-stat-label">Tests passing</span>
-            </div>
-            <div className="va-stat va-float" style={{ animationDelay: '0.2s' }}>
-              <span className="va-stat-value">92</span>
-              <span className="va-stat-label">Total tests</span>
-            </div>
-            <div className="va-stat va-float" style={{ animationDelay: '0.4s' }}>
-              <span className="va-stat-value">0</span>
-              <span className="va-stat-label">Lint errors</span>
-            </div>
-            <div className="va-stat va-float" style={{ animationDelay: '0.6s' }}>
-              <span className="va-stat-value">554kB</span>
-              <span className="va-stat-label">Bundle size</span>
-            </div>
-          </div>
+          <ul className="va-hero-stats" aria-label="What VoiceArchitect does">
+            <li className="va-stat">
+              <span className="va-stat-value">Import</span>
+              <span className="va-stat-label">your docker-compose file</span>
+            </li>
+            <li className="va-stat">
+              <span className="va-stat-value">Review</span>
+              <span className="va-stat-label">every change before it applies</span>
+            </li>
+            <li className="va-stat">
+              <span className="va-stat-value">Sync</span>
+              <span className="va-stat-label">diagram, API, risks, and tasks</span>
+            </li>
+          </ul>
         </div>
         <figure className="va-hero-card va-card-3d va-glass-strong">
           <div className="va-hero-card-header">
-            <span className="va-card-tag">Live Preview</span>
+            <span className="va-card-tag">Example</span>
             <div className="va-card-dots">
               <span />
               <span />
@@ -509,13 +506,13 @@ export default function App() {
           </div>
           <div className="va-hero-card-footer">
             <span className="va-footer-item">
-              <Target size={12} /> Deterministic
+              <Target size={12} /> Schema-validated
             </span>
             <span className="va-footer-item">
-              <Activity size={12} /> Offline-first
+              <Activity size={12} /> Reviewed before applied
             </span>
             <span className="va-footer-item">
-              <Zap size={12} /> 60fps
+              <Zap size={12} /> Works offline with basic rules
             </span>
           </div>
         </figure>
@@ -774,6 +771,7 @@ export default function App() {
                 onJumpToVersion={handleJumpToVersion}
                 comparison={scenarioComparison}
                 onOpenComparison={handleOpenComparison}
+                onForkBranch={() => { handleForkBranch(); notify('Forked the current model into a new branch. Changes here stay off main until you merge.'); }}
                 onMergeBranch={currentBranchId !== 'main' ? handleInitiateMerge : undefined}
               />
             </div>
@@ -842,9 +840,19 @@ export default function App() {
           <div className="va-caps">
             <article>
               <GitBranch size={20} />
-              <h3>Compare two designs</h3>
-              <p>Branch the model into a serverless and a Kubernetes version, then compare them side by side.</p>
-              <button type="button" className="va-btn" onClick={handleOpenComparison}>Compare scenarios</button>
+              <h3>Try an alternative safely</h3>
+              <p>Fork your model into a branch, try changes there, compare the branch with main, then merge what works.</p>
+              <button
+                type="button"
+                className="va-btn"
+                onClick={() => {
+                  handleForkBranch();
+                  notify('Forked the current model into a new branch. Changes here stay off main until you merge.');
+                  document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                Fork this version
+              </button>
             </article>
             <article>
               <Undo2 size={20} />

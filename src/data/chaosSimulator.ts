@@ -1,25 +1,37 @@
-import type { Project, Component, Relationship } from '../types/schema.ts';
-import { getBlastRadius } from './graphTraversal.ts';
+import type { Project, Component } from '../types/schema.ts';
 
-export type ChaosTargetType = 'NODE_OUTAGE' | 'LATENCY_SPIKE' | 'PACKET_LOSS' | 'NETWORK_PARTITION';
+/**
+ * Outage simulator. Everything here is a model of the diagram, not measurement:
+ * the numbers come from the assumptions below and the shape of the graph. The
+ * rules are generic and work on any model, not only the bundled samples.
+ */
+
+/** Requests per second assumed to enter through the model's entry points. */
+export const ASSUMED_INGRESS_RPS = 1500;
+/** Latency assumed for each component a request passes through. */
+export const ASSUMED_HOP_LATENCY_MS = 15;
+/** Extra latency when a component answers from its database because its cache is down. */
+export const ASSUMED_CACHE_FALLBACK_PENALTY_MS = 85;
+/** Extra latency when a component buffers events because its queue is down. */
+export const ASSUMED_QUEUE_BUFFER_PENALTY_MS = 220;
+
+export type ChaosTargetType = 'NODE_OUTAGE' | 'LATENCY_SPIKE' | 'NETWORK_PARTITION';
 
 export interface ChaosInjection {
   targetComponentId: string;
   type: ChaosTargetType;
-  latencyMs?: number; // Added latency (e.g. 1500ms)
-  failureRate?: number; // 0.0 to 1.0 (e.g. 1.0 for complete outage)
+  latencyMs?: number;
   label: string;
 }
 
 export interface NodeTelemetryStatus {
   componentId: string;
   status: 'HEALTHY' | 'DEGRADED' | 'DOWN';
+  /** Modeled latency added by this component, including penalties. */
   activeLatencyMs: number;
+  /** Share of this component's requests that fail in the model. */
   errorRatePercent: number;
   trafficRps: number;
-  cpuUtilizationPercent: number;
-  memoryUtilizationPercent: number;
-  activeConnections: number;
   failureMessage?: string;
   isDirectTarget: boolean;
   isCascadedImpact: boolean;
@@ -30,11 +42,11 @@ export interface EdgeTelemetryStatus {
   to: string;
   label: string;
   trafficRps: number;
-  status: 'FLOWING' | 'CONGESTED' | 'SEVERED' | 'DEGRADED';
+  status: 'FLOWING' | 'SEVERED' | 'DEGRADED';
   latencyMs: number;
-  particleSpeedSeconds: number; // For SVG animation speed
-  particleDensity: number; // 1 to 5 particles
-  particleColor: string; // Hex or CSS color
+  particleSpeedSeconds: number;
+  particleDensity: number;
+  particleColor: string;
 }
 
 export interface ChaosSimulationResult {
@@ -43,265 +55,234 @@ export interface ChaosSimulationResult {
   totalRpsThroughput: number;
   droppedRps: number;
   averageLatencyMs: number;
-  p99LatencyMs: number;
+  /** Modeled latency of the slowest request path that still succeeds. */
+  slowestPathMs: number;
   nodeMetrics: Map<string, NodeTelemetryStatus>;
   edgeMetrics: Map<string, EdgeTelemetryStatus>;
-  cascadingFailures: Array<{
-    culpritId: string;
-    victimId: string;
-    cause: string;
-  }>;
+  cascadingFailures: Array<{ culpritId: string; victimId: string; cause: string }>;
 }
 
-/**
- * Live Chaos Engineering & Telemetry Simulation Engine.
- * Evaluates real-time failure cascades, simulates queuing delays,
- * and dynamically calculates traffic rates and particle metrics across edges.
- */
+/** Gateways and clients route each request to one dependency; other components call all of theirs. */
+const isRouter = (c: Component | undefined) => c?.type === 'GATEWAY' || c?.type === 'CLIENT';
+
+/** A cache outage is survivable only when the model records a fallback for it. */
+function hasRecordedFallback(project: Project, cache: Component): boolean {
+  return project.requirements.some((r) => {
+    const text = r.text.toLowerCase();
+    const namesCache = text.includes(cache.name.toLowerCase()) || text.includes(cache.id.toLowerCase()) || /\bcache\b/.test(text);
+    return namesCache && /(fallback|unavailable|resilien|outage|down)/.test(text);
+  });
+}
+
 export function simulateChaosAndTelemetry(
   project: Project,
   injectedChaos: ChaosInjection[] = [],
-  baseIncomingRps = 1500
+  baseIncomingRps = ASSUMED_INGRESS_RPS,
 ): ChaosSimulationResult {
-  const compMap = new Map(project.components.map((c) => [c.id, c]));
+  const byId = new Map(project.components.map((c) => [c.id, c]));
+  const deps = new Map<string, string[]>(project.components.map((c) => [c.id, []]));
+  const callers = new Map<string, string[]>(project.components.map((c) => [c.id, []]));
+  for (const r of project.relationships) {
+    if (byId.has(r.from) && byId.has(r.to)) {
+      deps.get(r.from)!.push(r.to);
+      callers.get(r.to)!.push(r.from);
+    }
+  }
+
   const nodeMetrics = new Map<string, NodeTelemetryStatus>();
-  const edgeMetrics = new Map<string, EdgeTelemetryStatus>();
-  const cascadingFailures: Array<{ culpritId: string; victimId: string; cause: string }> = [];
-
-  const chaosMap = new Map(injectedChaos.map((c) => [c.targetComponentId, c]));
-
-  // Check confirmed resilience requirements
-  const hasRedisFallback = project.requirements.some(
-    (r) => /redis/i.test(r.text) && /(fallback|unavailable|resilien)/i.test(r.text)
-  );
-  const hasRateLimit = project.requirements.some((r) => /rate.?limit/i.test(r.text));
-
-  // Initialize all components as healthy
-  for (const comp of project.components) {
-    nodeMetrics.set(comp.id, {
-      componentId: comp.id,
+  for (const c of project.components) {
+    nodeMetrics.set(c.id, {
+      componentId: c.id,
       status: 'HEALTHY',
-      activeLatencyMs: 15,
+      activeLatencyMs: ASSUMED_HOP_LATENCY_MS,
       errorRatePercent: 0,
       trafficRps: 0,
-      cpuUtilizationPercent: 28,
-      memoryUtilizationPercent: 35,
-      activeConnections: 45,
       isDirectTarget: false,
       isCascadedImpact: false,
     });
   }
+  const cascadingFailures: ChaosSimulationResult['cascadingFailures'] = [];
+  const nameOf = (id: string) => byId.get(id)?.name || id;
 
-  // 1. Apply Direct Injected Chaos
+  // 1. Direct injections.
   for (const chaos of injectedChaos) {
     const node = nodeMetrics.get(chaos.targetComponentId);
     if (!node) continue;
-
     node.isDirectTarget = true;
-    if (chaos.type === 'NODE_OUTAGE') {
-      node.status = 'DOWN';
-      node.errorRatePercent = 100;
-      node.activeLatencyMs = 9999;
-      node.failureMessage = `${compMap.get(chaos.targetComponentId)?.name || chaos.targetComponentId} is DOWN (Complete node outage injected)`;
-      node.cpuUtilizationPercent = 0;
-      node.activeConnections = 0;
-    } else if (chaos.type === 'LATENCY_SPIKE') {
+    if (chaos.type === 'LATENCY_SPIKE') {
       node.status = 'DEGRADED';
-      node.activeLatencyMs = (chaos.latencyMs || 1500) + 20;
-      node.errorRatePercent = 12;
-      node.cpuUtilizationPercent = 88;
-      node.activeConnections = 350;
-      node.failureMessage = `High latency penalty (+${chaos.latencyMs || 1500}ms) causing connection queue buildup`;
-    } else if (chaos.type === 'NETWORK_PARTITION') {
+      node.activeLatencyMs += chaos.latencyMs ?? 1500;
+      node.failureMessage = `${nameOf(node.componentId)} answers ${chaos.latencyMs ?? 1500}ms slower (simulated)`;
+    } else {
       node.status = 'DOWN';
       node.errorRatePercent = 100;
-      node.activeLatencyMs = 5000;
-      node.failureMessage = 'Network partitioned: unable to route inbound or outbound packets';
+      node.failureMessage = `${nameOf(node.componentId)} is down (simulated)`;
     }
   }
 
-  // 2. Compute Cascading Outages via Blast Radius
-  for (const chaos of injectedChaos) {
-    if (chaos.type === 'NODE_OUTAGE' || chaos.type === 'NETWORK_PARTITION') {
-      const culpritId = chaos.targetComponentId;
+  // 2. Cascade to callers until nothing changes. Rules depend only on component types.
+  // States only get worse each pass, so this settles; the cap is a safety net.
+  let changed = true;
+  for (let pass = 0; changed && pass < project.components.length * 3 + 5; pass += 1) {
+    changed = false;
+    for (const c of project.components) {
+      const node = nodeMetrics.get(c.id)!;
+      if (node.isDirectTarget && node.status === 'DOWN') continue;
+      const myDeps = deps.get(c.id)!;
+      if (!myDeps.length) continue;
+      const downDeps = myDeps.filter((d) => nodeMetrics.get(d)!.status === 'DOWN');
 
-      // Special Domain Rules:
-      // If Redis is DOWN:
-      if (culpritId === 'redis') {
-        const authNode = nodeMetrics.get('auth');
-        if (authNode) {
-          if (hasRedisFallback) {
-            // Degraded fallback to PostgreSQL
-            authNode.status = 'DEGRADED';
-            authNode.activeLatencyMs += 85;
-            authNode.errorRatePercent = 3.5;
-            authNode.failureMessage = 'Redis down: fallback route engaged; authenticating via PostgreSQL directly';
-            cascadingFailures.push({
-              culpritId: 'redis',
-              victimId: 'auth',
-              cause: 'Redis outage: degraded session fallback to PostgreSQL increased auth latency',
-            });
+      let next: NodeTelemetryStatus['status'] = node.isDirectTarget ? node.status : 'HEALTHY';
+      let penalty = 0;
+      let reason = '';
+      let culprit = '';
+
+      if (isRouter(c)) {
+        if (downDeps.length === myDeps.length) {
+          next = 'DOWN';
+          reason = `every component ${c.name} routes to is down`;
+          culprit = downDeps[0];
+        } else if (downDeps.length) {
+          next = 'DEGRADED';
+          reason = `${downDeps.length} of ${myDeps.length} routes fail`;
+          culprit = downDeps[0];
+        }
+      } else {
+        for (const d of downDeps) {
+          const dep = byId.get(d)!;
+          if (dep.type === 'QUEUE') {
+            if (next !== 'DOWN') next = 'DEGRADED';
+            penalty += ASSUMED_QUEUE_BUFFER_PENALTY_MS;
+            reason ||= `${dep.name} is down, so events are buffered`;
+          } else if (dep.type === 'EXTERNAL') {
+            if (next !== 'DOWN') next = 'DEGRADED';
+            reason ||= `${dep.name} is unreachable`;
+          } else if (dep.type === 'CACHE' && hasRecordedFallback(project, dep)) {
+            if (next !== 'DOWN') next = 'DEGRADED';
+            penalty += ASSUMED_CACHE_FALLBACK_PENALTY_MS;
+            reason ||= `${dep.name} is down; the recorded fallback serves requests more slowly`;
           } else {
-            // Complete failure of Auth
-            authNode.status = 'DOWN';
-            authNode.errorRatePercent = 95;
-            authNode.activeLatencyMs = 5000;
-            authNode.isCascadedImpact = true;
-            authNode.failureMessage = 'Fatal cascade: Redis unavailable and no fallback policy defined';
-            cascadingFailures.push({
-              culpritId: 'redis',
-              victimId: 'auth',
-              cause: 'Redis session store failed; auth service has no fallback and dropped login traffic',
-            });
+            next = 'DOWN';
+            reason = `it depends on ${dep.name}, which is down${dep.type === 'CACHE' ? ', and no fallback is recorded' : ''}`;
           }
+          culprit ||= d;
         }
       }
 
-      // If PostgreSQL is DOWN:
-      if (culpritId === 'postgres') {
-        for (const depId of ['auth', 'catalog', 'orders']) {
-          const victim = nodeMetrics.get(depId);
-          if (victim) {
-            victim.status = 'DOWN';
-            victim.errorRatePercent = 100;
-            victim.activeLatencyMs = 4000;
-            victim.isCascadedImpact = true;
-            victim.failureMessage = 'Durable datastore PostgreSQL is offline; database queries timed out';
-            cascadingFailures.push({
-              culpritId: 'postgres',
-              victimId: depId,
-              cause: 'PostgreSQL single point of failure outage cascaded upstream',
-            });
-          }
-        }
+      // A slowed dependency slows its synchronous callers too.
+      const degradedDeps = myDeps.filter((d) => nodeMetrics.get(d)!.status === 'DEGRADED');
+      if (next === 'HEALTHY' && degradedDeps.length && !isRouter(c)) {
+        next = 'DEGRADED';
+        reason = `${nameOf(degradedDeps[0])} is degraded`;
+        culprit = degradedDeps[0];
       }
 
-      // If Kafka is DOWN:
-      if (culpritId === 'kafka') {
-        const ordersNode = nodeMetrics.get('orders');
-        if (ordersNode) {
-          ordersNode.status = 'DEGRADED';
-          ordersNode.activeLatencyMs += 220;
-          ordersNode.failureMessage = 'Kafka cluster unreachable; order events queued in local buffer';
-          cascadingFailures.push({
-            culpritId: 'kafka',
-            victimId: 'orders',
-            cause: 'Order event stream partitioned; relying on local disk buffer',
-          });
+      const latency = (node.isDirectTarget ? node.activeLatencyMs : ASSUMED_HOP_LATENCY_MS) + penalty;
+      if (next !== node.status || latency !== node.activeLatencyMs) {
+        const wasCascade = node.isCascadedImpact;
+        node.status = next;
+        node.activeLatencyMs = latency;
+        node.errorRatePercent = next === 'DOWN' ? 100 : node.errorRatePercent;
+        node.isCascadedImpact = next !== 'HEALTHY' && !node.isDirectTarget;
+        if (node.isCascadedImpact) {
+          node.failureMessage = `${c.name}: ${reason} (simulated)`;
+          if (!wasCascade) cascadingFailures.push({ culpritId: culprit, victimId: c.id, cause: `${c.name} ${next === 'DOWN' ? 'fails' : 'degrades'} because ${reason}` });
         }
+        changed = true;
       }
     }
   }
 
-  // If Auth, Catalog, and Orders are down, Gateway and Web degrade/fail
-  const backendDownCount = ['auth', 'catalog', 'orders'].filter(
-    (id) => nodeMetrics.get(id)?.status === 'DOWN'
-  ).length;
+  // 3. Share of requests that fail from each component, and traffic per component.
+  const failure = new Map<string, number>();
+  const failShare = (id: string, seen = new Set<string>()): number => {
+    if (failure.has(id)) return failure.get(id)!;
+    const node = nodeMetrics.get(id)!;
+    if (node.status === 'DOWN') return 1;
+    if (!isRouter(byId.get(id)) || seen.has(id)) return 0;
+    seen.add(id);
+    const myDeps = deps.get(id)!;
+    const share = myDeps.length ? myDeps.reduce((sum, d) => sum + failShare(d, seen), 0) / myDeps.length : 0;
+    failure.set(id, share);
+    return share;
+  };
 
-  if (backendDownCount >= 2) {
-    const gw = nodeMetrics.get('gateway');
-    if (gw) {
-      gw.status = 'DOWN';
-      gw.errorRatePercent = 85;
-      gw.failureMessage = 'Multiple backend downstreams unavailable; HTTP 502/504 Bad Gateway';
-    }
-    const web = nodeMetrics.get('web');
-    if (web) {
-      web.status = 'DEGRADED';
-      web.errorRatePercent = 80;
-      web.failureMessage = 'Storefront degraded; checkout and product browsing offline';
-    }
+  const clients = project.components.filter((c) => c.type === 'CLIENT');
+  const entries = clients.length ? clients : project.components.filter((c) => callers.get(c.id)!.length === 0);
+  const entryList = entries.length ? entries : project.components.slice(0, 1);
+  const perEntry = entryList.length ? baseIncomingRps / entryList.length : 0;
+
+  const traffic = new Map<string, number>(project.components.map((c) => [c.id, 0]));
+  const pushTraffic = (id: string, rps: number, path: Set<string>) => {
+    if (path.has(id) || rps <= 0) return;
+    traffic.set(id, traffic.get(id)! + rps);
+    if (nodeMetrics.get(id)!.status === 'DOWN') return;
+    const myDeps = deps.get(id)!;
+    const next = new Set(path).add(id);
+    const share = isRouter(byId.get(id)) && myDeps.length ? rps / myDeps.length : rps;
+    myDeps.forEach((d) => pushTraffic(d, share, next));
+  };
+  entryList.forEach((e) => pushTraffic(e.id, perEntry, new Set()));
+  for (const [id, rps] of traffic) {
+    const node = nodeMetrics.get(id)!;
+    node.trafficRps = Math.round(rps);
+    if (node.status !== 'DOWN' && isRouter(byId.get(id))) node.errorRatePercent = Math.round(failShare(id) * 100);
   }
 
-  // 3. Traffic Flow and Edge Particle Calculation
-  for (const rel of project.relationships) {
-    const fromStatus = nodeMetrics.get(rel.from);
-    const toStatus = nodeMetrics.get(rel.to);
-    const edgeKey = `${rel.from}->${rel.to}`;
+  const droppedRps = Math.round(entryList.reduce((sum, e) => sum + perEntry * failShare(e.id), 0));
 
-    let status: 'FLOWING' | 'CONGESTED' | 'SEVERED' | 'DEGRADED' = 'FLOWING';
-    let latencyMs = 8;
-
-    // Scale traffic down based on hop tier
-    let trafficRps: number;
-    if (rel.from === 'web') trafficRps = baseIncomingRps;
-    else if (rel.from === 'gateway') trafficRps = Math.round(baseIncomingRps / 3);
-    else trafficRps = Math.round(baseIncomingRps / 4);
-
-    let particleSpeedSeconds: number;
-    let particleDensity: number;
-    let particleColor: string;
-
-    if (fromStatus?.status === 'DOWN' || toStatus?.status === 'DOWN') {
-      status = 'SEVERED';
-      trafficRps = 0;
-      particleSpeedSeconds = 0;
-      particleDensity = 0;
-      particleColor = '#ef4444'; // Red severed
-    } else if (fromStatus?.status === 'DEGRADED' || toStatus?.status === 'DEGRADED') {
-      status = 'DEGRADED';
-      latencyMs = Math.max(fromStatus?.activeLatencyMs || 0, toStatus?.activeLatencyMs || 0);
-      particleSpeedSeconds = 4.8; // Slower particles
-      particleDensity = 1;
-      particleColor = '#f59e0b'; // Amber degraded
-      trafficRps = Math.round(trafficRps * 0.4);
-    } else {
-      // Normal flowing traffic
-      latencyMs = 12;
-      particleSpeedSeconds = 2.0;
-      particleDensity = 3;
-      particleColor = '#4ef2d2';
-    }
-
-    edgeMetrics.set(edgeKey, {
-      from: rel.from,
-      to: rel.to,
-      label: rel.label,
-      trafficRps,
-      status,
-      latencyMs,
-      particleSpeedSeconds,
-      particleDensity,
-      particleColor,
+  // 4. Edges.
+  const edgeMetrics = new Map<string, EdgeTelemetryStatus>();
+  for (const r of project.relationships) {
+    const from = nodeMetrics.get(r.from);
+    const to = nodeMetrics.get(r.to);
+    const severed = from?.status === 'DOWN' || to?.status === 'DOWN';
+    const degraded = !severed && (from?.status === 'DEGRADED' || to?.status === 'DEGRADED');
+    const fromNode = byId.get(r.from);
+    const fromDeps = deps.get(r.from)?.length || 1;
+    const rps = severed ? 0 : Math.round((traffic.get(r.from) || 0) / (isRouter(fromNode) ? fromDeps : 1));
+    edgeMetrics.set(`${r.from}->${r.to}`, {
+      from: r.from,
+      to: r.to,
+      label: r.label,
+      trafficRps: rps,
+      status: severed ? 'SEVERED' : degraded ? 'DEGRADED' : 'FLOWING',
+      latencyMs: to?.activeLatencyMs ?? ASSUMED_HOP_LATENCY_MS,
+      particleSpeedSeconds: severed ? 0 : degraded ? 4.8 : 2.0,
+      particleDensity: severed ? 0 : degraded ? 1 : 3,
+      particleColor: severed ? '#ef4444' : degraded ? '#f59e0b' : '#4ef2d2',
     });
   }
 
-  // 4. Calculate Aggregate System Health & P99 Latency
-  let totalLatency = 0;
-  let maxLatency = 0;
-  let activeNodes = 0;
-  let downCount = 0;
+  // 5. Path latency: routers pick one branch, other components wait for all their calls.
+  const pathLatency = (id: string, path: Set<string>, pick: 'avg' | 'max'): number | null => {
+    const node = nodeMetrics.get(id)!;
+    if (node.status === 'DOWN' || path.has(id)) return null;
+    const next = new Set(path).add(id);
+    const below = deps.get(id)!.map((d) => pathLatency(d, next, pick)).filter((v): v is number => v !== null);
+    if (!below.length) return node.activeLatencyMs;
+    const tail = isRouter(byId.get(id)) && pick === 'avg' ? below.reduce((a, b) => a + b, 0) / below.length : Math.max(...below);
+    return node.activeLatencyMs + tail;
+  };
+  const avgPaths = entryList.map((e) => pathLatency(e.id, new Set(), 'avg')).filter((v): v is number => v !== null);
+  const maxPaths = entryList.map((e) => pathLatency(e.id, new Set(), 'max')).filter((v): v is number => v !== null);
 
-  for (const node of nodeMetrics.values()) {
-    if (node.status === 'DOWN') {
-      downCount++;
-    } else {
-      totalLatency += node.activeLatencyMs;
-      maxLatency = Math.max(maxLatency, node.activeLatencyMs);
-      activeNodes++;
-    }
-  }
-
-  const averageLatencyMs = activeNodes > 0 ? Math.round(totalLatency / activeNodes) : 9999;
-  const p99LatencyMs = maxLatency > 0 ? maxLatency * 1.4 : 9999;
-
-  let overallSystemHealth: 'OPTIMAL' | 'DEGRADED' | 'CRITICAL_FAILURE' = 'OPTIMAL';
-  if (downCount >= 2) overallSystemHealth = 'CRITICAL_FAILURE';
-  else if (downCount === 1 || cascadingFailures.length > 0) overallSystemHealth = 'DEGRADED';
-
-  const droppedRps = downCount > 0 ? Math.round(baseIncomingRps * Math.min(1.0, downCount * 0.35)) : 0;
-  const totalRpsThroughput = Math.max(0, baseIncomingRps - droppedRps);
+  const downCount = [...nodeMetrics.values()].filter((n) => n.status === 'DOWN').length;
+  const degradedCount = [...nodeMetrics.values()].filter((n) => n.status === 'DEGRADED').length;
+  const overallSystemHealth: ChaosSimulationResult['overallSystemHealth'] =
+    droppedRps >= baseIncomingRps * 0.5 || entryList.every((e) => nodeMetrics.get(e.id)!.status === 'DOWN')
+      ? 'CRITICAL_FAILURE'
+      : downCount || degradedCount ? 'DEGRADED' : 'OPTIMAL';
 
   return {
     injectedChaos,
     overallSystemHealth,
-    totalRpsThroughput,
+    totalRpsThroughput: Math.max(0, Math.round(baseIncomingRps) - droppedRps),
     droppedRps,
-    averageLatencyMs,
-    p99LatencyMs: Math.round(p99LatencyMs),
+    averageLatencyMs: avgPaths.length ? Math.round(avgPaths.reduce((a, b) => a + b, 0) / avgPaths.length) : 0,
+    slowestPathMs: maxPaths.length ? Math.round(Math.max(...maxPaths)) : 0,
     nodeMetrics,
     edgeMetrics,
     cascadingFailures,
   };
 }
-

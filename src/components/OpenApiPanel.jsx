@@ -245,7 +245,7 @@ export default function OpenApiPanel({ project, onNotify }) {
               </p>
             </div>
             <span className="endpoint-count-badge">
-              {driftReport.isFullyCompliant ? '100% Compliant' : `${driftReport.totalDrifts} Discrepancies`}
+              {driftReport.isFullyCompliant ? 'No discrepancies' : `${driftReport.totalDrifts} discrepanc${driftReport.totalDrifts === 1 ? 'y' : 'ies'}`}
             </span>
           </div>
 

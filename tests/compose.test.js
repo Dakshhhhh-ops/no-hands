@@ -45,3 +45,35 @@ test('imported stacks get example instructions that name their own components', 
   assert.match(commands, /POST \/auth\/login endpoint on accounts-api/);
   assert.deepEqual(suggestInstructions(null), []);
 });
+
+
+test('the outage simulator cascades on an imported stack, not just the sample ids', async () => {
+  const { simulateChaosAndTelemetry, ASSUMED_INGRESS_RPS, ASSUMED_QUEUE_BUFFER_PENALTY_MS } = await import('../src/data/chaosSimulator.ts');
+  const project = projectFromCompose(sample);
+  const status = (sim, id) => sim.nodeMetrics.get(id).status;
+
+  const baseline = simulateChaosAndTelemetry(project);
+  assert.equal(baseline.overallSystemHealth, 'OPTIMAL');
+  assert.equal(baseline.droppedRps, 0);
+
+  // Redis down with no recorded fallback: both callers fail, the gateway loses one of its two routes.
+  const redisDown = simulateChaosAndTelemetry(project, [{ targetComponentId: 'redis', type: 'NODE_OUTAGE', label: 'x' }]);
+  assert.equal(status(redisDown, 'accounts-api'), 'DOWN');
+  assert.equal(status(redisDown, 'pricing-worker'), 'DOWN');
+  assert.equal(status(redisDown, 'trips-api'), 'HEALTHY');
+  assert.equal(status(redisDown, 'gateway'), 'DEGRADED');
+  assert.equal(redisDown.nodeMetrics.get('gateway').errorRatePercent, 50);
+  assert.equal(redisDown.droppedRps, ASSUMED_INGRESS_RPS / 2);
+
+  // Kafka down: callers buffer events instead of failing, and the slowest path grows.
+  const kafkaDown = simulateChaosAndTelemetry(project, [{ targetComponentId: 'kafka', type: 'NODE_OUTAGE', label: 'x' }]);
+  assert.equal(status(kafkaDown, 'trips-api'), 'DEGRADED');
+  assert.equal(kafkaDown.droppedRps, 0);
+  assert.equal(kafkaDown.slowestPathMs - baseline.slowestPathMs, ASSUMED_QUEUE_BUFFER_PENALTY_MS);
+
+  // Postgres down: every service that reads it fails, and so does the gateway.
+  const pgDown = simulateChaosAndTelemetry(project, [{ targetComponentId: 'postgres', type: 'NODE_OUTAGE', label: 'x' }]);
+  assert.equal(status(pgDown, 'gateway'), 'DOWN');
+  assert.equal(pgDown.droppedRps, ASSUMED_INGRESS_RPS);
+  assert.equal(pgDown.overallSystemHealth, 'CRITICAL_FAILURE');
+});

@@ -89,7 +89,7 @@ describe('App component', () => {
     expect(screen.getByText('Risks')).toBeInTheDocument();
     expect(screen.getByText('Tasks')).toBeInTheDocument();
     expect(screen.getByText('What changed')).toBeInTheDocument();
-    expect(screen.getByText('Telemetry')).toBeInTheDocument();
+    expect(screen.getByText('Topology')).toBeInTheDocument();
   });
 
   it('opens export menu', () => {

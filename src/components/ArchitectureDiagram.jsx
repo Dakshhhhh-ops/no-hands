@@ -13,7 +13,6 @@ import {
   ListOrdered,
   X,
   Flame,
-  Users,
   FileCheck2,
   Clock,
   Download,
@@ -27,7 +26,7 @@ import {
 } from 'lucide-react';
 import { sound } from '../utils/sound.js';
 import { useChaosWorker } from '../hooks/useChaosWorker.ts';
-import { CollaborativeStudioRoom } from '../data/crdtStudio.ts';
+import { ASSUMED_INGRESS_RPS, ASSUMED_HOP_LATENCY_MS, ASSUMED_CACHE_FALLBACK_PENALTY_MS } from '../data/chaosSimulator.ts';
 import { generateAdrFromChange, formatAdrMarkdown } from '../data/adrWorkflow.ts';
 
 export default function ArchitectureDiagram({ project }) {
@@ -40,19 +39,23 @@ export default function ArchitectureDiagram({ project }) {
   const [chaosInjections, setChaosInjections] = useState([]);
   // Advanced tools stay hidden until asked for, so the default view is the diagram itself.
   const [showTools, setShowTools] = useState(false);
-  const [collaborativeMode, setCollaborativeMode] = useState(false);
   const [showAdrModal, setShowAdrModal] = useState(false);
   const [adrSignoffOverrides, setAdrSignoffOverrides] = useState({});
   const [copiedAdr, setCopiedAdr] = useState(false);
 
-  // Phase 5 CRDT Collaborative Studio Room
-  const studioRoom = useMemo(() => {
-    const room = new CollaborativeStudioRoom('studio-collab-1');
-    room.simulateRemotePeers();
-    return room;
-  }, []);
-
   const model = viewMode === 'baseline' && project.baseline ? project.baseline : project;
+
+  // Outage simulator targets come from the loaded model, not from the sample's ids.
+  const chaosTargets = [
+    { type: 'CACHE', kind: 'NODE_OUTAGE', verb: 'Kill' },
+    { type: 'DATABASE', kind: 'NODE_OUTAGE', verb: 'Kill' },
+    { type: 'GATEWAY', kind: 'LATENCY_SPIKE', verb: 'Slow' },
+  ]
+    .map(({ type, kind, verb }) => {
+      const component = project.components.find((c) => c.type === type);
+      return component ? { component, kind, label: `${verb} ${component.name}` } : null;
+    })
+    .filter(Boolean);
 
   // Dynamic Hierarchical Layout (Dagre Sugiyama)
   const autoLayout = useMemo(
@@ -98,17 +101,18 @@ export default function ArchitectureDiagram({ project }) {
   // Phase 5: Architecture Decision Record (ADR)
   const baseAdr = useMemo(() => generateAdrFromChange(project), [project]);
   const currentAdr = useMemo(() => {
-    const updatedSignoffs = baseAdr.complianceSignoffs.map((s) => ({
-      ...s,
-      approved:
-        adrSignoffOverrides[s.role] !== undefined ? adrSignoffOverrides[s.role] : s.approved,
-      timestamp:
-        (adrSignoffOverrides[s.role] !== undefined ? adrSignoffOverrides[s.role] : s.approved)
-          ? s.timestamp || new Date().toISOString()
-          : undefined,
-    }));
+    const updatedSignoffs = baseAdr.complianceSignoffs.map((s) => {
+      const approved = adrSignoffOverrides[s.role] !== undefined ? adrSignoffOverrides[s.role] : s.approved;
+      return {
+        ...s,
+        approved,
+        signee: approved ? 'Marked approved in VoiceArchitect review' : s.signee,
+        timestamp: approved ? s.timestamp || new Date().toISOString() : undefined,
+      };
+    });
     return {
       ...baseAdr,
+      status: updatedSignoffs.every((s) => s.approved) ? 'ACCEPTED' : 'PROPOSED',
       complianceSignoffs: updatedSignoffs,
     };
   }, [baseAdr, adrSignoffOverrides]);
@@ -328,20 +332,6 @@ export default function ArchitectureDiagram({ project }) {
               <ListOrdered size={13} style={{ marginRight: 4 }} /> Deployment
             </button>
 
-            {/* CRDT Collaborative Pairing Toggle */}
-            <button
-              type="button"
-              className={`button compact outline ${collaborativeMode ? 'active' : ''}`}
-              onClick={() => {
-                sound.click();
-                setCollaborativeMode((v) => !v);
-              }}
-              title="Toggle Real-Time Multi-User Collaborative Pairing"
-            >
-              <Users size={13} style={{ marginRight: 4 }} />
-              {collaborativeMode ? 'Pairing (3)' : 'Pairing'}
-            </button>
-
             {/* ADR Governance Sign-Off Trigger */}
             <button
               type="button"
@@ -430,50 +420,41 @@ export default function ArchitectureDiagram({ project }) {
         </div>
       </div>
 
-      {/* Phase 5: Chaos Engineering & Live Telemetry Stream Bar */}
+      {/* Outage simulator: a model of the graph, not measurements from a running system */}
       {showTools && (
         <div className="diagram-chaos-bar">
           <div className="chaos-actions">
             <span className="chaos-label">
-              <Flame size={13} style={{ color: '#ef4444' }} /> Chaos Simulator:
+              <Flame size={13} style={{ color: '#ef4444' }} /> Outage simulator:
             </span>
-            <button
-              type="button"
-              className={`chaos-btn ${chaosInjections.some((c) => c.targetComponentId === 'redis') ? 'active-kill' : ''}`}
-              onClick={() => toggleChaos('redis', 'NODE_OUTAGE', 'Kill Redis')}
-              title="Simulate Redis session cache crash"
-            >
-              <Zap size={11} /> Kill Redis
-            </button>
-            <button
-              type="button"
-              className={`chaos-btn ${chaosInjections.some((c) => c.targetComponentId === 'postgres') ? 'active-kill' : ''}`}
-              onClick={() => toggleChaos('postgres', 'NODE_OUTAGE', 'Kill Postgres')}
-              title="Simulate PostgreSQL primary database crash"
-            >
-              <Zap size={11} /> Kill Postgres
-            </button>
-            <button
-              type="button"
-              className={`chaos-btn ${chaosInjections.some((c) => c.targetComponentId === 'gateway') ? 'active-warn' : ''}`}
-              onClick={() => toggleChaos('gateway', 'LATENCY_SPIKE', '+1500ms Spike', { latencyMs: 1500 })}
-              title="Inject 1500ms network latency spike on API Gateway"
-            >
-              <Clock size={11} /> +1500ms Spike
-            </button>
+            {chaosTargets.map(({ component, kind, label }) => {
+              const active = chaosInjections.some((c) => c.targetComponentId === component.id);
+              return (
+                <button
+                  key={component.id}
+                  type="button"
+                  className={`chaos-btn ${active ? (kind === 'LATENCY_SPIKE' ? 'active-warn' : 'active-kill') : ''}`}
+                  onClick={() => toggleChaos(component.id, kind, label, kind === 'LATENCY_SPIKE' ? { latencyMs: 1500 } : undefined)}
+                  title={kind === 'LATENCY_SPIKE' ? `Simulate 1500ms of added latency at ${component.name}` : `Simulate ${component.name} going down`}
+                >
+                  {kind === 'LATENCY_SPIKE' ? <Clock size={11} /> : <Zap size={11} />} {label}
+                </button>
+              );
+            })}
             {chaosInjections.length > 0 && (
               <button
                 type="button"
                 className="chaos-btn restore-btn"
                 onClick={restoreAllChaos}
-                title="Restore all killed nodes and clear latency spikes"
+                title="Clear all simulated outages and latency"
               >
                 <RotateCcw size={11} /> Restore All
               </button>
             )}
           </div>
 
-          <div className="chaos-telemetry-stats">
+          <div className="chaos-telemetry-stats" title="Modeled from this diagram, not measured.">
+            <span className="telemetry-simulated-tag">Simulated</span>
             <div className={`telemetry-health-badge ${telemetry.overallSystemHealth.toLowerCase()}`}>
               {telemetry.overallSystemHealth}
             </div>
@@ -489,19 +470,12 @@ export default function ArchitectureDiagram({ project }) {
               <span>Latency:</span> <b>{telemetry.averageLatencyMs}ms</b>
             </div>
             <div className="telemetry-pill">
-              <span>P99:</span> <b>{telemetry.p99LatencyMs}ms</b>
+              <span>Slowest path:</span> <b>{telemetry.slowestPathMs}ms</b>
             </div>
-            {collaborativeMode && (
-              <div className="peer-presence-bar">
-                {studioRoom.getActivePeers().map((peer) => (
-                  <span key={peer.peerId} className="peer-chip">
-                    <span className="peer-dot" style={{ backgroundColor: peer.color }} />
-                    <b>{peer.name}</b>
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
+          <p className="chaos-assumptions">
+            Simulated, not measured. Assumes {ASSUMED_INGRESS_RPS.toLocaleString()} requests per second entering at the clients, {ASSUMED_HOP_LATENCY_MS}ms per component, and +{ASSUMED_CACHE_FALLBACK_PENALTY_MS}ms when a cache falls back to its database. A cache outage counts as survivable only if a requirement records a fallback.
+          </p>
         </div>
       )}
 
@@ -1103,47 +1077,6 @@ return (
               );
             })}
 
-            {/* Phase 5: CRDT Multi-User Collaborative Cursors */}
-            {collaborativeMode &&
-              studioRoom
-                .getActivePeers()
-                .filter((p) => p.peerId !== studioRoom.localPeerId)
-                .map((peer) => (
-                  <g
-                    key={peer.peerId}
-                    transform={`translate(${peer.cursorX}, ${peer.cursorY})`}
-                    style={{ pointerEvents: 'none', transition: 'transform 0.4s ease-out' }}
-                  >
-                    <path
-                      d="M 0 0 L 0 14 L 4 11 L 8 18 L 11 16 L 7 10 L 13 10 Z"
-                      fill={peer.color}
-                      stroke="#0f172a"
-                      strokeWidth="1"
-                      className="peer-cursor-pointer"
-                    />
-                    <g transform="translate(14, 12)">
-                      <rect
-                        x="0"
-                        y="-10"
-                        width={peer.name.length * 6.5 + 14}
-                        height="18"
-                        rx="4"
-                        fill={peer.color}
-                        opacity="0.95"
-                      />
-                      <text
-                        x="7"
-                        y="3"
-                        fill="#0f172a"
-                        fontSize="10"
-                        fontWeight="bold"
-                        fontFamily="var(--font-mono)"
-                      >
-                        {peer.name}
-                      </text>
-                    </g>
-                  </g>
-                ))}
           </svg>
         </div>
 

@@ -10,8 +10,7 @@ import { makeOpenApi } from '../src/data/openapi.js';
 import { generateMultiServiceOpenApi } from '../src/data/openapiSynth.ts';
 import { createVerifiedExportZip, makeExportFiles } from '../src/data/export.js';
 import {
-  createServerlessBranch,
-  createKubernetesBranch,
+  forkBranch,
   calculateBranchMetrics,
   compareBranches,
 } from '../src/data/branching.ts';
@@ -215,51 +214,36 @@ test('Food Delivery sample feeds the diagram model, contracts, risks, tasks, and
   assert.match(makeExportFiles(updated)['architecture.json'], /Food Delivery Platform/);
 });
 
-test('Scenario Branching: creates Serverless & K8s scenario branches with distinct metrics', () => {
-  const base = makeCommerceProject();
-  const serverlessBranch = createServerlessBranch(base);
-  const k8sBranch = createKubernetesBranch(base);
+test('Branching: a fork copies the loaded model, not a prewritten scenario', () => {
+  const base = makeFoodDeliveryProject();
+  const fork = forkBranch(base, { id: 'branch-2', name: 'Branch 2', parentBranchId: 'main' });
 
-  assert.equal(serverlessBranch.id, 'branch-serverless');
-  assert.equal(k8sBranch.id, 'branch-k8s-postgres');
-
-  // Verify Serverless characteristics
-  const serverlessComps = serverlessBranch.project.components;
-  assert.ok(serverlessComps.some((c) => c.id === 'dynamodb'));
-  assert.ok(serverlessComps.some((c) => c.id === 'eventbridge'));
-
-  // Verify K8s & PostgreSQL Replicas characteristics
-  const k8sComps = k8sBranch.project.components;
-  assert.ok(k8sComps.some((c) => c.id === 'postgres-replicas'));
-  assert.ok(k8sComps.some((c) => c.id === 'redis-cluster'));
-
-  // Calculate metrics
-  const serverlessMetrics = calculateBranchMetrics(serverlessBranch.project);
-  const k8sMetrics = calculateBranchMetrics(k8sBranch.project);
-
-  assert.ok(serverlessMetrics.estimatedCostPerMonth > 0);
-  assert.ok(k8sMetrics.estimatedCostPerMonth > serverlessMetrics.estimatedCostPerMonth, 'K8s cluster is more expensive than on-demand serverless');
-  assert.equal(k8sMetrics.hasSinglePointOfFailure, false, 'Read replicas eliminate single DB SPOF');
+  assert.equal(fork.id, 'branch-2');
+  assert.equal(fork.baseVersion, base.version);
+  assert.deepEqual(fork.project.components, base.components);
+  assert.deepEqual(fork.project.relationships, base.relationships);
+  assert.notEqual(fork.project, base, 'the fork is a copy, so edits on it never touch main');
+  fork.project.components.pop();
+  assert.equal(base.components.length, makeFoodDeliveryProject().components.length);
 });
 
-test('Scenario Comparison: side-by-side trade-off analysis calculates cost and component deltas', () => {
+test('Branching: comparison metrics are computed from both models with no prices', () => {
   const base = makeCommerceProject();
-  const serverless = createServerlessBranch(base);
-  const k8s = createKubernetesBranch(base);
+  const fork = forkBranch(base, { id: 'branch-1', name: 'Branch 1' });
+  const changed = applyChange(fork.project, proposeChange('Split payments into a separate service'));
 
-  const comparison = compareBranches(serverless, k8s);
-  assert.ok(comparison.costDeltaMonthly > 0, 'Scenario B must have positive cost delta over Scenario A');
-  assert.ok(comparison.componentChanges.addedInB.length > 0);
-  assert.ok(comparison.componentChanges.removedInB.length > 0);
+  const metrics = calculateBranchMetrics(changed);
+  assert.equal(metrics.componentCount, base.components.length + 1);
+  assert.equal(metrics.databaseCount, 1);
+  assert.ok(!('estimatedCostPerMonth' in metrics));
 
-  // K8s introduces postgres-replicas which is absent in Serverless
-  assert.ok(
-    comparison.componentChanges.addedInB.some((c) => c.id === 'postgres-replicas')
-  );
-  // DynamoDB from Serverless is absent in K8s
-  assert.ok(
-    comparison.componentChanges.removedInB.some((c) => c.id === 'dynamodb')
-  );
+  const comparison = compareBranches({ project: base, name: 'Main Branch' }, { project: changed, name: 'Branch 1' });
+  assert.equal(comparison.branchA.name, 'Main Branch');
+  assert.deepEqual(comparison.componentChanges.addedInB.map((c) => c.id), ['payment-service']);
+  assert.deepEqual(comparison.componentChanges.removedInB, []);
+  assert.ok(comparison.connectionChanges.addedInB.includes('payment-service → payment'));
+  assert.ok(comparison.connectionChanges.removedInB.includes('kafka → payment'));
+  assert.ok(!('costDeltaMonthly' in comparison));
 });
 
 test('Semantic 3-Way Merge: auto-merges non-conflicting parallel additions', () => {

@@ -22,6 +22,8 @@ export interface ArchitectureDecisionRecord {
   }>;
 }
 
+export const SIGNOFF_ROLES = ['Principal Architect', 'Security Lead', 'SRE / Infrastructure Lead', 'Product Owner'] as const;
+
 export interface ReviewChecklist {
   isSecurityApproved: boolean;
   isInfrastructureApproved: boolean;
@@ -74,7 +76,7 @@ export function generateAdrFromChange(
   return {
     id: `ADR-${String(project.version).padStart(3, '0')}`,
     title: `Architecture Decision: ${change.summary || change.originalInstruction}`,
-    status: 'ACCEPTED',
+    status: 'PROPOSED',
     date: new Date().toISOString().slice(0, 10),
     context: `Architecture change requested via natural language instruction: "${change.originalInstruction}". Evaluated across ${project.components.length} components and ${project.relationships.length} data connections.`,
     decision: `We apply and formalize the change to ${change.affectedArtifacts?.join(', ') || 'system components'}. ${change.summary}`,
@@ -82,32 +84,9 @@ export function generateAdrFromChange(
       positive,
       negative,
     },
-    complianceSignoffs: [
-      {
-        role: 'Principal Architect',
-        signee: 'Lead Architecture Reviewer',
-        approved: true,
-        timestamp: new Date().toISOString(),
-      },
-      {
-        role: 'Security Lead',
-        signee: 'Chief Information Security Officer',
-        approved: hasRateLimit,
-        timestamp: hasRateLimit ? new Date().toISOString() : undefined,
-      },
-      {
-        role: 'SRE / Infrastructure Lead',
-        signee: 'Site Reliability Engineering Lead',
-        approved: hasRedisFallback,
-        timestamp: hasRedisFallback ? new Date().toISOString() : undefined,
-      },
-      {
-        role: 'Product Owner',
-        signee: 'Platform Product Manager',
-        approved: true,
-        timestamp: new Date().toISOString(),
-      },
-    ],
+    // Nobody has reviewed this yet: every role starts pending and unassigned.
+    // Approvals come only from a person marking them in the review dialog.
+    complianceSignoffs: SIGNOFF_ROLES.map((role) => ({ role, signee: 'Unassigned', approved: false })),
   };
 }
 

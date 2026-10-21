@@ -193,8 +193,7 @@ vi.mock('../src/data/diagramExport.js', () => ({
 }));
 
 vi.mock('../src/data/branching.ts', () => ({
-  createServerlessBranch: vi.fn(),
-  createKubernetesBranch: vi.fn(),
+  forkBranch: vi.fn(),
   compareBranches: vi.fn(),
 }));
 
@@ -209,7 +208,7 @@ vi.mock('../src/hooks/useChaosWorker.ts', () => ({
     totalRpsThroughput: 100,
     droppedRps: 0,
     averageLatencyMs: 50,
-    p99LatencyMs: 100,
+    slowestPathMs: 100,
     nodeMetrics: new Map(),
     edgeMetrics: new Map(),
     cascadingFailures: [],

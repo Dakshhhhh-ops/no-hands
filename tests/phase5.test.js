@@ -5,15 +5,11 @@ import {
   simulateChaosAndTelemetry,
 } from '../src/data/chaosSimulator.ts';
 import {
-  OrSet,
-  CollaborativeStudioRoom,
-} from '../src/data/crdtStudio.ts';
-import {
   generateAdrFromChange,
   formatAdrMarkdown,
 } from '../src/data/adrWorkflow.ts';
 
-test('Live Chaos Simulator: evaluates baseline health under normal traffic', () => {
+test('Outage simulator: evaluates baseline health under normal traffic', () => {
   const project = makeCommerceProject();
   const sim = simulateChaosAndTelemetry(project, [], 1500);
 
@@ -41,7 +37,7 @@ test('Live Chaos Simulator: evaluates baseline health under normal traffic', () 
   }
 });
 
-test('Live Chaos Simulator: simulates Redis outage cascade and graceful fallback mitigation', () => {
+test('Outage simulator: simulates Redis outage cascade and graceful fallback mitigation', () => {
   const baseProject = makeCommerceProject();
 
   // 1. Without Redis fallback requirement: Redis outage collapses Auth
@@ -90,7 +86,7 @@ test('Live Chaos Simulator: simulates Redis outage cascade and graceful fallback
   assert.ok(resilientAuth.activeLatencyMs > 20); // Latency increases because of direct DB queries
 });
 
-test('Live Chaos Simulator: simulates Postgres outage and cascades across all dependent tiers', () => {
+test('Outage simulator: simulates Postgres outage and cascades across all dependent tiers', () => {
   const project = makeCommerceProject();
   const dbOutageSim = simulateChaosAndTelemetry(project, [
     {
@@ -115,85 +111,30 @@ test('Live Chaos Simulator: simulates Postgres outage and cascades across all de
   assert.ok(dbOutageSim.cascadingFailures.length >= 3);
 });
 
-test('CRDT Studio: OrSet provides conflict-free add, remove, and multi-peer convergence', () => {
-  const setA = new OrSet();
-  const setB = new OrSet();
-
-  // Peer A adds analytics
-  setA.add({ id: 'analytics', name: 'Realtime Analytics Worker' }, 'peer-alice');
-  // Peer B adds search
-  setB.add({ id: 'search', name: 'Elasticsearch Indexer' }, 'peer-bob');
-
-  // Merge B into A
-  setA.merge(setB);
-  const valuesA = setA.values();
-  assert.equal(valuesA.length, 2);
-  assert.ok(valuesA.some((c) => c.id === 'analytics'));
-  assert.ok(valuesA.some((c) => c.id === 'search'));
-
-  // Peer B removes search and adds notification
-  setB.remove('search');
-  setB.add({ id: 'notifications', name: 'Notification Service' }, 'peer-bob');
-
-  // Merge B back into A: search should be tombstoned in A
-  setA.merge(setB);
-  const updatedA = setA.values();
-  assert.equal(updatedA.length, 2);
-  assert.ok(updatedA.some((c) => c.id === 'analytics'));
-  assert.ok(updatedA.some((c) => c.id === 'notifications'));
-  assert.ok(!updatedA.some((c) => c.id === 'search'));
-});
-
-test('CRDT Studio: CollaborativeStudioRoom tracks peer presences and cursor tracking', () => {
-  const room = new CollaborativeStudioRoom('room-arch-1', 'peer-main', 'Chief Architect');
-  
-  // Local presence
-  const local = room.updateLocalPresence(350, 220, 'diagram', 'auth');
-  assert.equal(local.peerId, 'peer-main');
-  assert.equal(local.cursorX, 350);
-  assert.equal(local.selectedComponentId, 'auth');
-
-  // Simulate remote peers
-  const peers = room.simulateRemotePeers();
-  assert.ok(peers.length >= 2);
-  assert.ok(peers.some((p) => p.name.includes('SRE')));
-  assert.ok(peers.some((p) => p.name.includes('Security')));
-
-  const active = room.getActivePeers();
-  assert.ok(active.length >= 3);
-});
-
-test('ADR Workflow: synthesizes standard Architecture Decision Record and signs off roles', () => {
+test('ADR Workflow: drafts a proposed record with every sign-off pending', () => {
   const baseProject = makeCommerceProject();
-
-  // Baseline ADR: missing rate limiting & fallback, so Security and SRE do not sign off yet
-  const baseAdr = generateAdrFromChange(baseProject);
-  assert.ok(baseAdr.id.startsWith('ADR-'));
-  assert.ok(baseAdr.complianceSignoffs.length === 4);
-  
-  const secSignoff = baseAdr.complianceSignoffs.find((s) => s.role === 'Security Lead');
-  const sreSignoff = baseAdr.complianceSignoffs.find((s) => s.role === 'SRE / Infrastructure Lead');
-  assert.equal(secSignoff?.approved, false);
-  assert.equal(sreSignoff?.approved, false);
-
-  // Apply change with rate limiting and fallback
   const proposal = proposeChange(
     'Add Redis session cache with rate limiting. Fallback to Postgres if Redis is unavailable.'
   );
   const changedProject = applyChange(baseProject, proposal);
-  const changedAdr = generateAdrFromChange(changedProject);
+  const adr = generateAdrFromChange(changedProject);
 
-  const changedSecSignoff = changedAdr.complianceSignoffs.find((s) => s.role === 'Security Lead');
-  const changedSreSignoff = changedAdr.complianceSignoffs.find((s) => s.role === 'SRE / Infrastructure Lead');
-  assert.equal(changedSecSignoff?.approved, true);
-  assert.equal(changedSreSignoff?.approved, true);
+  assert.ok(adr.id.startsWith('ADR-'));
+  assert.equal(adr.status, 'PROPOSED');
+  assert.equal(adr.complianceSignoffs.length, 4);
+  // A requirement mentioning rate limiting is not a Security Lead's approval.
+  for (const signoff of adr.complianceSignoffs) {
+    assert.equal(signoff.approved, false);
+    assert.equal(signoff.signee, 'Unassigned');
+    assert.equal(signoff.timestamp, undefined);
+  }
 
-  // Format ADR markdown
-  const markdown = formatAdrMarkdown(changedAdr);
+  const markdown = formatAdrMarkdown(adr);
   assert.ok(markdown.includes('# ADR-'));
   assert.ok(markdown.includes('## Context'));
   assert.ok(markdown.includes('## Decision'));
   assert.ok(markdown.includes('## Consequences'));
   assert.ok(markdown.includes('## Multi-Role Sign-off Matrix'));
-  assert.ok(markdown.includes('Security Lead'));
+  assert.ok(markdown.includes('PENDING'));
+  assert.ok(!markdown.includes('APPROVED'));
 });

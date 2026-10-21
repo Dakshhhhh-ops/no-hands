@@ -33,6 +33,7 @@ export default function ScenarioBranchingBar({
   comparison,
   onOpenComparison,
   onMergeBranch,
+  onForkBranch,
 }) {
   const [showHistoryDropdown, setShowHistoryDropdown] = useState(false);
   const [showBranchDropdown, setShowBranchDropdown] = useState(false);
@@ -55,7 +56,7 @@ export default function ScenarioBranchingBar({
 
         {showBranchDropdown && (
           <div className="branch-dropdown-menu">
-            <div className="branch-dropdown-header">SWITCH SCENARIO BRANCH</div>
+            <div className="branch-dropdown-header">SWITCH BRANCH</div>
             {branches.map((b) => (
               <div
                 key={b.id}
@@ -79,20 +80,37 @@ export default function ScenarioBranchingBar({
         )}
       </div>
 
-      {/* Center: Scenario Compare & Merge */}
+      {/* Center: Fork, compare with main, merge */}
       <div className="scenario-actions">
-        <button
-          type="button"
-          className="button compact outline"
-          onClick={() => {
-            sound.click();
-            onOpenComparison();
-          }}
-          title="Compare Serverless vs Kubernetes Replicas"
-        >
-          <SlidersHorizontal size={12} style={{ marginRight: 5 }} />
-          Compare Scenarios (Cost & Risk)
-        </button>
+        {onForkBranch && (
+          <button
+            type="button"
+            className="button compact outline"
+            onClick={() => {
+              sound.click();
+              onForkBranch();
+            }}
+            title="Copy the current model into a new branch to try changes without touching main"
+          >
+            <GitBranch size={12} style={{ marginRight: 5 }} />
+            Fork this version
+          </button>
+        )}
+
+        {currentBranchId !== 'main' && comparison && (
+          <button
+            type="button"
+            className="button compact outline"
+            onClick={() => {
+              sound.click();
+              onOpenComparison();
+            }}
+            title="Compare this branch with main"
+          >
+            <SlidersHorizontal size={12} style={{ marginRight: 5 }} />
+            Compare with main
+          </button>
+        )}
 
         {currentBranchId !== 'main' && onMergeBranch && (
           <button
@@ -102,7 +120,7 @@ export default function ScenarioBranchingBar({
               sound.click();
               onMergeBranch();
             }}
-            title="3-Way Semantic Merge into Main"
+            title="Three-way merge of this branch into main"
           >
             <GitMerge size={12} style={{ marginRight: 5 }} />
             Merge to Main

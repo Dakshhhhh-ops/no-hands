@@ -3,7 +3,7 @@ import { HistoryTimeline } from '../data/historyManager.ts';
 import { makeCommerceProject } from '../data/commerce.js';
 import { makeFoodDeliveryProject } from '../data/foodDelivery.js';
 import type { Project } from '../types/schema.ts';
-import { createServerlessBranch, createKubernetesBranch, compareBranches } from '../data/branching.ts';
+import { forkBranch, compareBranches } from '../data/branching.ts';
 import { detectMergeConflicts, executeMerge, type MergeConflict } from '../data/semanticMerge.ts';
 
 export interface BranchState {
@@ -39,7 +39,7 @@ interface UseProjectStateReturn {
   handleRedo: () => void;
   handleJumpToVersion: (_index: number) => void;
   handleSwitchBranch: (_branchId: string) => void;
-  createScenarioBranches: () => void;
+  handleForkBranch: () => void;
   handleOpenComparison: () => void;
   handleInitiateMerge: () => void;
   handleConfirmMerge: (_resolutions: Record<string, 'target' | 'source' | 'custom'>) => void;
@@ -88,12 +88,12 @@ export function useProjectState(): UseProjectStateReturn {
     version: b.project.version,
   })), [branches]);
 
+  // Compares main with the branch being worked on; both are the user's own models.
   const scenarioComparison = useMemo(() => {
-    if (branches['branch-serverless'] && branches['branch-k8s-postgres']) {
-      return compareBranches(branches['branch-serverless'], branches['branch-k8s-postgres']);
-    }
-    return null;
-  }, [branches]);
+    const current = branches[currentBranchId];
+    if (currentBranchId === 'main' || !current || !branches.main) return null;
+    return compareBranches(branches.main, current);
+  }, [branches, currentBranchId]);
 
   const timelineEntries = useMemo(() => {
     const history = branches[currentBranchId]?.history || new HistoryTimeline(project);
@@ -189,15 +189,19 @@ export function useProjectState(): UseProjectStateReturn {
     syncHistory(branches[branchId].history);
   }
 
-  function createScenarioBranches() {
-    const base = branches.main.project;
-    const serverless = createServerlessBranch(base);
-    const k8s = createKubernetesBranch(base);
-    setBranches((b) => ({ ...b, [serverless.id]: serverless, [k8s.id]: k8s }));
+  /** Forks the model as it is now into a new branch and switches to it. */
+  function handleForkBranch() {
+    let n = Object.keys(branches).length;
+    while (branches[`branch-${n}`]) n += 1;
+    const fork = forkBranch(project, { id: `branch-${n}`, name: `Branch ${n}`, parentBranchId: currentBranchId });
+    setBranches((b) => ({ ...b, [fork.id]: fork }));
+    setCurrentBranchId(fork.id);
+    setProject(fork.project);
+    syncHistory(fork.history);
   }
 
   function handleOpenComparison() {
-    if (!branches['branch-serverless'] || !branches['branch-k8s-postgres']) createScenarioBranches();
+    if (currentBranchId === 'main') return;
     setShowComparisonModal(true);
   }
 
@@ -268,7 +272,7 @@ export function useProjectState(): UseProjectStateReturn {
     handleRedo,
     handleJumpToVersion,
     handleSwitchBranch,
-    createScenarioBranches,
+    handleForkBranch,
     handleOpenComparison,
     handleInitiateMerge,
     handleConfirmMerge,
