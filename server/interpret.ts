@@ -3,6 +3,8 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { InterpretationSchema } from '../src/types/schema.ts';
+import { DailyCap, RateLimiter, clientKey, readLimits, withTimeout } from './limits.ts';
+import type { FallbackReason } from './limits.ts';
 import type { Interpretation } from '../src/types/schema.ts';
 
 /**
@@ -17,7 +19,6 @@ import type { Interpretation } from '../src/types/schema.ts';
 
 export type Provider = 'groq' | 'anthropic';
 
-const MAX_BODY_BYTES = 256 * 1024;
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 export const SYSTEM_PROMPT = `You turn a spoken or typed instruction into precise edits to a software architecture model.
@@ -185,7 +186,7 @@ async function interpretWithGroq(instruction: string, project: ModelSnapshot, fe
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(readLimits().timeoutMs),
     });
   };
 
@@ -253,13 +254,13 @@ export async function interpretInstruction(text: string, project: ModelSnapshot,
   throw new InterpretError('No model provider is configured.', 503);
 }
 
-function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+function readJsonBody(req: IncomingMessage, maxBytes: number): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks: Buffer[] = [];
     req.on('data', (chunk: Buffer) => {
       size += chunk.length;
-      if (size > MAX_BODY_BYTES) {
+      if (size > maxBytes) {
         reject(new InterpretError('Request body is too large.', 413));
         req.destroy();
         return;
@@ -284,41 +285,95 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
-/** Connect-style middleware for /api/status and /api/interpret. */
-export async function apiMiddleware(req: IncomingMessage, res: ServerResponse, next: () => void) {
-  const url = (req.url || '').split('?')[0];
-  if (url === '/api/status' && req.method === 'GET') {
-    const provider = activeProvider();
-    sendJson(res, 200, { ai: provider !== null, provider, model: activeModel(provider) });
-    return;
-  }
-  if (url !== '/api/interpret') {
-    next();
-    return;
-  }
-  if (req.method !== 'POST') {
-    sendJson(res, 405, { error: 'Use POST.' });
-    return;
-  }
-  if (!aiConfigured()) {
-    sendJson(res, 503, { error: 'No model is configured. Set GROQ_API_KEY or ANTHROPIC_API_KEY on the server (.env.local locally) and restart.' });
-    return;
-  }
-  try {
-    const body = await readJsonBody(req);
-    const interpretation = await interpretInstruction(String(body.text || ''), (body.project || {}) as ModelSnapshot);
-    sendJson(res, 200, { interpretation, provider: activeProvider(), model: activeModel() });
-  } catch (error) {
-    if (error instanceof InterpretError) {
-      sendJson(res, error.status, { error: error.message });
-    } else if (error instanceof Anthropic.AuthenticationError) {
-      sendJson(res, 502, { error: 'The Anthropic API key was rejected.' });
-    } else if (error instanceof Anthropic.RateLimitError) {
-      sendJson(res, 429, { error: 'Rate limited by the Anthropic API. Try again in a moment.' });
-    } else if (error instanceof Anthropic.APIError) {
-      sendJson(res, 502, { error: `Anthropic API error ${error.status ?? ''}`.trim() });
-    } else {
-      sendJson(res, 500, { error: 'Interpretation failed unexpectedly.' });
-    }
-  }
+/** A refusal the browser answers by switching to the offline rules for this preview. */
+function sendFallback(res: ServerResponse, status: number, fallback: FallbackReason, error: string, retryAfterSeconds?: number) {
+  if (retryAfterSeconds) res.setHeader('Retry-After', String(retryAfterSeconds));
+  sendJson(res, status, { error, fallback, ...(retryAfterSeconds ? { retryAfter: retryAfterSeconds } : {}) });
 }
+
+export interface ApiOptions {
+  env?: NodeJS.ProcessEnv;
+  now?: () => number;
+  /** Replaces the model call; used by tests. */
+  interpret?: (text: string, project: ModelSnapshot) => Promise<Interpretation>;
+}
+
+/**
+ * Connect-style middleware for /api/health, /api/status, and /api/interpret.
+ * Instructions and keys are never logged.
+ */
+export function createApiMiddleware(options: ApiOptions = {}) {
+  const limits = readLimits(options.env);
+  const perIp = new RateLimiter(limits.perMinute, 60_000, options.now);
+  const daily = new DailyCap(limits.dailyCap, options.now);
+  const startedAt = (options.now || Date.now)();
+  const interpret = options.interpret || ((text: string, project: ModelSnapshot) => interpretInstruction(text, project));
+
+  return async function apiMiddleware(req: IncomingMessage, res: ServerResponse, next: () => void) {
+    const url = (req.url || '').split('?')[0];
+    if (url === '/api/health' && req.method === 'GET') {
+      sendJson(res, 200, {
+        status: 'ok',
+        uptimeSeconds: Math.round(((options.now || Date.now)() - startedAt) / 1000),
+        interpreter: aiConfigured() ? 'model' : 'offline',
+      });
+      return;
+    }
+    if (url === '/api/status' && req.method === 'GET') {
+      const provider = activeProvider();
+      sendJson(res, 200, {
+        ai: provider !== null,
+        provider,
+        model: activeModel(provider),
+        fallback: provider !== null && daily.reached ? 'daily_cap' : null,
+      });
+      return;
+    }
+    if (url !== '/api/interpret') {
+      next();
+      return;
+    }
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { error: 'Use POST.' });
+      return;
+    }
+    if (!aiConfigured()) {
+      sendJson(res, 503, { error: 'No model is configured. Set GROQ_API_KEY or ANTHROPIC_API_KEY on the server (.env.local locally) and restart.' });
+      return;
+    }
+
+    const slot = perIp.take(clientKey(req, limits.trustProxy));
+    if (!slot.ok) {
+      sendFallback(res, 429, 'rate_limit', 'Too many previews from this address in the last minute.', slot.retryAfterSeconds);
+      return;
+    }
+    try {
+      const body = await readJsonBody(req, limits.maxBodyBytes);
+      if (!daily.take()) {
+        sendFallback(res, 429, 'daily_cap', "Today's model limit for this server is used up.");
+        return;
+      }
+      const interpretation = await withTimeout(interpret(String(body.text || ''), (body.project || {}) as ModelSnapshot), limits.timeoutMs);
+      sendJson(res, 200, { interpretation, provider: activeProvider(), model: activeModel() });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        sendFallback(res, 504, 'timeout', 'The model took too long to answer.');
+      } else if (error instanceof InterpretError) {
+        if (error.status === 429) sendFallback(res, 429, 'provider_limit', error.message);
+        else if (error.status >= 500) sendFallback(res, error.status, error.status === 504 ? 'timeout' : 'provider_error', error.message);
+        else sendJson(res, error.status, { error: error.message });
+      } else if (error instanceof Anthropic.AuthenticationError) {
+        sendFallback(res, 502, 'provider_error', 'The Anthropic API key was rejected.');
+      } else if (error instanceof Anthropic.RateLimitError) {
+        sendFallback(res, 429, 'provider_limit', 'Rate limited by the Anthropic API. Try again in a moment.');
+      } else if (error instanceof Anthropic.APIError) {
+        sendFallback(res, 502, 'provider_error', `Anthropic API error ${error.status ?? ''}`.trim());
+      } else {
+        sendFallback(res, 500, 'provider_error', 'Interpretation failed unexpectedly.');
+      }
+    }
+  };
+}
+
+/** The middleware the dev, preview, and production servers use. */
+export const apiMiddleware = createApiMiddleware();
