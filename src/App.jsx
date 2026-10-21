@@ -21,7 +21,7 @@ import { useDictation } from './hooks/useDictation.ts';
 import { useJourney } from './hooks/useJourney.ts';
 import { useExport } from './hooks/useExport.ts';
 import { useProposalReview } from './hooks/useProposalReview.ts';
-import { providerLabel } from './data/aiClient.ts';
+import { fallbackLabel, providerLabel } from './data/aiClient.ts';
 import { useToast } from './hooks/useToast.ts';
 import useLocalStorage from './hooks/useLocalStorage.ts';
 import { useTheme } from './hooks/useTheme.ts';
@@ -240,6 +240,7 @@ export default function App() {
     reviseProposal,
     undoRevision,
     revisionCount,
+    fallbackReason,
   } = proposalHooks;
 
   const handleTabChange = (id) => {
@@ -999,6 +1000,9 @@ export default function App() {
               >
                 {aiStatus.ai ? `Interpreted by ${providerLabel(aiStatus.provider)}` : 'Offline rules only'}
               </span>
+              {aiStatus.ai && fallbackReason && (
+                <span className="va-fallback-badge" role="status">Offline rules for now: {fallbackLabel(fallbackReason)}</span>
+              )}
               <span aria-label="Press Control and Enter to preview"><kbd>Ctrl</kbd> <kbd>Enter</kbd></span>
             </div>
           </div>

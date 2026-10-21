@@ -480,3 +480,12 @@
 .va-guide-changes { margin: 0; color: var(--va-muted); font-size: 13.5px; line-height: 1.5; }
 .va-guide-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 2px; }
 .va-guide-note { color: var(--va-faint); font-size: 12.5px; }
+
+/* Shown when a preview fell back to the offline rules (server limit, timeout, provider error). */
+.va-fallback-badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--va-amber) 45%, var(--va-line));
+  background: color-mix(in srgb, var(--va-amber) 10%, var(--va-panel)); color: var(--va-amber);
+  font-size: 12px; font-weight: 600;
+}
+.va-studio .va-field-hint { flex-wrap: wrap; row-gap: 6px; }

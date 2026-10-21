@@ -144,3 +144,25 @@ describe('Voice follow-ups with a mocked model', () => {
     expect((await screen.findAllByText(/v2 · updated/)).length).toBeGreaterThan(0);
   });
 });
+
+describe('Fallback badge', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('shows why the offline rules answered when the server refuses a model preview', async () => {
+    localStorage.clear();
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/api/status')) return jsonResponse({ ai: true, provider: 'groq', model: 'openai/gpt-oss-120b', fallback: null });
+      return jsonResponse({ error: "Today's model limit for this server is used up.", fallback: 'daily_cap' }, 429);
+    }));
+    render(<App />);
+    await screen.findByText('Interpreted by Groq');
+    fireEvent.click(screen.getByText('Load sample'));
+    fireEvent.change(screen.getByLabelText('Your instruction'), { target: { value: 'add rate limiting to login' } });
+    fireEvent.click(screen.getByRole('button', { name: /Preview my change/ }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Review this change' });
+    expect(within(dialog).getByText('Add an authentication rate-limiting requirement')).toBeInTheDocument();
+    expect(screen.getByText("Offline rules for now: today's model limit is used up")).toBeInTheDocument();
+  });
+});

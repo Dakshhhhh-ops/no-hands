@@ -4,7 +4,8 @@ import { proposeChange, applyChange, DEMO_COMMAND } from '../data/commerce.js';
 import { FOOD_DELIVERY_DEMO_COMMAND } from '../data/foodDelivery.js';
 import { deriveChangeDiff } from '../data/changeDiff.js';
 import { sound } from '../utils/sound.js';
-import { fetchAiStatus, interpretWithModel } from '../data/aiClient.ts';
+import { AiInterpretError, fetchAiStatus, interpretWithModel } from '../data/aiClient.ts';
+import type { FallbackReason } from '../data/aiClient.ts';
 import { interpretPattern } from '../data/patternRules.ts';
 import { cleanDictation } from '../data/dictation.ts';
 import { combineInstruction } from '../data/reviewCommands.ts';
@@ -44,6 +45,8 @@ interface UseProposalReviewReturn {
   /** Step back to the version before the last revision; false when there is none. */
   undoRevision: () => boolean;
   revisionCount: number;
+  /** Why the last preview used the offline rules instead of the model, or null. */
+  fallbackReason: FallbackReason | null;
 }
 
 export function useProposalReview(
@@ -58,6 +61,7 @@ export function useProposalReview(
   const [decisionDraft, setDecisionDraft] = useState<DecisionDraft>({ rateLimitThreshold: '', redisFallback: '' });
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [revisions, setRevisions] = useState<Proposal[]>([]);
+  const [fallbackReason, setFallbackReason] = useState<FallbackReason | null>(null);
   // A closed review (applied or cancelled) starts the next one without history.
   useEffect(() => {
     if (!proposal) setRevisions([]);
@@ -153,17 +157,25 @@ export function useProposalReview(
       setProposal(offline());
       return;
     }
+    if (aiStatus.fallback === 'daily_cap') {
+      setFallbackReason('daily_cap');
+      setProposal(offline());
+      return;
+    }
     interpretAbort.current?.abort();
     const controller = new AbortController();
     interpretAbort.current = controller;
     setIsInterpreting(true);
     interpretWithModel(text, project, controller.signal)
       .then((result) => {
-        if (!controller.signal.aborted) setProposal(result);
+        if (controller.signal.aborted) return;
+        setFallbackReason(null);
+        setProposal(result);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         const reason = error instanceof Error ? error.message : 'Interpretation failed.';
+        setFallbackReason(error instanceof AiInterpretError ? error.fallback : 'provider_error');
         onNotify(`${reason} Using offline rules instead.`);
         setProposal(offline());
       })
@@ -271,5 +283,6 @@ export function useProposalReview(
     reviseProposal,
     undoRevision,
     revisionCount: revisions.length,
+    fallbackReason,
   };
 }

@@ -6,7 +6,25 @@ export interface AiStatus {
   ai: boolean;
   provider: 'groq' | 'anthropic' | null;
   model: string | null;
+  /** Set when the server already knows previews will fall back, for example after its daily cap. */
+  fallback?: FallbackReason | null;
 }
+
+export type FallbackReason = 'rate_limit' | 'daily_cap' | 'timeout' | 'provider_limit' | 'provider_error';
+
+/** Why the offline rules answered instead of the model, in words for the badge. */
+export function fallbackLabel(reason: FallbackReason | null | undefined): string {
+  switch (reason) {
+    case 'rate_limit': return 'too many previews this minute';
+    case 'daily_cap': return "today's model limit is used up";
+    case 'timeout': return 'the model took too long';
+    case 'provider_limit': return "the model provider's rate limit";
+    default: return 'the model is unavailable';
+  }
+}
+
+const REASONS: FallbackReason[] = ['rate_limit', 'daily_cap', 'timeout', 'provider_limit', 'provider_error'];
+const asReason = (value: unknown): FallbackReason | null => (REASONS.includes(value as FallbackReason) ? value as FallbackReason : null);
 
 export function providerLabel(provider: AiStatus['provider']): string {
   return provider === 'groq' ? 'Groq' : provider === 'anthropic' ? 'Claude' : 'offline rules';
@@ -19,13 +37,19 @@ export async function fetchAiStatus(signal?: AbortSignal): Promise<AiStatus> {
     if (!response.ok) return { ai: false, provider: null, model: null };
     const body = await response.json();
     const provider = body?.provider === 'groq' || body?.provider === 'anthropic' ? body.provider : null;
-    return { ai: Boolean(body?.ai), provider, model: typeof body?.model === 'string' ? body.model : null };
+    return { ai: Boolean(body?.ai), provider, model: typeof body?.model === 'string' ? body.model : null, fallback: asReason(body?.fallback) };
   } catch {
     return { ai: false, provider: null, model: null };
   }
 }
 
-export class AiInterpretError extends Error {}
+export class AiInterpretError extends Error {
+  fallback: FallbackReason;
+  constructor(message: string, fallback: FallbackReason = 'provider_error') {
+    super(message);
+    this.fallback = fallback;
+  }
+}
 
 /**
  * Sends the instruction and current model to the server's model provider, validates the reply, and
@@ -46,7 +70,9 @@ export async function interpretWithModel(text: string, project: Project, signal?
     throw new AiInterpretError('Could not reach the interpretation server.');
   }
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new AiInterpretError(body?.error || `Interpretation failed (${response.status}).`);
+  if (!response.ok) {
+    throw new AiInterpretError(body?.error || `Interpretation failed (${response.status}).`, asReason(body?.fallback) || 'provider_error');
+  }
 
   const parsed = InterpretationSchema.safeParse(body?.interpretation);
   if (!parsed.success) throw new AiInterpretError('The interpretation did not match the expected schema.');
