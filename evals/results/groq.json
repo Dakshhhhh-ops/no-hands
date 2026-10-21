@@ -3,463 +3,1573 @@
     "provider": "groq",
     "model": "openai/gpt-oss-120b",
     "date": "2026-10-21",
+    "runs": 3,
+    "seeds": [
+      1,
+      2,
+      3
+    ],
     "all": {
       "cases": 22,
-      "correct": 18,
-      "recall": 0.9583333333333334,
-      "precision": 0.8214285714285714
+      "errors": 0,
+      "correctMean": 18.333333333333332,
+      "correctMin": 18,
+      "correctMax": 19,
+      "recallMean": 0.9305555555555555,
+      "precisionMean": 0.8084291187739464
     },
     "english": {
       "cases": 11,
-      "correct": 9,
-      "recall": 1,
-      "precision": 0.8
+      "errors": 0,
+      "correctMean": 9.333333333333334,
+      "correctMin": 9,
+      "correctMax": 10,
+      "recallMean": 0.9444444444444443,
+      "precisionMean": 0.7593253968253969
     },
     "hinglish": {
       "cases": 11,
-      "correct": 9,
-      "recall": 0.9166666666666666,
-      "precision": 0.8461538461538461
-    }
+      "errors": 0,
+      "correctMean": 9,
+      "correctMin": 9,
+      "correctMax": 9,
+      "recallMean": 0.9166666666666666,
+      "precisionMean": 0.8696581196581197
+    },
+    "passEveryRun": [
+      "R2",
+      "R3",
+      "R4",
+      "R5",
+      "R6",
+      "R7",
+      "C1",
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6",
+      "C7",
+      "C8",
+      "C9",
+      "C10",
+      "F1",
+      "F2"
+    ],
+    "passSomeRuns": [
+      "R1 (1/3)"
+    ],
+    "passNoRun": [
+      "R8",
+      "F3",
+      "F4"
+    ]
   },
-  "results": [
+  "perCase": [
     {
       "id": "R1",
       "language": "English",
-      "model": "ride-share",
       "text": "Add a Redis cache in front of the trips API",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [],
-        "addRelationships": [
-          "trips-api->redis"
-        ],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 1,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "R2",
       "language": "Hinglish",
-      "model": "ride-share",
       "text": "trips api ke aage redis cache laga do",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [],
-        "addRelationships": [
-          "trips-api->redis"
-        ],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "R3",
       "language": "English",
-      "model": "ride-share",
       "text": "Connect the accounts API to Kafka",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [],
-        "addRelationships": [
-          "accounts-api->kafka"
-        ],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "R4",
       "language": "Hinglish",
-      "model": "ride-share",
       "text": "accounts api ko kafka se connect karo",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [],
-        "addRelationships": [
-          "accounts-api->kafka"
-        ],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "R5",
       "language": "English",
-      "model": "ride-share",
       "text": "Remove the pricing worker",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [
-          "pricing-worker"
-        ],
-        "addRelationships": [],
-        "removeRelationships": [
-          "pricing-worker->kafka",
-          "pricing-worker->redis"
-        ],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "R6",
       "language": "Hinglish",
-      "model": "ride-share",
       "text": "pricing worker ko hata do",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [
-          "pricing-worker"
-        ],
-        "addRelationships": [],
-        "removeRelationships": [
-          "pricing-worker->kafka",
-          "pricing-worker->redis"
-        ],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "R7",
       "language": "English",
-      "model": "ride-share",
       "text": "Add a payment service behind the gateway",
-      "expected": 2,
-      "found": 2,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [
-          "payment-service (SERVICE)"
-        ],
-        "removeComponents": [],
-        "addRelationships": [
-          "gateway->payment-service"
-        ],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "R8",
       "language": "Hinglish",
-      "model": "ride-share",
       "text": "payment service ko alag container mein daalo",
-      "expected": 2,
-      "found": 1,
-      "unexpected": 0,
-      "correct": false,
-      "actual": {
-        "addComponents": [
-          "payment-service (SERVICE)"
-        ],
-        "removeComponents": [],
-        "addRelationships": [],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 0,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "C1",
       "language": "English",
-      "model": "commerce",
       "text": "Remove the cache and read PostgreSQL directly",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 1,
-      "correct": false,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [
-          "redis"
-        ],
-        "addRelationships": [],
-        "removeRelationships": [
-          "auth->redis"
-        ],
-        "addRequirements": [
-          "Session data should be stored in PostgreSQL directly"
-        ]
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "C2",
       "language": "Hinglish",
-      "model": "commerce",
       "text": "cache hata do aur database seedha use karo",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [
-          "redis"
-        ],
-        "addRelationships": [],
-        "removeRelationships": [
-          "auth->redis"
-        ],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "C3",
       "language": "English",
-      "model": "commerce",
       "text": "Add a notification service that consumes order events from Kafka",
-      "expected": 2,
-      "found": 2,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [
-          "notification (SERVICE)"
-        ],
-        "removeComponents": [],
-        "addRelationships": [
-          "kafka->notification"
-        ],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "C4",
       "language": "Hinglish",
-      "model": "commerce",
       "text": "kafka se order events padhne ke liye ek notification service bana do",
-      "expected": 2,
-      "found": 2,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [
-          "notification-service (SERVICE)"
-        ],
-        "removeComponents": [],
-        "addRelationships": [
-          "kafka->notification-service"
-        ],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "C5",
       "language": "English",
-      "model": "commerce",
       "text": "Add rate limiting to the login endpoint",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [],
-        "addRelationships": [],
-        "removeRelationships": [],
-        "addRequirements": [
-          "Rate limiting on login endpoint"
-        ]
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "C6",
       "language": "Hinglish",
-      "model": "commerce",
       "text": "login endpoint pe rate limiting laga do",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [],
-        "addRelationships": [],
-        "removeRelationships": [],
-        "addRequirements": [
-          "Rate limit login endpoint"
-        ]
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "C7",
       "language": "English",
-      "model": "commerce",
       "text": "Delete the connection from the order service to Kafka",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [],
-        "addRelationships": [],
-        "removeRelationships": [
-          "orders->kafka"
-        ],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "C8",
       "language": "Hinglish",
-      "model": "commerce",
       "text": "order service aur kafka ke beech ka connection hata do",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [],
-        "addRelationships": [],
-        "removeRelationships": [
-          "orders->kafka"
-        ],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "C9",
       "language": "English",
-      "model": "commerce",
       "text": "Make the diagram look nicer",
-      "expected": 0,
-      "found": 0,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [],
-        "addRelationships": [],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "C10",
       "language": "Hinglish",
-      "model": "commerce",
       "text": "diagram ko thoda sundar bana do",
-      "expected": 0,
-      "found": 0,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [],
-        "addRelationships": [],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "F1",
       "language": "English",
-      "model": "food",
       "text": "Connect the courier service to Redis",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [],
-        "addRelationships": [
-          "couriers->redis"
-        ],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "F2",
       "language": "Hinglish",
-      "model": "food",
       "text": "courier service ko redis se connect karo",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 0,
-      "correct": true,
-      "actual": {
-        "addComponents": [],
-        "removeComponents": [],
-        "addRelationships": [
-          "couriers->redis"
-        ],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 3,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "F3",
       "language": "English",
-      "model": "food",
       "text": "Put a cache in front of the restaurant service",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 2,
-      "correct": false,
-      "actual": {
-        "addComponents": [
-          "catalog-cache (CACHE)"
-        ],
-        "removeComponents": [],
-        "addRelationships": [
-          "gateway->catalog-cache",
-          "catalog-cache->catalog"
-        ],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 0,
+      "errors": 0,
+      "runs": 3
     },
     {
       "id": "F4",
       "language": "Hinglish",
-      "model": "food",
       "text": "restaurant service ke aage cache laga do",
-      "expected": 1,
-      "found": 1,
-      "unexpected": 2,
-      "correct": false,
-      "actual": {
-        "addComponents": [
-          "restaurant-cache (CACHE)"
-        ],
-        "removeComponents": [],
-        "addRelationships": [
-          "gateway->restaurant-cache",
-          "restaurant-cache->catalog"
-        ],
-        "removeRelationships": [],
-        "addRequirements": []
-      }
+      "passes": 0,
+      "errors": 0,
+      "runs": 3
+    }
+  ],
+  "runs": [
+    {
+      "seed": 1,
+      "results": [
+        {
+          "id": "R1",
+          "language": "English",
+          "model": "ride-share",
+          "text": "Add a Redis cache in front of the trips API",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "trips-api->redis"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R2",
+          "language": "Hinglish",
+          "model": "ride-share",
+          "text": "trips api ke aage redis cache laga do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "trips-api->redis"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R3",
+          "language": "English",
+          "model": "ride-share",
+          "text": "Connect the accounts API to Kafka",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "accounts-api->kafka"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R4",
+          "language": "Hinglish",
+          "model": "ride-share",
+          "text": "accounts api ko kafka se connect karo",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "accounts-api->kafka"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R5",
+          "language": "English",
+          "model": "ride-share",
+          "text": "Remove the pricing worker",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [
+              "pricing-worker"
+            ],
+            "addRelationships": [],
+            "removeRelationships": [
+              "pricing-worker->kafka",
+              "pricing-worker->redis"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R6",
+          "language": "Hinglish",
+          "model": "ride-share",
+          "text": "pricing worker ko hata do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [
+              "pricing-worker"
+            ],
+            "addRelationships": [],
+            "removeRelationships": [
+              "pricing-worker->kafka",
+              "pricing-worker->redis"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R7",
+          "language": "English",
+          "model": "ride-share",
+          "text": "Add a payment service behind the gateway",
+          "expected": 2,
+          "found": 2,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [
+              "payment-service (SERVICE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "gateway->payment-service"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R8",
+          "language": "Hinglish",
+          "model": "ride-share",
+          "text": "payment service ko alag container mein daalo",
+          "expected": 2,
+          "found": 1,
+          "unexpected": 0,
+          "correct": false,
+          "actual": {
+            "addComponents": [
+              "payment-service (SERVICE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C1",
+          "language": "English",
+          "model": "commerce",
+          "text": "Remove the cache and read PostgreSQL directly",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [
+              "redis"
+            ],
+            "addRelationships": [],
+            "removeRelationships": [
+              "auth->redis"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C2",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "cache hata do aur database seedha use karo",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [
+              "redis"
+            ],
+            "addRelationships": [],
+            "removeRelationships": [
+              "auth->redis"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C3",
+          "language": "English",
+          "model": "commerce",
+          "text": "Add a notification service that consumes order events from Kafka",
+          "expected": 2,
+          "found": 2,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [
+              "notification (SERVICE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "kafka->notification"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C4",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "kafka se order events padhne ke liye ek notification service bana do",
+          "expected": 2,
+          "found": 2,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [
+              "notification-service (SERVICE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "kafka->notification-service"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C5",
+          "language": "English",
+          "model": "commerce",
+          "text": "Add rate limiting to the login endpoint",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": [
+              "Rate limit login endpoint"
+            ]
+          }
+        },
+        {
+          "id": "C6",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "login endpoint pe rate limiting laga do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": [
+              "Rate limiting on login endpoint"
+            ]
+          }
+        },
+        {
+          "id": "C7",
+          "language": "English",
+          "model": "commerce",
+          "text": "Delete the connection from the order service to Kafka",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [
+              "orders->kafka"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C8",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "order service aur kafka ke beech ka connection hata do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [
+              "orders->kafka"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C9",
+          "language": "English",
+          "model": "commerce",
+          "text": "Make the diagram look nicer",
+          "expected": 0,
+          "found": 0,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C10",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "diagram ko thoda sundar bana do",
+          "expected": 0,
+          "found": 0,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "F1",
+          "language": "English",
+          "model": "food",
+          "text": "Connect the courier service to Redis",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "couriers->redis"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "F2",
+          "language": "Hinglish",
+          "model": "food",
+          "text": "courier service ko redis se connect karo",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "couriers->redis"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "F3",
+          "language": "English",
+          "model": "food",
+          "text": "Put a cache in front of the restaurant service",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 2,
+          "correct": false,
+          "actual": {
+            "addComponents": [
+              "catalog-cache (CACHE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "gateway->catalog-cache",
+              "catalog-cache->catalog"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "F4",
+          "language": "Hinglish",
+          "model": "food",
+          "text": "restaurant service ke aage cache laga do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 2,
+          "correct": false,
+          "actual": {
+            "addComponents": [
+              "catalog-cache (CACHE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "gateway->catalog-cache",
+              "catalog-cache->catalog"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        }
+      ]
+    },
+    {
+      "seed": 2,
+      "results": [
+        {
+          "id": "R1",
+          "language": "English",
+          "model": "ride-share",
+          "text": "Add a Redis cache in front of the trips API",
+          "expected": 1,
+          "found": 0,
+          "unexpected": 3,
+          "correct": false,
+          "actual": {
+            "addComponents": [
+              "trips-redis (CACHE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "gateway->trips-redis",
+              "trips-redis->trips-api"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R2",
+          "language": "Hinglish",
+          "model": "ride-share",
+          "text": "trips api ke aage redis cache laga do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "trips-api->redis"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R3",
+          "language": "English",
+          "model": "ride-share",
+          "text": "Connect the accounts API to Kafka",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "accounts-api->kafka"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R4",
+          "language": "Hinglish",
+          "model": "ride-share",
+          "text": "accounts api ko kafka se connect karo",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "accounts-api->kafka"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R5",
+          "language": "English",
+          "model": "ride-share",
+          "text": "Remove the pricing worker",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [
+              "pricing-worker"
+            ],
+            "addRelationships": [],
+            "removeRelationships": [
+              "pricing-worker->kafka",
+              "pricing-worker->redis"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R6",
+          "language": "Hinglish",
+          "model": "ride-share",
+          "text": "pricing worker ko hata do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [
+              "pricing-worker"
+            ],
+            "addRelationships": [],
+            "removeRelationships": [
+              "pricing-worker->kafka",
+              "pricing-worker->redis"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R7",
+          "language": "English",
+          "model": "ride-share",
+          "text": "Add a payment service behind the gateway",
+          "expected": 2,
+          "found": 2,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [
+              "payment-service (SERVICE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "gateway->payment-service"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R8",
+          "language": "Hinglish",
+          "model": "ride-share",
+          "text": "payment service ko alag container mein daalo",
+          "expected": 2,
+          "found": 1,
+          "unexpected": 0,
+          "correct": false,
+          "actual": {
+            "addComponents": [
+              "payment-service (SERVICE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C1",
+          "language": "English",
+          "model": "commerce",
+          "text": "Remove the cache and read PostgreSQL directly",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [
+              "redis"
+            ],
+            "addRelationships": [],
+            "removeRelationships": [
+              "auth->redis"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C2",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "cache hata do aur database seedha use karo",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [
+              "redis"
+            ],
+            "addRelationships": [],
+            "removeRelationships": [
+              "auth->redis"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C3",
+          "language": "English",
+          "model": "commerce",
+          "text": "Add a notification service that consumes order events from Kafka",
+          "expected": 2,
+          "found": 2,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [
+              "notification (SERVICE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "kafka->notification"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C4",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "kafka se order events padhne ke liye ek notification service bana do",
+          "expected": 2,
+          "found": 2,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [
+              "notification-service (SERVICE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "kafka->notification-service"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C5",
+          "language": "English",
+          "model": "commerce",
+          "text": "Add rate limiting to the login endpoint",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": [
+              "Rate limiting on login endpoint"
+            ]
+          }
+        },
+        {
+          "id": "C6",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "login endpoint pe rate limiting laga do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": [
+              "Rate limiting on login endpoint"
+            ]
+          }
+        },
+        {
+          "id": "C7",
+          "language": "English",
+          "model": "commerce",
+          "text": "Delete the connection from the order service to Kafka",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [
+              "orders->kafka"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C8",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "order service aur kafka ke beech ka connection hata do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [
+              "orders->kafka"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C9",
+          "language": "English",
+          "model": "commerce",
+          "text": "Make the diagram look nicer",
+          "expected": 0,
+          "found": 0,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C10",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "diagram ko thoda sundar bana do",
+          "expected": 0,
+          "found": 0,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "F1",
+          "language": "English",
+          "model": "food",
+          "text": "Connect the courier service to Redis",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "couriers->redis"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "F2",
+          "language": "Hinglish",
+          "model": "food",
+          "text": "courier service ko redis se connect karo",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "couriers->redis"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "F3",
+          "language": "English",
+          "model": "food",
+          "text": "Put a cache in front of the restaurant service",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 2,
+          "correct": false,
+          "actual": {
+            "addComponents": [
+              "catalog-cache (CACHE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "gateway->catalog-cache",
+              "catalog-cache->catalog"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "F4",
+          "language": "Hinglish",
+          "model": "food",
+          "text": "restaurant service ke aage cache laga do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 2,
+          "correct": false,
+          "actual": {
+            "addComponents": [
+              "catalog-cache (CACHE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "gateway->catalog-cache",
+              "catalog-cache->catalog"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        }
+      ]
+    },
+    {
+      "seed": 3,
+      "results": [
+        {
+          "id": "R1",
+          "language": "English",
+          "model": "ride-share",
+          "text": "Add a Redis cache in front of the trips API",
+          "expected": 1,
+          "found": 0,
+          "unexpected": 2,
+          "correct": false,
+          "actual": {
+            "addComponents": [
+              "trips-redis (CACHE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "trips-api->trips-redis"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R2",
+          "language": "Hinglish",
+          "model": "ride-share",
+          "text": "trips api ke aage redis cache laga do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "trips-api->redis"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R3",
+          "language": "English",
+          "model": "ride-share",
+          "text": "Connect the accounts API to Kafka",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "accounts-api->kafka"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R4",
+          "language": "Hinglish",
+          "model": "ride-share",
+          "text": "accounts api ko kafka se connect karo",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "accounts-api->kafka"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R5",
+          "language": "English",
+          "model": "ride-share",
+          "text": "Remove the pricing worker",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [
+              "pricing-worker"
+            ],
+            "addRelationships": [],
+            "removeRelationships": [
+              "pricing-worker->kafka",
+              "pricing-worker->redis"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R6",
+          "language": "Hinglish",
+          "model": "ride-share",
+          "text": "pricing worker ko hata do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [
+              "pricing-worker"
+            ],
+            "addRelationships": [],
+            "removeRelationships": [
+              "pricing-worker->kafka",
+              "pricing-worker->redis"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R7",
+          "language": "English",
+          "model": "ride-share",
+          "text": "Add a payment service behind the gateway",
+          "expected": 2,
+          "found": 2,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [
+              "payment-service (SERVICE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "gateway->payment-service"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "R8",
+          "language": "Hinglish",
+          "model": "ride-share",
+          "text": "payment service ko alag container mein daalo",
+          "expected": 2,
+          "found": 1,
+          "unexpected": 0,
+          "correct": false,
+          "actual": {
+            "addComponents": [
+              "payment-service (SERVICE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C1",
+          "language": "English",
+          "model": "commerce",
+          "text": "Remove the cache and read PostgreSQL directly",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [
+              "redis"
+            ],
+            "addRelationships": [],
+            "removeRelationships": [
+              "auth->redis"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C2",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "cache hata do aur database seedha use karo",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [
+              "redis"
+            ],
+            "addRelationships": [],
+            "removeRelationships": [
+              "auth->redis"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C3",
+          "language": "English",
+          "model": "commerce",
+          "text": "Add a notification service that consumes order events from Kafka",
+          "expected": 2,
+          "found": 2,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [
+              "notification (SERVICE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "kafka->notification"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C4",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "kafka se order events padhne ke liye ek notification service bana do",
+          "expected": 2,
+          "found": 2,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [
+              "notification-service (SERVICE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "kafka->notification-service"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C5",
+          "language": "English",
+          "model": "commerce",
+          "text": "Add rate limiting to the login endpoint",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": [
+              "Rate limiting on login endpoint"
+            ]
+          }
+        },
+        {
+          "id": "C6",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "login endpoint pe rate limiting laga do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": [
+              "Rate limiting on login endpoint"
+            ]
+          }
+        },
+        {
+          "id": "C7",
+          "language": "English",
+          "model": "commerce",
+          "text": "Delete the connection from the order service to Kafka",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [
+              "orders->kafka"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C8",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "order service aur kafka ke beech ka connection hata do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [
+              "orders->kafka"
+            ],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C9",
+          "language": "English",
+          "model": "commerce",
+          "text": "Make the diagram look nicer",
+          "expected": 0,
+          "found": 0,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "C10",
+          "language": "Hinglish",
+          "model": "commerce",
+          "text": "diagram ko thoda sundar bana do",
+          "expected": 0,
+          "found": 0,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "F1",
+          "language": "English",
+          "model": "food",
+          "text": "Connect the courier service to Redis",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "couriers->redis"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "F2",
+          "language": "Hinglish",
+          "model": "food",
+          "text": "courier service ko redis se connect karo",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 0,
+          "correct": true,
+          "actual": {
+            "addComponents": [],
+            "removeComponents": [],
+            "addRelationships": [
+              "couriers->redis"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "F3",
+          "language": "English",
+          "model": "food",
+          "text": "Put a cache in front of the restaurant service",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 2,
+          "correct": false,
+          "actual": {
+            "addComponents": [
+              "catalog-cache (CACHE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "gateway->catalog-cache",
+              "catalog-cache->catalog"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        },
+        {
+          "id": "F4",
+          "language": "Hinglish",
+          "model": "food",
+          "text": "restaurant service ke aage cache laga do",
+          "expected": 1,
+          "found": 1,
+          "unexpected": 1,
+          "correct": false,
+          "actual": {
+            "addComponents": [
+              "catalog-cache (CACHE)"
+            ],
+            "removeComponents": [],
+            "addRelationships": [
+              "catalog-cache->catalog"
+            ],
+            "removeRelationships": [],
+            "addRequirements": []
+          }
+        }
+      ]
     }
   ]
 }

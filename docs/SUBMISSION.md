@@ -30,10 +30,10 @@ On 22 labelled instructions (11 English, 11 Hinglish), scored by the structural 
 
 | Interpreter | Correct cases | English | Hinglish |
 |---|---|---|---|
-| Groq `openai/gpt-oss-120b` | 18 / 22 | 9 / 11 | 9 / 11 |
+| Groq `openai/gpt-oss-120b`, mean of 3 runs | 18.3 / 22 (range 18 to 19) | 9.3 / 11 (range 9 to 10) | 9 / 11 |
 | Offline rules, no key | 13 / 22 | 6 / 11 | 7 / 11 |
 
-One run per interpreter on 2026-10-21; method and full results are in the README's Evals section and `evals/results/`. Tests: 106 unit, 56 component, 16 browser (including axe accessibility checks in both themes).
+The model was run 3 times with different seeds on 2026-10-21; 18 of 22 cases passed every run. In the app, Groq requests use a fixed seed and temperature 0.5 to keep proposals consistent, and the review step always shows the exact change. Method and full results are in the README's Evals section and `evals/results/`. Tests: 107 unit, 56 component, 16 browser (including axe accessibility checks in both themes).
 
 ## Limitations
 

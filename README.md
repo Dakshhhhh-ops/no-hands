@@ -55,7 +55,7 @@ Open the local URL printed by Vite. The app is a single-page React app under `sr
 ## Verify
 
 ```sh
-npm test             # 106 unit tests
+npm test             # 107 unit tests
 npm run test:vitest  # 56 component tests (Vitest + RTL)
 npm run typecheck    # TypeScript strict mode
 npm run lint         # ESLint, 0 problems
@@ -112,18 +112,22 @@ When a limit is reached, the provider rate-limits, or a preview times out, the s
 
 ## Evals
 
-Measured on 2026-10-21 with `npm run eval`: 22 labelled instructions (11 English, 11 Hinglish, two of them not architecture changes) against the three built-in models. Each result is applied with the app's own applier and scored by the structural change it makes: components and connections added or removed, and requirements recorded. A case is correct only when every expected change happened and nothing else did. Recall is the share of expected changes made; precision is the share of changes made that were expected. One run per interpreter; model output varies between runs. Cases are in [evals/cases.ts](evals/cases.ts), full results in [evals/results/](evals/results/).
+Measured on 2026-10-21 with `npm run eval`: 22 labelled instructions (11 English, 11 Hinglish, two of them not architecture changes) against the three built-in models. Each result is applied with the app's own applier and scored by the structural change it makes: components and connections added or removed, and requirements recorded. A case is correct only when every expected change happened and nothing else did. Recall is the share of expected changes made; precision is the share of changes made that were expected. Cases are in [evals/cases.ts](evals/cases.ts), full results in [evals/results/](evals/results/).
 
-| Interpreter | Cases | Correct | Recall | Precision |
+Model output varies between runs, so the model was run 3 times with seeds 1, 2, 3 (Groq's advice for benchmarking); the table gives the mean and range. The offline rules are deterministic, so one run is exact. No request failed.
+
+| Interpreter | Cases | Correct (mean) | Recall | Precision |
 |---|---|---|---|---|
-| Groq `openai/gpt-oss-120b` | All 22 | 18 / 22 | 96% | 82% |
-| Groq `openai/gpt-oss-120b` | English 11 | 9 / 11 | 100% | 80% |
-| Groq `openai/gpt-oss-120b` | Hinglish 11 | 9 / 11 | 92% | 85% |
+| Groq `openai/gpt-oss-120b`, 3 runs | All 22 | 18.3 / 22 (range 18 to 19) | 93% | 81% |
+| Groq `openai/gpt-oss-120b`, 3 runs | English 11 | 9.3 / 11 (range 9 to 10) | 94% | 76% |
+| Groq `openai/gpt-oss-120b`, 3 runs | Hinglish 11 | 9 / 11 | 92% | 87% |
 | Offline rules, no key | All 22 | 13 / 22 | 58% | 88% |
 | Offline rules, no key | English 11 | 6 / 11 | 50% | 86% |
 | Offline rules, no key | Hinglish 11 | 7 / 11 | 67% | 89% |
 
-The model's misses were stricter-than-needed failures, not wrong edits: it added a new cache in front of the restaurant service instead of reusing Redis (twice), recorded an extra requirement, and added a Payment Service without connecting it to the gateway. The offline rules cover only four change shapes, so removals and "add a service behind X" fall outside them.
+Run to run, 18 of 22 cases passed every time, one passed in some runs (R1 (1/3)), and 3 never passed (R8, F3, F4). The variable and failing cases are mostly one ambiguity: for "a cache in front of" a service, the model sometimes reuses the existing Redis and sometimes adds a new cache, and the labels expect reuse. The other miss adds the Payment Service without connecting it to the gateway. The offline rules cover only four change shapes, so removals and "add a service behind X" fall outside them.
+
+To reduce variation in the app itself, Groq requests use a fixed seed and temperature 0.5. Groq documents the seed as best-effort determinism, so the same instruction usually, not always, gives the same proposal; the review step shows exactly what will change either way.
 
 ## Architecture
 
@@ -157,7 +161,7 @@ docs/                        # Wispr Flow research notes, submission notes, demo
 
 | Suite | Command | Tests |
 |-------|---------|-------|
-| Unit (Node) | `npm test` | 106 |
+| Unit (Node) | `npm test` | 107 |
 | Component (Vitest + RTL) | `npm run test:vitest` | 56 |
 | E2E (Playwright, with axe) | `npm run test:e2e` | 16 |
 
