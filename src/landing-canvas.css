@@ -199,7 +199,7 @@
 .va-redline-line { display: block; }
 .va-redline-line.is-quiet {
   margin-top: .7em; font-size: .4em; font-weight: 500; letter-spacing: -.02em; line-height: 1.2;
-  color: var(--va-muted); opacity: calc(.2 + var(--q) * .8);
+  color: var(--va-muted);
 }
 .va-redline-pair { display: inline-block; white-space: nowrap; }
 .va-redline-fix { position: relative; display: inline-block; white-space: nowrap; }

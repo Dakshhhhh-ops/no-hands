@@ -1111,15 +1111,15 @@ export default function App() {
                   <Icon size={15} /> {label}
                 </button>
               ))}
-              <span
-                className="va-sync va-sr-only"
-                data-unresolved={Boolean(project && syncStatus.includes('unresolved'))}
-                role="status"
-                aria-live="polite"
-              >
-                {syncStatus}
-              </span>
             </div>
+            <span
+              className="va-sync va-sr-only"
+              data-unresolved={Boolean(project && syncStatus.includes('unresolved'))}
+              role="status"
+              aria-live="polite"
+            >
+              {syncStatus}
+            </span>
 
             <div
               className="va-panel-body"
@@ -1265,7 +1265,7 @@ export default function App() {
                 </span>
               </div>
               {proposedDiffGroups.length ? (
-                <div className="va-proposal-diff-groups">
+                <div className="va-proposal-diff-groups" tabIndex={0} role="region" aria-label="Proposed changes by artifact">
                   {proposedDiffGroups.map((group) => (
                     <section className="va-proposal-diff-group" key={group.id} aria-label={group.label}>
                       <h4>{group.label}</h4>

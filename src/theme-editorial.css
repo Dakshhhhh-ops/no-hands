@@ -23,7 +23,7 @@
 
   --va-ink: #ece7dd;
   --va-muted: #aaa397;
-  --va-faint: #7f796f;
+  --va-faint: #8f897e; /* 5:1 on the dark panel */
 
   --va-accent: #ff6a2b;
   --va-accent-strong: #ff8a57;
@@ -61,7 +61,7 @@
 
   --va-ink: #141412;
   --va-muted: #4e4b44;
-  --va-faint: #7d786d;
+  --va-faint: #6b665c; /* 4.9:1 on paper */
 
   --va-accent: #e8480c;
   --va-accent-strong: #c23a06;
@@ -203,3 +203,14 @@
 .va-app .telemetry-health-badge { --tone: var(--va-teal); border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent) !important; background: color-mix(in srgb, var(--tone) 12%, transparent) !important; color: var(--tone) !important; }
 .va-app .telemetry-health-badge.degraded { --tone: var(--va-amber); }
 .va-app .telemetry-health-badge.critical_failure { --tone: var(--va-rose); }
+
+/* ---------- Contrast (WCAG AA) ----------
+   Small text never uses the bright vermilion on paper; it uses the stronger shade.
+   Labels on bright pills in the dark theme use dark ink instead of white. */
+[data-theme="light"] .va-label-n,
+[data-theme="light"] .va-frag small,
+[data-theme="light"] .va-story-chip,
+[data-theme="light"] .preset-tag { color: var(--va-accent-strong) !important; }
+[data-theme="light"] .va-select-label { background: var(--va-accent-strong); }
+:root:not([data-theme="light"]) .va-select-label,
+:root:not([data-theme="light"]) .va-pointer b { color: #131211; }

@@ -119,9 +119,9 @@
 .va-story-steps { margin: 0; padding: 0; list-style: none; }
 .va-story-steps li {
   display: flex; flex-direction: column; justify-content: center; min-height: 74vh;
-  opacity: .22; transition: opacity .6s var(--va-ease-out);
 }
-.va-story-steps li.is-active { opacity: 1; }
+/* Inactive steps dim only their large headline, which stays above 3:1; body text stays readable. */
+.va-app .va-story-steps li:not(.is-active) h3 { color: var(--va-faint); transition: color .6s var(--va-ease-out); }
 .va-story-n { margin-bottom: 18px; font: 600 14px/1 var(--va-mono); letter-spacing: .14em; color: var(--va-accent-strong); }
 .va-app .va-story-steps h3 { margin: 0 0 18px; font-size: clamp(36px, 4.2vw, 64px); line-height: 1; font-weight: 700; letter-spacing: -.045em; }
 .va-app .va-story-steps p { max-width: 40ch; margin: 0; color: var(--va-muted); font-size: 18.5px; line-height: 1.62; }
