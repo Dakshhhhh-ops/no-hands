@@ -129,6 +129,7 @@ export function projectFromCompose(source: string, fileName = 'docker-compose.ym
       responsibilities: [`Defined as the "${name}" service in ${fileName}${image ? ` (${image})` : ''}.`],
       x: 0,
       y: 0,
+      origin: 'code',
     };
   });
 
@@ -136,7 +137,7 @@ export function projectFromCompose(source: string, fileName = 'docker-compose.ym
   const addEdge = (from: string, to: string) => {
     if (from === to || relationships.some((r) => r.from === from && r.to === to)) return;
     const label = LABEL_BY_TARGET[typeById.get(to) || 'SERVICE'];
-    relationships.push({ from, to, label });
+    relationships.push({ from, to, label, origin: 'code' });
   };
 
   for (const [name, rawService] of entries) {

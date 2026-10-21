@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import {
   getDiagramNeighborhood,
   relationshipKey,
@@ -6,23 +6,8 @@ import {
   getDeploymentPlan,
 } from '../data/diagram.js';
 import {
-  RotateCcw,
-  ZoomIn,
-  ZoomOut,
-  AlertTriangle,
-  ListOrdered,
-  X,
-  Flame,
-  FileCheck2,
-  Clock,
-  Download,
-  Copy,
-  Zap,
-  Sparkles,
-  Zap as ZapIcon,
-  Layers,
-  Activity,
-  Target,
+  RotateCcw, ZoomIn, ZoomOut, AlertTriangle, ListOrdered, X, Flame, FileCheck2, Clock, Download,
+  Copy, Zap,
 } from 'lucide-react';
 import { sound } from '../utils/sound.js';
 import { useChaosWorker } from '../hooks/useChaosWorker.ts';
@@ -43,6 +28,8 @@ export default function ArchitectureDiagram({ project }) {
   const [adrSignoffOverrides, setAdrSignoffOverrides] = useState({});
   const [copiedAdr, setCopiedAdr] = useState(false);
 
+  // In a project imported from code, anything without origin 'code' exists only as a plan.
+  const hasCodeOrigin = project.components.some((c) => c.origin === 'code');
   const model = viewMode === 'baseline' && project.baseline ? project.baseline : project;
 
   // Outage simulator targets come from the loaded model, not from the sample's ids.
@@ -266,14 +253,8 @@ export default function ArchitectureDiagram({ project }) {
     <section className="architecture-view" aria-label="Interactive architecture diagram">
       <div className="diagram-toolbar">
         <div className="diagram-toolbar-title-wrap">
-          <div className="diagram-status-badge">
-            <span className="diagram-status-dot" />
-            <b>{viewMode === 'baseline' ? '[BASELINE_ARCHITECTURE]' : '[CURRENT_SYNTHESIS]'}</b>
-          </div>
-          <span>
-            {viewMode === 'baseline'
-              ? `Model v${model.version} · original baseline snapshot`
-              : `Model v${model.version}${project.changed ? ' · reviewed changes applied to graph' : ' · baseline loaded'}`}
+          <span className="diagram-view-label">
+            {viewMode === 'baseline' ? `Baseline snapshot · v${model.version}` : `Current model · v${model.version}`}
           </span>
         </div>
 
@@ -425,7 +406,7 @@ export default function ArchitectureDiagram({ project }) {
         <div className="diagram-chaos-bar">
           <div className="chaos-actions">
             <span className="chaos-label">
-              <Flame size={13} style={{ color: '#ef4444' }} /> Outage simulator:
+              <Flame size={13} style={{ color: 'var(--va-rose)' }} /> Outage simulator:
             </span>
             {chaosTargets.map(({ component, kind, label }) => {
               const active = chaosInjections.some((c) => c.targetComponentId === component.id);
@@ -462,7 +443,7 @@ export default function ArchitectureDiagram({ project }) {
               <span>Flow:</span> <b>{telemetry.totalRpsThroughput} RPS</b>
             </div>
             {telemetry.droppedRps > 0 && (
-              <div className="telemetry-pill" style={{ color: '#fca5a5' }}>
+              <div className="telemetry-pill" style={{ color: 'var(--va-rose)' }}>
                 <span>Drop:</span> <b>{telemetry.droppedRps} RPS</b>
               </div>
             )}
@@ -498,12 +479,6 @@ export default function ArchitectureDiagram({ project }) {
         <div className="blueprint-crosshair top-right" aria-hidden="true">+</div>
         <div className="blueprint-crosshair bottom-left" aria-hidden="true">+</div>
         <div className="blueprint-crosshair bottom-right" aria-hidden="true">+</div>
-        <div className="blueprint-coord-tag top" aria-hidden="true">
-          [COORD // {width} × {height} PX · {layoutEngine === 'auto' ? 'DAGRE_HIERARCHICAL' : 'MANUAL_COORDINATES'}]
-        </div>
-        <div className="blueprint-coord-tag bottom" aria-hidden="true">
-          [SCALE // 1:1 VECTOR GRAPH · {model.components.length} NODES · {model.relationships.length} EDGES]
-        </div>
 
         <div
           className="diagram-svg-wrapper"
@@ -556,29 +531,29 @@ export default function ArchitectureDiagram({ project }) {
                 <stop offset="100%" stopColor="#384456" stopOpacity="0.6" />
               </linearGradient>
               <linearGradient id="edge-gradient-direct" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#4ef2d2" stopOpacity="0.8" />
-                <stop offset="50%" stopColor="#7ecad2" stopOpacity="1" />
-                <stop offset="100%" stopColor="#4ef2d2" stopOpacity="0.8" />
+                <stop offset="0%" stopColor="var(--va-accent)" stopOpacity="0.8" />
+                <stop offset="50%" stopColor="var(--va-accent)" stopOpacity="1" />
+                <stop offset="100%" stopColor="var(--va-accent)" stopOpacity="0.8" />
               </linearGradient>
               <linearGradient id="edge-gradient-downstream" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#b5a2ff" stopOpacity="0.8" />
-                <stop offset="50%" stopColor="#c8bbff" stopOpacity="1" />
-                <stop offset="100%" stopColor="#b5a2ff" stopOpacity="0.8" />
+                <stop offset="0%" stopColor="var(--va-violet)" stopOpacity="0.8" />
+                <stop offset="50%" stopColor="var(--va-violet)" stopOpacity="1" />
+                <stop offset="100%" stopColor="var(--va-violet)" stopOpacity="0.8" />
               </linearGradient>
               <linearGradient id="edge-gradient-upstream" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.8" />
-                <stop offset="50%" stopColor="#fbbf24" stopOpacity="1" />
-                <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.8" />
+                <stop offset="0%" stopColor="var(--va-amber)" stopOpacity="0.8" />
+                <stop offset="50%" stopColor="var(--va-amber)" stopOpacity="1" />
+                <stop offset="100%" stopColor="var(--va-amber)" stopOpacity="0.8" />
               </linearGradient>
               <linearGradient id="edge-gradient-changed" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#4ef2d2" stopOpacity="1" />
-                <stop offset="50%" stopColor="#7ecad2" stopOpacity="1" />
-                <stop offset="100%" stopColor="#4ef2d2" stopOpacity="1" />
+                <stop offset="0%" stopColor="var(--va-accent)" stopOpacity="1" />
+                <stop offset="50%" stopColor="var(--va-accent)" stopOpacity="1" />
+                <stop offset="100%" stopColor="var(--va-accent)" stopOpacity="1" />
               </linearGradient>
               <linearGradient id="edge-gradient-severed" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.6" />
-                <stop offset="50%" stopColor="#f87171" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#ef4444" stopOpacity="0.6" />
+                <stop offset="0%" stopColor="var(--va-rose)" stopOpacity="0.6" />
+                <stop offset="50%" stopColor="var(--va-rose)" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="var(--va-rose)" stopOpacity="0.6" />
               </linearGradient>
 
               {/* Glow Filters */}
@@ -626,44 +601,44 @@ export default function ArchitectureDiagram({ project }) {
                 <path d="M0,0 L0,6 L7,3 z" fill="#52647c" />
               </marker>
               <marker id="arrow-changed" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-                <path d="M0,0 L0,6 L7,3 z" fill="#4ef2d2" />
+                <path d="M0,0 L0,6 L7,3 z" fill="var(--va-accent)" />
               </marker>
               <marker id="arrow-direct" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-                <path d="M0,0 L0,6 L7,3 z" fill="#4ef2d2" />
+                <path d="M0,0 L0,6 L7,3 z" fill="var(--va-accent)" />
               </marker>
               <marker id="arrow-downstream" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-                <path d="M0,0 L0,6 L7,3 z" fill="#b5a2ff" />
+                <path d="M0,0 L0,6 L7,3 z" fill="var(--va-violet)" />
               </marker>
               <marker id="arrow-upstream" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
-                <path d="M0,0 L0,6 L7,3 z" fill="#f59e0b" />
+                <path d="M0,0 L0,6 L7,3 z" fill="var(--va-amber)" />
               </marker>
 
               {/* Particle Definitions */}
               <radialGradient id="particle-glow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#4ef2d2" stopOpacity="1" />
-                <stop offset="70%" stopColor="#4ef2d2" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#4ef2d2" stopOpacity="0" />
+                <stop offset="0%" stopColor="var(--va-accent)" stopOpacity="1" />
+                <stop offset="70%" stopColor="var(--va-accent)" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="var(--va-accent)" stopOpacity="0" />
               </radialGradient>
               <radialGradient id="particle-glow-downstream" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#b5a2ff" stopOpacity="1" />
-                <stop offset="70%" stopColor="#b5a2ff" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#b5a2ff" stopOpacity="0" />
+                <stop offset="0%" stopColor="var(--va-violet)" stopOpacity="1" />
+                <stop offset="70%" stopColor="var(--va-violet)" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="var(--va-violet)" stopOpacity="0" />
               </radialGradient>
               <radialGradient id="particle-glow-upstream" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#f59e0b" stopOpacity="1" />
-                <stop offset="70%" stopColor="#f59e0b" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+                <stop offset="0%" stopColor="var(--va-amber)" stopOpacity="1" />
+                <stop offset="70%" stopColor="var(--va-amber)" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="var(--va-amber)" stopOpacity="0" />
               </radialGradient>
 
               {/* Node Type Icons as Patterns */}
               <pattern id="pattern-service" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
-                <circle cx="4" cy="4" r="1.5" fill="#4ef2d2" opacity="0.15" />
+                <circle cx="4" cy="4" r="1.5" fill="var(--va-accent)" opacity="0.15" />
               </pattern>
               <pattern id="pattern-datastore" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
-                <rect x="2" y="2" width="4" height="4" fill="#b5a2ff" opacity="0.15" />
+                <rect x="2" y="2" width="4" height="4" fill="var(--va-violet)" opacity="0.15" />
               </pattern>
               <pattern id="pattern-external" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
-                <path d="M2,6 L6,2 M2,2 L6,6" stroke="#f59e0b" strokeWidth="1" opacity="0.15" />
+                <path d="M2,6 L6,2 M2,2 L6,6" stroke="var(--va-amber)" strokeWidth="1" opacity="0.15" />
               </pattern>
 
               {/* Animation Keyframes */}
@@ -719,16 +694,13 @@ export default function ArchitectureDiagram({ project }) {
                 neighborhood.upstreamIds?.has(edge.from) &&
                 (neighborhood.upstreamIds?.has(edge.to) || edge.to === selectedId);
               const isChanged =
-                viewMode === 'current' && project.changed && edge.from === 'auth' && edge.to === 'redis';
+                viewMode === 'current' && Boolean(edge.sourceChangeId);
               const dimmed = selected && !isDirect && !isDownstream && !isUpstream;
 
               const edgeKey = `${edge.from}->${edge.to}`;
               const edgeMetric = telemetry.edgeMetrics.get(edgeKey);
               const isSevered = edgeMetric?.status === 'SEVERED';
               const isCongested = edgeMetric?.status === 'CONGESTED';
-              const particleColor =
-                edgeMetric?.particleColor ||
-                (isChanged || isDirect ? '#4ef2d2' : isDownstream ? '#b5a2ff' : isUpstream ? '#f59e0b' : '#38bdf8');
               const particleSpeed = edgeMetric?.particleSpeedSeconds || 2.4;
               const particleDensity = edgeMetric?.particleDensity || 1;
 
@@ -852,7 +824,9 @@ export default function ArchitectureDiagram({ project }) {
               const isDirect = neighborhood.directIds.has(node.id);
               const isDownstream = neighborhood.downstreamIds.has(node.id);
               const isUpstream = neighborhood.upstreamIds?.has(node.id);
-              const isChanged = viewMode === 'current' && project.changed && node.id === 'auth';
+              // Changed means an applied change created or edited it; that change is recorded on the node.
+              const isChanged = viewMode === 'current' && Boolean(node.sourceChangeId);
+              const isPlanned = hasCodeOrigin && node.origin !== 'code';
               const dimmed = selected && !isSelected && !isDirect && !isDownstream && !isUpstream;
               const description = (node.responsibilities || [node.sub]).join(' ');
 
@@ -872,7 +846,7 @@ return (
                   key={node.id}
                   role="button"
                   tabIndex={0}
-                  aria-label={node.name + ', ' + node.type + '. ' + description}
+                  aria-label={node.name + ', ' + node.type + (isPlanned ? ', planned, not in code yet' : '') + '. ' + description}
                   aria-pressed={isSelected}
                   onClick={(event) => selectNode(event, node.id)}
                   onKeyDown={(event) => handleNodeKeyDown(event, node.id)}
@@ -881,7 +855,7 @@ return (
                     transition: 'filter 0.3s ease-out, transform 0.2s ease-out',
                   }}
                 >
-                  <rect x="2" y="2" width={nodeW} height={nodeH} rx="8" fill="#000" opacity="0.15" />
+                  <rect x="2" y="2" width={nodeW} height={nodeH} rx="8" opacity="0.15" style={{ fill: '#000' }} />
                   
                   {/* Selection Ring */}
                   {isSelected && (
@@ -892,24 +866,22 @@ return (
                         width={nodeW + 8}
                         height={nodeH + 8}
                         rx="12"
-                        fill="none"
-                        stroke="#4ef2d2"
+                       
+                        stroke="var(--va-accent)"
                         strokeWidth="2"
                         strokeDasharray="6 4"
-                        opacity="0.9"
-                      />
+                        opacity="0.9" style={{ fill: 'none' }} />
                       <rect
                         x="-6"
                         y="-6"
                         width={nodeW + 12}
                         height={nodeH + 12}
                         rx="14"
-                        fill="none"
-                        stroke="#4ef2d2"
+                       
+                        stroke="var(--va-accent)"
                         strokeWidth="1"
                         opacity="0.3"
-                        className="pulse-ring"
-                      />
+                        className="pulse-ring" style={{ fill: 'none' }} />
                     </g>
                   )}
                   
@@ -921,13 +893,12 @@ return (
                       width={nodeW + 4}
                       height={nodeH + 4}
                       rx="10"
-                      fill="none"
-                      stroke="#4ef2d2"
+                     
+                      stroke="var(--va-accent)"
                       strokeWidth="1.5"
                       strokeDasharray="5 3"
                       opacity="0.7"
-                      className="shimmer"
-                    />
+                      className="shimmer" style={{ fill: 'none' }} />
                   )}
                   
                   {/* Node Background with 3D Gradient */}
@@ -935,14 +906,12 @@ return (
                     width={nodeW} 
                     height={nodeH} 
                     rx="8" 
-                    fill={
-                      isSelected ? 'url(#node-gradient-selected)' :
+                   
+                    style={{ fill: isSelected ? 'url(#node-gradient-selected)' :
                       isChanged ? 'url(#node-gradient-changed)' :
                       isDown ? 'url(#node-gradient-down)' :
                       isDegraded ? 'url(#node-gradient-degraded)' :
-                      'url(#node-gradient-base)'
-                    }
-                    style={{ 
+                      'url(#node-gradient-base)', 
                       filter: isDown ? 'url(#glow-danger)' : isDegraded ? 'url(#glow-subtle)' : 'none',
                       transition: 'fill 0.3s ease-out',
                     }}
@@ -953,13 +922,10 @@ return (
                     width={nodeW} 
                     height={nodeH} 
                     rx="8" 
-                    fill={
-                      node.type === 'SERVICE' ? 'url(#pattern-service)' :
+                   
+                    opacity={0.1} style={{ fill: node.type === 'SERVICE' ? 'url(#pattern-service)' :
                       node.type === 'DATASTORE' ? 'url(#pattern-datastore)' :
-                      'url(#pattern-external)'
-                    }
-                    opacity={0.1}
-                  />
+                      'url(#pattern-external)' }} />
                   
                   {/* Top Highlight for 3D Effect */}
                   <rect 
@@ -968,9 +934,8 @@ return (
                     width={nodeW - 8} 
                     height="8" 
                     rx="4" 
-                    fill="#4ef2d2" 
-                    opacity={isSelected ? 0.2 : isChanged ? 0.15 : 0.08} 
-                  />
+                    
+                    opacity={isSelected ? 0.2 : isChanged ? 0.15 : 0.08} style={{ fill: 'var(--va-accent)' }} />
                   
                   {/* Left Highlight for 3D Effect */}
                   <rect 
@@ -979,9 +944,8 @@ return (
                     width="4" 
                     height={nodeH - 8} 
                     rx="2" 
-                    fill="#4ef2d2" 
-                    opacity={isSelected ? 0.15 : 0.05} 
-                  />
+                    
+                    opacity={isSelected ? 0.15 : 0.05} style={{ fill: 'var(--va-accent)' }} />
                   
                   {isSelected && (
                     <rect
@@ -990,16 +954,28 @@ return (
                       width={nodeW + 6}
                       height={nodeH + 6}
                       rx="11"
-                      fill="none"
-                      stroke="#4ef2d2"
+                     
+                      stroke="var(--va-accent)"
                       strokeWidth="1.5"
                       strokeDasharray="4 3"
-                      opacity="0.8"
-                    />
+                      opacity="0.8" style={{ fill: 'none' }} />
                   )}
                   
+                  {isPlanned && (
+                    <rect
+                      className="node-planned-outline"
+                      x="0"
+                      y="0"
+                      width={nodeW}
+                      height={nodeH}
+                      rx="8"
+                     
+                      stroke="var(--va-warn)"
+                      strokeWidth="1.5"
+                      strokeDasharray="5 4" style={{ fill: 'none' }} />
+                  )}
                   <text className="node-type" x="11" y="17">
-                    {node.type}
+                    {node.type}{isPlanned ? ' · PLANNED' : ''}
                   </text>
                   <text className="node-title" x="11" y="34">
                     {node.name}
@@ -1014,17 +990,17 @@ return (
                     fill="none"
                     stroke={
                       isDown
-                        ? '#ef4444'
+                        ? 'var(--va-rose)'
                         : isDegraded
-                          ? '#f59e0b'
+                          ? 'var(--va-amber)'
                           : isSelected || isChanged
-                            ? '#4ef2d2'
+                            ? 'var(--va-accent)'
                             : isUpstream
-                              ? '#f59e0b'
+                              ? 'var(--va-amber)'
                               : '#334155'
                     }
                     strokeWidth="1.5"
-                    style={{ filter: isSelected ? 'drop-shadow(0 0 4px #4ef2d2)' : 'none' }}
+                    style={{ filter: isSelected ? 'drop-shadow(0 0 4px var(--va-accent))' : 'none' }}
                   />
   
                   {/* Telemetry Status Badge on Node */}
@@ -1034,9 +1010,9 @@ return (
                         width="54"
                         height="13"
                         rx="3"
-                        fill={isDown ? '#ef4444' : '#f59e0b'}
+                       
                         opacity="0.95"
-                        style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}
+                        style={{ fill: isDown ? 'var(--va-rose)' : 'var(--va-amber)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}
                       />
                       <text
                         x="27"
@@ -1056,20 +1032,20 @@ return (
                   <g transform={iconTransform} opacity="0.6">
                     {node.type === 'SERVICE' && (
                       <>
-                        <circle cx="10" cy="10" r="8" fill="#4ef2d2" opacity="0.2" />
-                        <path d="M6,10 L10,6 L14,10 L10,14 Z" fill="#4ef2d2" opacity="0.8" />
+                        <circle cx="10" cy="10" r="8" fill="var(--va-accent)" opacity="0.2" />
+                        <path d="M6,10 L10,6 L14,10 L10,14 Z" fill="var(--va-accent)" opacity="0.8" />
                       </>
                     )}
                     {node.type === 'DATASTORE' && (
                       <>
-                        <rect x="2" y="2" width="16" height="16" rx="2" fill="#b5a2ff" opacity="0.2" />
-                        <rect x="6" y="6" width="8" height="8" rx="1" fill="#b5a2ff" opacity="0.8" />
+                        <rect x="2" y="2" width="16" height="16" rx="2" opacity="0.2" style={{ fill: 'var(--va-violet)' }} />
+                        <rect x="6" y="6" width="8" height="8" rx="1" opacity="0.8" style={{ fill: 'var(--va-violet)' }} />
                       </>
                     )}
                     {node.type === 'EXTERNAL' && (
                       <>
-                        <circle cx="10" cy="10" r="8" fill="#f59e0b" opacity="0.2" />
-                        <path d="M6,10 L14,10 M10,6 L10,14" stroke="#f59e0b" strokeWidth="1.5" />
+                        <circle cx="10" cy="10" r="8" fill="var(--va-amber)" opacity="0.2" />
+                        <path d="M6,10 L14,10 M10,6 L10,14" stroke="var(--va-amber)" strokeWidth="1.5" />
                       </>
                     )}
                   </g>
@@ -1086,6 +1062,9 @@ return (
           <span className="legend-item"><i className="legend-downstream" /> Downstream impact</span>
           <span className="legend-item"><i className="legend-upstream" /> Upstream outage cascade</span>
           <span className="legend-item"><i className="legend-changed" /> Modified in v{project.version}</span>
+          {hasCodeOrigin && (
+            <span className="legend-item"><i className="legend-planned" /> Planned, not in code yet</span>
+          )}
           <span className="legend-item legend-flow">→ Data flow</span>
         </div>
       </div>
@@ -1194,7 +1173,7 @@ return (
         </section>
       ) : (
         <p className="diagram-help">
-          <span className="text-cyan">[TIP]</span> Click any component node to inspect upstream outage blast radius, downstream dependencies with hop distance, and direct connections. Layout options and simulation tools are under More tools.
+          Select a component to see what depends on it.
         </p>
       )}
 

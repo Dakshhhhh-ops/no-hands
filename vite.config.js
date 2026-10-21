@@ -33,8 +33,8 @@ export default defineConfig(({ mode }) => {
         name: 'VoiceArchitect',
         short_name: 'VoiceArchitect',
         description: 'Voice-first architecture workspace. Say the change, see the impact.',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        theme_color: '#131211',
+        background_color: '#131211',
         display: 'standalone',
         scope: '/',
         start_url: '/',
@@ -86,6 +86,22 @@ export default defineConfig(({ mode }) => {
       },
     }),
   ],
+  server: {
+    // Pre-transform the lazily loaded modules so the first import or tab switch
+    // on a cold dev server is not stalled behind on-demand transforms.
+    warmup: {
+      clientFiles: [
+        './src/data/composeImport.ts',
+        './src/data/driftCheck.ts',
+        './src/components/ArchitectureDiagram.jsx',
+        './src/components/OpenApiPanel.jsx',
+        './src/components/RiskPanel.jsx',
+        './src/components/TaskPanel.jsx',
+        './src/components/ChangeImpactPanel.jsx',
+        './src/components/TopologyPanel.jsx',
+      ],
+    },
+  },
   build: {
     rollupOptions: {
       output: {

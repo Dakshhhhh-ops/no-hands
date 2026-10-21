@@ -15,9 +15,11 @@ architecture workspace.
 
 ## Project layout
 
-- `src/App.jsx` — root component, CSS load order: `styles.css`, `responsive.css`,
-  `theme.css` (legacy utility classes), `tokens.css`, `bridge.css`,
-  `app-shell.css`.
+- `src/App.jsx` — root component. CSS is imported in `src/main.jsx` in this order:
+  `styles.css`, `responsive.css`, `theme.css` (legacy utility classes), `tokens.css`,
+  `bridge.css`, `app-shell.css`, `landing.css`, `landing-v3.css`, `landing-canvas.css`
+  (landing sections and the workspace studio layout), `theme-editorial.css` (the
+  paper/ink/vermilion palette; loaded last so it overrides every earlier color).
 - `src/components/` — React components (`.jsx`).
 - `src/data/` — domain modules (`.ts` and `.js`). Mixed extension is intentional:
   `.ts` modules use `.ts` extension imports (`allowImportingTsExtensions: true` in

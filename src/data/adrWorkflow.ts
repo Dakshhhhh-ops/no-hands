@@ -1,5 +1,4 @@
 import type { Project } from '../types/schema.ts';
-import { deriveRiskFindings } from './analysis.js';
 
 export type AdrStatus = 'PROPOSED' | 'ACCEPTED' | 'REJECTED' | 'SUPERSEDED';
 
@@ -45,7 +44,6 @@ export function generateAdrFromChange(
     summary: 'Loaded baseline commerce microservices.',
   };
 
-  const risks = deriveRiskFindings(project);
   const positive: string[] = [];
   const negative: string[] = [];
 

@@ -1,14 +1,25 @@
 import { deriveRiskFindings, deriveTasks } from './analysis.js';
 import { makeOpenApi } from './openapi.js';
 import { ManualDecisionSchema } from '../types/schema.ts';
+import { baselineLabel, cacheRequirement, callersOf, findAuthComponent, findCaches, findPublicEntry, rateLimitRequirement } from './modelFacts.js';
 
-const same = (left, right) =>
-  JSON.stringify(left, (key, value) =>
-    key === 'sourceChangeId' || key === 'originalInstruction' || key === 'requirementId' ? undefined : value
-  ) ===
-  JSON.stringify(right, (key, value) =>
-    key === 'sourceChangeId' || key === 'originalInstruction' || key === 'requirementId' ? undefined : value
-  );
+const PROVENANCE_KEYS = new Set(['sourceChangeId', 'originalInstruction', 'requirementId']);
+
+/** Stable serialization: sorted keys, provenance fields dropped. Key order must not count as a change. */
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value)
+        .filter((key) => !PROVENANCE_KEYS.has(key) && value[key] !== undefined)
+        .sort()
+        .map((key) => [key, canonical(value[key])]),
+    );
+  }
+  return value;
+}
+
+const same = (left, right) => JSON.stringify(canonical(left)) === JSON.stringify(canonical(right));
 
 function mapBy(items, key) {
   return new Map(items.map((item) => [key(item), item]));
@@ -38,7 +49,7 @@ function resolveProvenance(project, category, before, after, latestChange) {
     const source = categoryChange || latestChange;
     return source
       ? { changeId: source.id, instruction: source.originalInstruction }
-      : { changeId: 'BASELINE', instruction: 'Commerce Platform baseline fixture' };
+      : { changeId: 'BASELINE', instruction: baselineLabel(project) };
   }
 
   const entity = after;
@@ -76,7 +87,7 @@ function resolveProvenance(project, category, before, after, latestChange) {
   const source = categoryChange || latestChange;
   return source
     ? { changeId: source.id, instruction: source.originalInstruction }
-    : { changeId: 'BASELINE', instruction: 'Commerce Platform baseline fixture' };
+    : { changeId: 'BASELINE', instruction: baselineLabel(project) };
 }
 
 function diffRecords({ category, beforeItems, afterItems, key, label, project, latestChange }) {
@@ -173,44 +184,52 @@ export function deriveChangeDiff(project, comparisonBase = project.baseline) {
 
 export function deriveManualDecisions(project) {
   const decisions = [];
-  const rateLimit = project.requirements.find((item) => /rate.?limit/i.test(item.text));
-  const redisFallback = project.requirements.find((item) => /redis/i.test(item.text) && /(unavailable|resilien|fallback)/i.test(item.text));
+  const rateLimit = rateLimitRequirement(project);
+  const auth = findAuthComponent(project);
+  const entry = findPublicEntry(project);
 
   const sourceFor = (requirement) =>
     requirement
       ? {
           changeId: requirement.sourceChangeId || 'BASELINE',
-          instruction: requirement.originalInstruction || 'Commerce Platform baseline fixture',
+          instruction: requirement.originalInstruction || baselineLabel(project),
           requirementId: requirement.id,
         }
       : {
           changeId: 'BASELINE',
-          instruction: 'Commerce Platform baseline fixture',
+          instruction: baselineLabel(project),
           requirementId: undefined,
         };
 
-  if (!rateLimit?.resolution) {
+  // Only decisions the model's own components call for.
+  if (entry && !rateLimit?.resolution) {
     decisions.push({
       id: 'rate-limit-threshold',
-      title: 'Choose the authentication rate limit',
+      title: auth ? 'Choose the authentication rate limit' : `Choose the rate limit at ${entry.name}`,
       detail: 'The request threshold and time window are not specified.',
       ...sourceFor(rateLimit),
     });
   }
-  if (!redisFallback?.resolution) {
+  const cacheRequirements = [];
+  for (const cache of findCaches(project)) {
+    const requirement = cacheRequirement(project, cache);
+    if (requirement) cacheRequirements.push(requirement);
+    if (!callersOf(project, cache.id).length || requirement?.resolution) continue;
     decisions.push({
-      id: 'redis-fallback',
-      title: 'Choose Redis outage behavior',
-      detail: 'Fail-open/fail-closed behavior and session fallback or persistence remain unspecified.',
-      ...sourceFor(redisFallback),
+      id: `${cache.id}-fallback`,
+      title: `Choose ${cache.name} outage behavior`,
+      detail: 'Fail-open/fail-closed behavior and fallback or persistence remain unspecified.',
+      ...sourceFor(requirement),
     });
   }
-  decisions.push({
-    id: 'auth-payload',
-    title: 'Define authentication request and success response fields',
-    detail: 'The current model does not define credential fields or successful response fields.',
-    ...sourceFor(rateLimit || redisFallback),
-  });
+  if (auth) {
+    decisions.push({
+      id: 'auth-payload',
+      title: 'Define authentication request and success response fields',
+      detail: 'The current model does not define credential fields or successful response fields.',
+      ...sourceFor(rateLimit || cacheRequirements[0]),
+    });
+  }
 
   return decisions.map((d) => ManualDecisionSchema.parse(d));
 }

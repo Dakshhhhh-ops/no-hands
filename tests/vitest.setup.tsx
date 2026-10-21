@@ -177,6 +177,7 @@ vi.mock('../src/data/foodDelivery.js', () => ({
 
 vi.mock('../src/data/analysis.js', () => ({
   getProjectSyncStatus: vi.fn(() => 'Synced'),
+  countOpenDecisions: vi.fn(() => 0),
   deriveRiskFindings: vi.fn(() => []),
   deriveTasks: vi.fn(() => []),
 }));

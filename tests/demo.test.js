@@ -145,3 +145,10 @@ test('Export All ZIP contains current artifacts and verifies its diagram entries
   assert.match(strFromU8(contents['README.md']), /fallback/);
   assert.match(strFromU8(contents['README.md']), /Validation status: Basic OpenAPI structural checks passed/);
 });
+
+test('What changed lists only components that actually changed, regardless of key order', () => {
+  const project = makeCommerceProject();
+  const next = applyChange(project, proposeChange('Move session storage to Redis, keep PostgreSQL as the source of truth, add login rate limiting, and keep login working if Redis is down.'));
+  const components = deriveChangeDiff(next).find((group) => group.id === 'components');
+  assert.deepEqual(components.entries.map((entry) => entry.id), ['redis']);
+});

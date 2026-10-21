@@ -1,4 +1,4 @@
-import { Check, Sparkles, Terminal } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { DEMO_COMMAND } from '../data/commerce.js';
 import { FOOD_DELIVERY_DEMO_COMMAND } from '../data/foodDelivery.js';
 import { sound } from '../utils/sound.js';
@@ -55,13 +55,6 @@ export default function CommandPresets({ onSelectPreset, currentCommand, sampleK
   const presets = suggested.length ? suggested : sampleKind === 'food' ? FOOD_PRESETS : PRESET_COMMANDS;
   return (
     <div className="presets-container" aria-label="Architecture command presets">
-      <div className="presets-header">
-        <div className="presets-title">
-          <Terminal size={12} className="text-cyan" />
-          <span>QUICK START INSTRUCTIONS</span>
-        </div>
-        <span className="presets-hint">Click preset to load</span>
-      </div>
 
       <div className="presets-grid">
         {presets.map((preset) => {
@@ -71,27 +64,15 @@ export default function CommandPresets({ onSelectPreset, currentCommand, sampleK
               key={preset.id}
               type="button"
               className={`preset-card ${isActive ? 'active' : ''}`}
+              title={preset.command}
               onClick={() => {
                 sound.click();
                 onSelectPreset(preset.command);
               }}
             >
-              <div className="preset-top">
-                <span className="preset-tag">{preset.tag}</span>
-                <span className="preset-cat">{preset.category}</span>
-              </div>
-              <div className="preset-title-wrap">
-                <span className="preset-name">{preset.title}</span>
-                {isActive && <Check size={13} className="preset-check text-cyan" />}
-              </div>
-              <p className="preset-snippet">“{preset.command.slice(0, 95)}...”</p>
-              <div className="preset-chips">
-                {preset.highlights.map((h) => (
-                  <span key={h} className="preset-chip">
-                    {h}
-                  </span>
-                ))}
-              </div>
+              <span className="preset-tag">{preset.tag.toLowerCase()}</span>
+              <span className="preset-name">{preset.title}</span>
+              {isActive && <Check size={13} className="preset-check" />}
             </button>
           );
         })}

@@ -1,4 +1,4 @@
-import type { Project, Relationship } from '../types/schema.ts';
+import type { Project } from '../types/schema.ts';
 
 export interface ProtocolAuditFinding {
   id: string;

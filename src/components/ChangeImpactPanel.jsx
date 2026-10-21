@@ -1,16 +1,18 @@
-import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle, FileText, GitCompare, Minus, Sparkles, Terminal } from 'lucide-react';
 import { deriveChangeDiff, deriveManualDecisions } from '../data/changeDiff.js';
-import { sound } from '../utils/sound.js';
 
-const statusLabels = { added: 'Added', modified: 'Modified', removed: 'Removed' };
+const STATUS = {
+  added: { label: 'Added', tone: 'teal' },
+  modified: { label: 'Modified', tone: 'amber' },
+  removed: { label: 'Removed', tone: 'rose' },
+};
 
 function describe(item) {
   if (!item) return '—';
   if (item.type && item.name) return `${item.type}: ${item.name}${item.sub ? ` — ${item.sub}` : ''}`;
-  if (item.from && item.to) return `${item.label || 'relationship'}`;
-  if (item.method && item.path) return `${item.method.toUpperCase()} ${item.path}; responses: ${Object.keys(item.responses || {}).join(', ') || 'none'}`;
+  if (item.from && item.to) return [item.label, item.protocol].filter(Boolean).join(' · ') || 'connection';
+  if (item.method && item.path) return `${item.method.toUpperCase()} ${item.path} · responses ${Object.keys(item.responses || {}).join(', ') || 'none'}`;
   if (item.kind && item.title) return `${item.kind}: ${item.description}`;
-  if (item.acceptance) return `${item.title} (${item.priority} priority); ${item.acceptance.length} proposed acceptance criteria`;
+  if (item.acceptance) return `${item.title} (${item.priority} priority) · ${item.acceptance.length} acceptance criteria`;
   if (item.text && item.id) return `${item.text} [${item.status}]`;
   return JSON.stringify(item);
 }
@@ -20,141 +22,111 @@ export default function ChangeImpactPanel({ project }) {
   const decisions = deriveManualDecisions(project);
   const change = project.changes?.[0];
   const changedGroups = groups.filter((group) => group.entries.length);
+  const total = changedGroups.reduce((sum, group) => sum + group.entries.length, 0);
+  const baseVersion = project.baseline?.version ?? 1;
+  // Provenance is shown once, at the top; an entry repeats it only when it came from a different change.
+  const fromOtherChange = (entry) => change && entry.changeId !== change.id;
 
   return (
-    <section className="impact-panel" aria-label="Change impact and before-after diff">
-      <div className="panel-intro">
+    <section className="vp" aria-label="What changed since the baseline">
+      <header className="vp-head">
         <div>
-          <div className="panel-lead-tag">[DIFF // BASELINE_TO_CURRENT_AUDIT]</div>
-          <h3>Baseline → Current Delta Impact</h3>
-          <p>
-            Verify every modification made to the system model. Every modified component, relationship, API operation,
-            risk finding, and proposed task is bound to its source instruction.
+          <h3 className="vp-title">What changed</h3>
+          <p className="vp-lead">
+            Everything that differs from the baseline (v{baseVersion}), grouped by artifact, with the instruction that
+            caused it.
           </p>
         </div>
-        <div className="panel-pills-bar">
-          <span className="small-pill text-cyan">
-            <GitCompare size={12} /> v{project.baseline?.version ?? 1} → v{project.version}
-          </span>
-          <span className="small-pill">
-            {changedGroups.reduce((acc, g) => acc + g.entries.length, 0)} Total Delta{changedGroups.reduce((acc, g) => acc + g.entries.length, 0) === 1 ? '' : 's'}
-          </span>
-        </div>
-      </div>
+        <p className="vp-meta">
+          v{baseVersion} → v{project.version} · {total} change{total === 1 ? '' : 's'}
+        </p>
+      </header>
 
       {change && (
-        <div className="impact-source-banner">
-          <div className="source-header">
-            <span className="source-tag">[SOURCE_RECORD // {change.id}]</span>
-            <span className="source-version">Triggered at v{change.version}</span>
-          </div>
-          <p className="source-text">“{change.originalInstruction}”</p>
-          <div className="source-footer">
-            <small>Summary: {change.summary}</small>
-          </div>
+        <div className="vp-quote">
+          <span className="vp-tag is-plain" data-tone="accent">Instruction · {change.id}</span>
+          <q>{change.originalInstruction}</q>
+          {change.summary && <small>{change.summary}</small>}
         </div>
       )}
 
-      {/* Artifact Status Row */}
-      <div className="impact-artifacts-grid" aria-label="Artifact update status">
-        {groups.map((group) => {
-          const count = group.entries.length;
-          return (
-            <div className={`impact-artifact-card ${count ? 'is-updated' : ''}`} key={group.id}>
-              <div className="art-card-top">
-                <b>{group.label}</b>
-                <span className={`art-status-dot ${count ? 'updated' : ''}`} />
-              </div>
-              <span className="art-sub">
-                {count ? `${count} change${count === 1 ? '' : 's'} · updated` : 'Unchanged from baseline'}
-              </span>
-            </div>
-          );
-        })}
+      <div className="vp-chips" aria-label="Which artifacts changed">
+        {groups.map((group) => (
+          <span key={group.id} className={`vp-chip ${group.entries.length ? 'is-on' : ''}`}>
+            {group.label} <b>{group.entries.length || '–'}</b>
+          </span>
+        ))}
       </div>
 
-      {/* Changed Groups Diff List */}
       {changedGroups.length ? (
-        <div className="impact-groups-container">
-          {changedGroups.map((group) => (
-            <section className="impact-group-box" key={group.id}>
-              <div className="impact-group-header">
-                <h4>
-                  <span className="group-bracket">[GROUP]</span> {group.label}
-                </h4>
-                <span className="group-count-chip">{group.entries.length} entries</span>
-              </div>
-
-              <div className="impact-entries-list">
-                {group.entries.map((entry) => (
-                  <article className="impact-entry-card" key={entry.id}>
-                    <div className="entry-card-title">
-                      <span className={`diff-status-pill status-${entry.status}`}>
-                        {entry.status === 'added' ? <ArrowUp size={11} /> : entry.status === 'removed' ? <ArrowDown size={11} /> : <Minus size={11} />}
-                        {statusLabels[entry.status]}
-                      </span>
-                      <b className="entry-label">{entry.label}</b>
-                    </div>
-
-                    <div className="diff-comparison-table">
-                      {entry.status !== 'added' && (
-                        <div className="diff-row before">
-                          <span className="diff-tag">BEFORE (v1):</span>
-                          <span className="diff-val">{describe(entry.before)}</span>
-                        </div>
-                      )}
-                      {entry.status !== 'removed' && (
-                        <div className="diff-row after">
-                          <span className="diff-tag">AFTER (v{project.version}):</span>
-                          <span className="diff-val">{describe(entry.after)}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="impact-provenance-bar">
-                      <span className="prov-change-id">{entry.changeId}</span>
-                      <span className="prov-inst">Provenance: “{entry.instruction}”</span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+        changedGroups.map((group) => (
+          <section className="vp-section" key={group.id} aria-label={group.label}>
+            <div className="vp-section-head">
+              <h4>{group.label}</h4>
+              <span>{group.entries.length}</span>
+            </div>
+            <div className="vp-list">
+              {group.entries.map((entry) => (
+                <article className="vp-item" data-tone={STATUS[entry.status].tone} key={entry.id}>
+                  <div className="vp-item-top">
+                    <span className="vp-tag" data-tone={STATUS[entry.status].tone}>{STATUS[entry.status].label}</span>
+                    <h4>{entry.label}</h4>
+                  </div>
+                  <dl className="vp-diff">
+                    {entry.status !== 'added' && (
+                      <div className="is-before">
+                        <dt>v{baseVersion}</dt>
+                        <dd>{describe(entry.before)}</dd>
+                      </div>
+                    )}
+                    {entry.status !== 'removed' && (
+                      <div className="is-after">
+                        <dt>v{project.version}</dt>
+                        <dd>{describe(entry.after)}</dd>
+                      </div>
+                    )}
+                  </dl>
+                  {fromOtherChange(entry) && (
+                    <p className="vp-ref">From {entry.changeId}: “{entry.instruction}”</p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+        ))
       ) : (
-        <div className="impact-empty-state">
-          <GitCompare size={26} className="text-muted" />
-          <b>No deltas detected on this baseline</b>
-          <p>Dictate or select a prompt and click "Review & Apply Change" to generate a complete architectural diff.</p>
+        <div className="vp-empty">
+          <b>No changes since the baseline</b>
+          <p>Describe a change on the left and choose Preview my change. Once you apply it, every difference shows up here.</p>
         </div>
       )}
 
-      {/* Manual Decisions Section */}
-      <section className="manual-decisions-card">
-        <div className="manual-decisions-header">
-          <AlertTriangle size={18} className="text-amber flex-none" />
-          <div>
-            <h4>[GOVERNANCE // UNRESOLVED_DECISIONS]</h4>
-            <p>These architectural points are deliberately preserved as open requirements; the system does not guess values.</p>
+      {decisions.length > 0 && (
+        <section className="vp-section" aria-label="Decisions still open">
+          <div className="vp-section-head">
+            <h4>Decisions still open</h4>
+            <span>{decisions.length}</span>
           </div>
-        </div>
-
-        <div className="manual-decisions-list">
-          {decisions.map((decision) => (
-            <article key={decision.id} className="manual-decision-item">
-              <div className="decision-item-top">
-                <b>{decision.title}</b>
-                <span className="decision-id-tag">{decision.id}</span>
-              </div>
-              <p className="decision-detail">{decision.detail}</p>
-              <div className="decision-item-meta">
-                <span>Provenance: {decision.changeId}</span>
-                <span>Source: “{decision.instruction}”</span>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+          <p className="vp-note">These are left open on purpose. VoiceArchitect records them instead of guessing a value.</p>
+          <div className="vp-list">
+            {decisions.map((decision) => (
+              <article className="vp-item" data-tone="amber" key={decision.id}>
+                <div className="vp-item-top">
+                  <span className="vp-tag" data-tone="amber">Open</span>
+                  <h4>{decision.title}</h4>
+                  <span className="vp-ref">{decision.id}</span>
+                </div>
+                <p>{decision.detail}</p>
+                {(!change || decision.changeId !== change.id) && (
+                  <p className="vp-ref">
+                    {decision.changeId === 'BASELINE' ? 'From the baseline model' : `From ${decision.changeId}: “${decision.instruction}”`}
+                  </p>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </section>
   );
 }

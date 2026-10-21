@@ -8,27 +8,25 @@ import { generateTypeScriptSdk } from '../src/data/sdkGenerator.ts';
 import { createVerifiedDevOpsZip } from '../src/data/export.js';
 import { unzipSync, strFromU8 } from 'fflate';
 
-test('OpenAPI 3.1 Multi-Service: generates specs across all microservices with schemas', () => {
+test('OpenAPI 3.1 Multi-Service: paths come only from the model\'s API operations', () => {
   const project = makeCommerceProject();
   const spec = generateMultiServiceOpenApi(project);
 
   assert.equal(spec.openapi, '3.1.0');
   assert.ok(spec.info.title.includes('Multi-Service API'));
-  
-  // Verify paths exist for Auth, Catalog, and Orders
-  const paths = Object.keys(spec.paths);
-  assert.ok(paths.includes('/api/v1/auth/login'), 'Auth login route must exist');
-  assert.ok(paths.includes('/api/v1/catalog/products'), 'Catalog route must exist');
-  assert.ok(paths.includes('/api/v1/orders'), 'Orders route must exist');
+  // The sample models one operation, so the contract has exactly one path and invents no others.
+  assert.deepEqual(Object.keys(spec.paths), ['/auth/login']);
+  assert.equal(spec.paths['/auth/login'].post.tags[0], 'Auth Service');
+  assert.deepEqual(Object.keys(spec.components.schemas), ['ErrorResponse']);
+  assert.ok(!spec.paths['/auth/login'].post.responses['429'], 'no rate limit without a requirement');
 
-  // Verify component schemas
-  const schemas = spec.components.schemas;
-  assert.ok(schemas.LoginRequest);
-  assert.ok(schemas.LoginResponse);
-  assert.ok(schemas.ProductItem);
-  assert.ok(schemas.CreateOrderRequest);
-  assert.ok(schemas.OrderRecord);
-  assert.ok(schemas.ErrorResponse);
+  // A login rate limit covers the sign-in operation, not an unrelated payment endpoint.
+  const withPayments = applyChange(project, proposeChange('Split payments into a separate service'));
+  const limited = applyChange(withPayments, proposeChange('Add rate limiting to the authentication endpoint'));
+  const limitedSpec = generateMultiServiceOpenApi(limited);
+  assert.ok(limitedSpec.paths['/auth/login'].post.responses['429']);
+  assert.ok(!limitedSpec.paths['/payments'].post.responses['429']);
+  assert.match(limitedSpec.paths['/payments'].post.responses['200'].description, /Successful response from Payment Service/);
 });
 
 test('Contract Drift Analysis: detects requirement drift vs API specifications', () => {
@@ -90,16 +88,17 @@ test('Protocol & Resilience Auditor: detects synchronous chains and circuit brea
   assert.ok(asyncFinding, 'Asynchronous decoupling of payment via Kafka must be recognized');
 });
 
-test('TypeScript SDK Synthesizer: generates strongly typed client SDK', () => {
-  const project = makeCommerceProject();
+test('TypeScript SDK Synthesizer: one client method per API operation in the model', () => {
+  const project = applyChange(makeCommerceProject(), proposeChange('Split payments into a separate service'));
   const sdk = generateTypeScriptSdk(project);
 
   assert.ok(sdk.includes('export class CommercePlatformClient'));
-  assert.ok(sdk.includes('async login(payload: LoginRequest): Promise<LoginResponse>'));
-  assert.ok(sdk.includes('async listProducts(category?: string, limit = 20): Promise<ProductItem[]>'));
-  assert.ok(sdk.includes('async createOrder(order: CreateOrderRequest): Promise<OrderRecord>'));
-  assert.ok(sdk.includes('interface LoginRequest'));
-  assert.ok(sdk.includes('interface OrderRecord'));
+  assert.ok(sdk.includes('async apiLogin(body: Record<string, unknown> = {}): Promise<unknown>'));
+  assert.ok(sdk.includes("this.request<unknown>('/auth/login'"));
+  assert.ok(sdk.includes('async apiPaymentCreate(body: Record<string, unknown> = {}): Promise<unknown>'));
+  assert.ok(sdk.includes("this.request<unknown>('/payments'"));
+  assert.ok(sdk.includes("from the model's 2 API operations"));
+  assert.ok(!/listProducts|createOrder|LoginRequest|\/api\/v1\//.test(sdk), 'no sample-only methods or paths');
 });
 
 test('DevOps Verified Export: packages full production deployment bundle in ZIP', () => {

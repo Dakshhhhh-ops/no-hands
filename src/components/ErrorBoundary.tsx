@@ -1,5 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, X, Bug, ExternalLink } from 'lucide-react';
+import { AlertTriangle, RefreshCw, X, Bug } from 'lucide-react';
 import { sound } from '../utils/sound.js';
 
 interface Props {

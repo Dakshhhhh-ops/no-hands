@@ -1,21 +1,6 @@
 import { useState } from 'react';
 import {
-  GitBranch,
-  GitMerge,
-  RotateCcw,
-  RotateCw,
-  History,
-  SlidersHorizontal,
-  ChevronDown,
-  DollarSign,
-  ShieldAlert,
-  Zap,
-  Layers,
-  X,
-  Check,
-  ArrowRight,
-  TrendingUp,
-  TrendingDown,
+  GitBranch, GitMerge, RotateCcw, RotateCw, History, SlidersHorizontal, ChevronDown,
 } from 'lucide-react';
 import { sound } from '../utils/sound.js';
 

@@ -247,9 +247,9 @@ body {
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: linear-gradient(135deg, #4ef2d2, #2b6cb0);
-  color: #071318;
-  box-shadow: 0 0 25px rgba(78, 242, 210, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  background: var(--va-accent);
+  color: #fff;
+  box-shadow: none;
 }
 
 .brand-copy {
@@ -1657,7 +1657,7 @@ body {
 .legend-direct { background: var(--cyan); }
 .legend-downstream { background: var(--violet-downstream); }
 .legend-upstream { background: var(--amber-warn); }
-.legend-changed { background: #38bdf8; }
+.legend-changed { background: var(--va-accent); }
 .legend-flow { color: var(--text-pure); }
 
 .hop-tag {

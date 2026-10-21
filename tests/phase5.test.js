@@ -64,7 +64,7 @@ test('Outage simulator: simulates Redis outage cascade and graceful fallback mit
   const authRedisEdge = outageSim.edgeMetrics.get('auth->redis');
   assert.ok(authRedisEdge);
   assert.equal(authRedisEdge.status, 'SEVERED');
-  assert.equal(authRedisEdge.particleColor, '#ef4444');
+  assert.equal(authRedisEdge.particleColor, 'var(--va-rose)');
 
   // 2. With Redis fallback requirement: Auth gracefully degrades to DEGRADED via Postgres
   const proposal = proposeChange(

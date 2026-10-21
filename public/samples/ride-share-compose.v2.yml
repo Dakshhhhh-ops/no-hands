@@ -1,0 +1,50 @@
+# A later version of ride-share-compose.yml, for the "Check against code" demo.
+# Compared with v1: postgres 16 -> 17, pricing-worker retired,
+# search and notification-service added.
+name: ride-share-platform
+
+services:
+  rider-app:
+    build: ./apps/rider
+    ports: ["3000:3000"]
+    environment:
+      API_URL: http://gateway:8080
+    depends_on: [gateway]
+
+  gateway:
+    image: traefik:v3.1
+    ports: ["8080:8080"]
+    depends_on: [trips-api, accounts-api]
+
+  accounts-api:
+    build: ./services/accounts
+    environment:
+      DATABASE_URL: postgres://app:app@postgres:5432/accounts
+      SESSION_STORE: redis://redis:6379/0
+    depends_on: [postgres, redis]
+
+  trips-api:
+    build: ./services/trips
+    environment:
+      DATABASE_URL: postgres://app:app@postgres:5432/trips
+      KAFKA_BROKERS: kafka:9092
+      SEARCH_URL: http://search:9200
+    depends_on: [postgres, kafka, search]
+
+  notification-service:
+    build: ./services/notifications
+    environment:
+      KAFKA_BROKERS: kafka:9092
+    depends_on: [kafka]
+
+  postgres:
+    image: postgres:17
+
+  redis:
+    image: redis:7-alpine
+
+  kafka:
+    image: bitnami/kafka:3.7
+
+  search:
+    image: opensearchproject/opensearch:2.15

@@ -1,23 +1,33 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('PWA Offline Capability', () => {
+// Runs in the "pwa" project against `vite preview` of a production build, the only
+// build that registers the service worker.
+test.describe('PWA offline capability', () => {
   test('works offline after first visit', async ({ page, context }) => {
-    // First visit - caches assets
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    await page.click('button:has-text("Load sample")');
-    await expect(page.locator('h2:has-text("Commerce Platform")')).toBeVisible();
 
-    // Go offline
+    // The worker precaches during install, so once it is active and controlling
+    // this page, every asset is available offline.
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    if (!(await page.evaluate(() => Boolean(navigator.serviceWorker.controller)))) {
+      await page.reload();
+    }
+    await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+
     await context.setOffline(true);
+    try {
+      await page.reload();
+      await expect(page.getByRole('button', { name: 'Start guided demo' })).toBeVisible();
 
-    // Reload - should work from cache
-    await page.reload();
-    await expect(page.locator('text=VoiceArchitect')).toBeVisible();
-    await expect(page.locator('button:has-text("Start guided demo")')).toBeVisible();
-
-    // Sample still loads from cached data
-    await page.click('button:has-text("Load sample")');
-    await expect(page.locator('text=What should change?')).toBeVisible();
+      // The sample model is bundled, so it loads without the network.
+      await page.getByRole('button', { name: 'Load sample' }).click();
+      await expect(page.getByRole('heading', { name: 'Commerce Platform' })).toBeVisible();
+      await expect(page.getByText('What should change?')).toBeVisible();
+      await expect(page.getByText(/Offline rules only/)).toBeVisible();
+    } finally {
+      await context.setOffline(false);
+    }
   });
 });

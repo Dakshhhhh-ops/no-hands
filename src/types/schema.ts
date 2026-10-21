@@ -34,6 +34,8 @@ export const ComponentSchema = z.object({
   x: z.number().default(0),
   y: z.number().default(0),
   networkZone: NetworkZoneEnum.optional(),
+  /** 'code' when the component came from an imported docker-compose file. */
+  origin: z.literal('code').optional(),
   sourceChangeId: z.string().optional(),
   originalInstruction: z.string().optional(),
 });
@@ -44,6 +46,8 @@ export const RelationshipSchema = z.object({
   to: z.string().min(1, 'Target component ID is required'),
   label: z.string().min(1, 'Relationship label is required'),
   protocol: z.string().optional(),
+  /** 'code' when the connection was found as evidence in an imported docker-compose file. */
+  origin: z.literal('code').optional(),
   sourceChangeId: z.string().optional(),
   originalInstruction: z.string().optional(),
 });
@@ -156,6 +160,8 @@ export const ArchitectureOperationSchema = z.union([
     id: z.string(),
     text: z.string(),
     status: z.enum(['confirmed', 'unresolved']),
+    /** The team's concrete choice (a threshold, a fallback), or null when none was stated. */
+    resolution: z.string().nullable().optional(),
   }),
 ]);
 export type ArchitectureOperation = z.infer<typeof ArchitectureOperationSchema>;
@@ -174,8 +180,12 @@ export const ProposalSchema = z.object({
   text: z.string(),
   items: z.array(ProposalItemSchema).min(1, 'Proposal must contain at least one item'),
   assumptions: z.array(z.string()).default([]),
-  /** 'ai' proposals carry operations; 'rules' proposals use the offline keyword rules. */
-  source: z.enum(['ai', 'rules']).optional(),
+  /**
+   * 'ai' and 'drift' proposals carry operations; 'rules' proposals use the offline
+   * keyword rules. 'drift' proposals sync the model with a newer docker-compose file.
+   * 'resolve' proposals carry the fixes chosen for open risk findings.
+   */
+  source: z.enum(['ai', 'rules', 'drift', 'resolve']).optional(),
   operations: z.array(ArchitectureOperationSchema).optional(),
 });
 export type Proposal = z.infer<typeof ProposalSchema>;
@@ -194,6 +204,10 @@ export const RiskFindingSchema = z.object({
   title: z.string().min(1),
   description: z.string(),
   evidence: z.array(z.string()),
+  /** 'open' needs a decision or a model change; 'resolved' is recorded or passing. */
+  status: z.enum(['open', 'resolved']).optional(),
+  /** Links an open finding to the fix that resolves it (see riskResolution.js). */
+  fixKey: z.string().optional(),
   requirementId: z.string().optional(),       // Direct foreign key
   sourceChangeId: z.string().optional(),      // Direct foreign key
   originalInstruction: z.string().optional(), // Direct provenance

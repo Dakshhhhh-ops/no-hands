@@ -1,4 +1,4 @@
-import type { Project, Component, Relationship, Requirement } from '../types/schema.ts';
+import type { Project, Relationship } from '../types/schema.ts';
 import { validateProject } from '../types/schema.ts';
 
 export type ConflictResolutionChoice = 'target' | 'source' | 'custom';

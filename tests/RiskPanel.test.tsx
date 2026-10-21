@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import RiskPanel from '../src/components/RiskPanel.jsx';
 
 const mockProject = {
@@ -20,26 +20,28 @@ describe('RiskPanel', () => {
     vi.clearAllMocks();
   });
 
-  it('renders risk audit header', () => {
+  it('renders the risks header', () => {
     render(<RiskPanel project={mockProject} />);
-    expect(screen.getByText('System Risk & Consistency Verification')).toBeInTheDocument();
+    expect(screen.getByText('Risks and open questions')).toBeInTheDocument();
   });
 
   it('shows zero findings when no risks', () => {
     render(<RiskPanel project={mockProject} />);
-    expect(screen.getByText('0 Audit Findings')).toBeInTheDocument();
+    expect(screen.getByText('0 findings · model v1')).toBeInTheDocument();
+    expect(screen.getByText('No findings for this model')).toBeInTheDocument();
   });
 
   it('has accessible structure', () => {
     render(<RiskPanel project={mockProject} />);
-    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('System Risk & Consistency Verification');
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Risks and open questions');
   });
 
-  it('shows KPI chips', () => {
+  it('offers a filter for every finding kind', () => {
     render(<RiskPanel project={mockProject} />);
-    expect(screen.getByRole('button', { name: /total findings/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /all findings/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /open decisions/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /potential risks/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /requirement coverage/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /consistency checks/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /coverage/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /consistency/i })).toBeInTheDocument();
   });
 });

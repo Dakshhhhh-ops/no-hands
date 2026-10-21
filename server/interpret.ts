@@ -11,6 +11,7 @@ import type { Interpretation } from '../src/types/schema.ts';
  *   - Groq (GROQ_API_KEY), default model openai/gpt-oss-120b with strict JSON schema
  *   - Anthropic (ANTHROPIC_API_KEY), default model claude-opus-5-5
  * If both keys are set, Groq is used unless VOICEARCHITECT_PROVIDER=anthropic.
+ * VOICEARCHITECT_PROVIDER=offline ignores all keys and uses the offline rules.
  * Settings are read on every call because Vite loads .env.local after this module.
  */
 
@@ -27,6 +28,7 @@ Return operations that make exactly the change the instruction asks for:
 - Reuse existing component ids exactly as given. New component ids are short kebab-case, for example "notification-service".
 - Direction follows the flow of calls or data: caller -> callee, producer -> queue, queue -> consumer.
 - When the instruction asks for a quality or policy rather than a new box (rate limiting, encryption, a latency target, "keep X as the source of truth"), record it with add_requirement on a descriptive REQ-* id such as REQ-AUTH-RATE-LIMIT instead of inventing a component.
+- Set an add_requirement's resolution to the concrete choice the speaker states (for example "5 attempts per minute per IP" or "read from PostgreSQL until Redis recovers") and null when they state none. Never invent a value. To record a choice on an existing requirement, reuse its id.
 - When a new service needs to be reachable by clients, connect it through the existing gateway if there is one.
 - Remove components or connections only when the instruction explicitly asks for it. Removing a component also removes its connections and API operations automatically, so do not remove those separately.
 - Do not add anything the instruction does not ask for or clearly imply. If a detail is needed but not stated (a threshold, a retry policy, which database), do not guess it: leave it out and list it in assumptions as an open question.
@@ -35,11 +37,13 @@ Return operations that make exactly the change the instruction asks for:
 
 items: one entry per logical change, with a short imperative title and a one-sentence detail a reviewer can check.
 assumptions: open questions and anything you interpreted rather than read literally, written for an engineer reviewing the change. Never mention schema field names such as sub or id.
-New components: match the naming style of the existing components, and give sub a short description of the component's role.
+New components: match the naming style of the existing components, and give sub a short description of the component's role. Never invent file paths, image names, ports, or versions for them; they do not exist in code yet.
 If the text is not a request to change this architecture, or it is too ambiguous to act on, set understood to false, return no operations, and put a clarifying question in assumptions.`;
 
 export function activeProvider(): Provider | null {
   const forced = process.env.VOICEARCHITECT_PROVIDER;
+  // 'offline' forces the built-in rules even when keys are present (used by the browser tests).
+  if (forced === 'offline') return null;
   const hasGroq = Boolean(process.env.GROQ_API_KEY);
   const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
   if (forced === 'groq') return hasGroq ? 'groq' : null;

@@ -22,17 +22,17 @@ describe('TaskPanel', () => {
 
   it('renders engineering tasks header', () => {
     render(<TaskPanel project={mockProject} />);
-    expect(screen.getByText('Traceable Engineering Tasks')).toBeInTheDocument();
+    expect(screen.getByText('Engineering tasks')).toBeInTheDocument();
   });
 
   it('shows empty state when no tasks', () => {
     render(<TaskPanel project={mockProject} />);
-    expect(screen.getByText('No requirement-based tasks match filter')).toBeInTheDocument();
+    expect(screen.getByText('No tasks yet')).toBeInTheDocument();
   });
 
   it('has accessible structure', () => {
     render(<TaskPanel project={mockProject} />);
-    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Traceable Engineering Tasks');
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent('Engineering tasks');
   });
 
   it('has copy as markdown button', () => {

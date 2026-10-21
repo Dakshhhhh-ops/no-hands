@@ -8,9 +8,10 @@ Without an API key the app still runs, using a small set of offline rules.
 
 - **Model interpretation** — Groq (`openai/gpt-oss-120b`, free tier) or Claude returns schema-constrained operations; invalid ones are skipped and shown to the reviewer, never applied
 - **Import docker-compose** — Builds the starting diagram from services, `depends_on`, and connection strings in environment variables
+- **Check against code** — Compare the diagram with a newer docker-compose file. New services, retired services, image changes, and new connections become one reviewable sync; components planned in the diagram but not built yet are reported and kept, and shown dashed as "planned"
 - **Plain-language input** — Type or dictate; common transcription errors are corrected locally
 - **Interactive diagram** — Dagre layout, blast radius, cycle detection, deployment order, keyboard navigation
-- **Multi-service OpenAPI 3.1** — Contract synthesis with drift detection vs requirements
+- **OpenAPI 3.1 contract** — Paths come only from the model's API operations; rate limits and cache outage choices appear where the requirements say; fields stay open until modeled
 - **Evidence-based risk audit** — Deterministic findings with explicit requirement foreign keys
 - **Traceable engineering tasks** — Acceptance criteria, priority, requirement provenance
 - **Branches** — Fork your current model, try changes on the branch, compare it with main using computed metrics, then merge
@@ -18,7 +19,7 @@ Without an API key the app still runs, using a small set of offline rules.
 - **Outage simulator (simulated)** — Take down any model's cache or database and see a cascade computed from component types and connections; throughput and latency come from stated assumptions, not measurement
 - **ADR drafts** — Architecture Decision Records generated from each change; every sign-off starts pending until a reviewer marks it
 - **Model inventory** — Component counts, connection labels, and checks for cycles, isolated components, and open requirements
-- **Verified exports** — ZIP bundles (artifacts, DevOps, IaC, SDK) with integrity checks
+- **Verified exports** — ZIP bundles of the model's artifacts, plus a DevOps bundle: Terraform and Kubernetes scaffolding (one resource per component; sizes and versions are placeholders to review) and a TypeScript client with one method per API operation
 - **Dark/Light theme** — Persisted, respects system preference
 - **PWA + Offline** — Service Worker caches all assets for offline demo
 - **Docker ready** — One-command production deploy
@@ -65,7 +66,7 @@ Any host that runs a Docker image or a Node process works, for example Render, R
 
 ## Demo Walkthrough
 
-1. **Load a system** — **Import docker-compose** with your own file, **Try example stack**, or **Load sample**
+1. **Load a system** — **Import docker-compose** with your own file, **Try example stack**, or **Load sample**. Later, **Check against code** with a newer compose file (or **Try example update**) to sync the diagram with what changed
 2. **Enter instruction** — Type or dictate; try the example cards
 3. **Preview change** — Review interpretation, before/after diff, unresolved assumptions
 4. **Apply** — Creates versioned, undoable history entry

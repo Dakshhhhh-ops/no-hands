@@ -1,37 +1,11 @@
-import { Layers, Network, ShieldCheck, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { detectCycles } from '../data/graphCycle.ts';
+import { referentialChecks } from '../data/referentialChecks.js';
 
 const TYPE_ORDER = ['CLIENT', 'GATEWAY', 'SERVICE', 'CACHE', 'DATABASE', 'QUEUE', 'EXTERNAL'];
+const TYPE_TONE = { CLIENT: 'violet', GATEWAY: 'amber', SERVICE: 'accent', CACHE: 'rose', DATABASE: 'teal', QUEUE: 'teal', EXTERNAL: 'muted' };
+const TYPE_LABEL = { CLIENT: 'Clients', GATEWAY: 'Gateways', SERVICE: 'Services', CACHE: 'Caches', DATABASE: 'Databases', QUEUE: 'Queues', EXTERNAL: 'External' };
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
-
-/** Every reference in the model that must point at something real, and whether it does. */
-export function referentialChecks(project) {
-  const components = project?.components || [];
-  const relationships = project?.relationships || [];
-  const apiOperations = project?.apiOperations || [];
-  const requirements = project?.requirements || [];
-  const ids = new Set(components.map((c) => c.id));
-  const seen = (list, key) => {
-    const counts = new Map();
-    list.forEach((item) => counts.set(key(item), (counts.get(key(item)) || 0) + 1));
-    return list.map((item) => counts.get(key(item)) === 1);
-  };
-  const results = [
-    ...relationships.map((r) => ({ ok: ids.has(r.from), problem: `Connection from unknown component "${r.from}"` })),
-    ...relationships.map((r) => ({ ok: ids.has(r.to), problem: `Connection to unknown component "${r.to}"` })),
-    ...apiOperations.map((a) => ({ ok: ids.has(a.componentId), problem: `API ${a.method?.toUpperCase()} ${a.path} owned by unknown component "${a.componentId}"` })),
-    ...seen(components, (c) => c.id).map((ok, i) => ({ ok, problem: `Duplicate component id "${components[i].id}"` })),
-    ...seen(relationships, (r) => `${r.from}>${r.to}`).map((ok, i) => ({ ok, problem: `Duplicate connection ${relationships[i].from} → ${relationships[i].to}` })),
-    ...seen(requirements, (q) => q.id).map((ok, i) => ({ ok, problem: `Duplicate requirement id "${requirements[i].id}"` })),
-  ];
-  const passed = results.filter((r) => r.ok).length;
-  return {
-    total: results.length,
-    passed,
-    percent: results.length ? Math.round((passed / results.length) * 100) : 100,
-    problems: [...new Set(results.filter((r) => !r.ok).map((r) => r.problem))],
-  };
-}
 
 /**
  * Static topology of the current model. Every number is computed from the
@@ -42,6 +16,8 @@ export default function TopologyPanel({ project }) {
   const relationships = project?.relationships || [];
   const requirements = project?.requirements || [];
   const nameOf = (id) => components.find((c) => c.id === id)?.name || id;
+  // Only an imported project can tell built components from planned ones.
+  const fromCode = components.some((c) => c.origin === 'code');
 
   const typeCounts = TYPE_ORDER
     .map((type) => ({ type, count: components.filter((c) => c.type === type).length }))
@@ -93,49 +69,61 @@ export default function TopologyPanel({ project }) {
     },
   ];
 
+  const passing = checks.filter((c) => c.ok).length;
+
   return (
-    <section className="telemetry-panel" aria-label="Topology">
-      <div className="panel-intro">
+    <section className="vp" aria-label="Topology">
+      <header className="vp-head">
         <div>
-          <h3>Topology</h3>
-          <p>The static structure of the current model (v{project.version}). Every figure is computed from its components, connections, and requirements.</p>
+          <h3 className="vp-title">Topology</h3>
+          <p className="vp-lead">The static structure of the current model (v{project.version}). Every figure is computed from its components, connections, and requirements.</p>
         </div>
-        <div className="telemetry-pills-bar">
-          <span className="small-pill text-cyan"><Layers size={11} /> {plural(components.length, 'component')}</span>
-          <span className="small-pill text-green"><Network size={11} /> {plural(relationships.length, 'connection')}</span>
-          <span className="small-pill"><Zap size={11} /> {plural(requirements.length, 'requirement')}</span>
-        </div>
-      </div>
+        <p className="vp-meta">
+          {plural(components.length, 'component')} · {plural(relationships.length, 'connection')} · {plural(requirements.length, 'requirement')}
+        </p>
+      </header>
 
-      <div className="telemetry-kpi-grid">
-        {typeCounts.map(({ type, count }) => (
-          <div className="telemetry-kpi-card" key={type}>
-            <div className="kpi-top"><span className="kpi-label">{type.toLowerCase()}</span></div>
-            <div className="kpi-val">{count}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="telemetry-split-layout">
-        <div className="telemetry-section-box">
-          <div className="box-header">
-            <h4>Protocols</h4>
-            <span className="badge-tag">{plural(protocolCounts.length, 'recorded protocol')}</span>
-          </div>
-          {protocolCounts.length > 0 && (
-            <div className="protocol-list">
-              {protocolCounts.map(([protocol, count]) => (
-                <div key={protocol} className="protocol-item">
-                  <div className="protocol-meta"><span className="protocol-name">{protocol}</span></div>
-                  <div className="protocol-bar-wrap">
-                    <div className="protocol-bar" style={{ width: `${(count / maxProtocolCount) * 100}%`, backgroundColor: 'var(--va-accent)' }} />
-                  </div>
-                  <span className="protocol-count">{plural(count, 'connection')}</span>
-                </div>
-              ))}
+      {typeCounts.length > 0 && (
+        <div className="vp-stats" aria-label="Components by type">
+          {typeCounts.map(({ type, count }) => (
+            <div className="vp-stat" key={type}>
+              <b>{count}</b>
+              <span className="vp-tag" data-tone={TYPE_TONE[type]}>{TYPE_LABEL[type] || type}</span>
             </div>
+          ))}
+        </div>
+      )}
+
+      <div className="vp-split">
+        <div className="vp-box">
+          <p className="vp-box-title">Model checks <small>{passing} of {checks.length} pass</small></p>
+          <ul className="vp-checklist">
+            {checks.map((check) => (
+              <li key={check.title} data-ok={check.ok}>
+                {check.ok ? <CheckCircle2 size={16} className="vp-ok" aria-label="Passes" /> : <AlertTriangle size={16} className="vp-warn" aria-label="Needs attention" />}
+                <div>
+                  <b>{check.title}</b>
+                  <span>{check.detail}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="vp-box">
+          <p className="vp-box-title">Protocols <small>{plural(protocolCounts.length, 'recorded protocol')}</small></p>
+          {protocolCounts.length > 0 && (
+            <ul className="vp-bars">
+              {protocolCounts.map(([protocol, count]) => (
+                <li key={protocol}>
+                  <span>{protocol}</span>
+                  <i style={{ width: `${(count / maxProtocolCount) * 100}%` }} />
+                  <small>{plural(count, 'connection')}</small>
+                </li>
+              ))}
+            </ul>
           )}
-          <p className="text-muted">
+          <p className="vp-hint">
             {relationships.length === 0
               ? 'No connections yet.'
               : withoutProtocol === relationships.length
@@ -143,42 +131,22 @@ export default function TopologyPanel({ project }) {
                 : `${plural(withoutProtocol, 'connection')} without a recorded protocol.`}
           </p>
         </div>
-
-        <div className="telemetry-section-box">
-          <div className="box-header">
-            <h4>Model checks</h4>
-            <span className={`badge-tag ${checks.every((c) => c.ok) ? 'status-ok' : ''}`}>
-              {checks.filter((c) => c.ok).length} of {checks.length} pass
-            </span>
-          </div>
-          <div className="governance-checklist">
-            {checks.map((check) => (
-              <div className="gov-item" key={check.title} data-ok={check.ok}>
-                <ShieldCheck size={14} className={check.ok ? 'text-cyan' : 'text-amber'} />
-                <div>
-                  <b>{check.title}</b>
-                  <p>{check.detail}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
-      <div className="telemetry-table-container">
-        <div className="table-header-bar">
+      <section className="vp-section" aria-label="Components">
+        <div className="vp-section-head">
           <h4>Components</h4>
-          <span className="table-count">{components.length}</span>
+          <span>{components.length}</span>
         </div>
-        <div className="table-responsive">
-          <table className="telemetry-table">
+        <div className="vp-table-wrap">
+          <table className="vp-table">
             <thead>
               <tr>
-                <th>Id</th>
                 <th>Name</th>
                 <th>Type</th>
                 <th>Calls or sends to</th>
                 <th>Used by</th>
+                {fromCode && <th>Source</th>}
               </tr>
             </thead>
             <tbody>
@@ -187,31 +155,37 @@ export default function TopologyPanel({ project }) {
                 const incoming = relationships.filter((r) => r.to === c.id);
                 return (
                   <tr key={c.id}>
-                    <td><code className="code-pill">{c.id}</code></td>
                     <td>
-                      <b className="comp-name">{c.name}</b>
-                      <small className="comp-sub">{c.sub}</small>
+                      <b>{c.name}</b>
+                      <small><span className="vp-mono">{c.id}</span>{c.sub ? ` · ${c.sub}` : ''}</small>
                     </td>
-                    <td><span className={`comp-type-pill type-${c.type.toLowerCase()}`}>{c.type}</span></td>
+                    <td><span className="vp-tag" data-tone={TYPE_TONE[c.type] || 'muted'}>{c.type.toLowerCase()}</span></td>
                     <td>
                       {outgoing.length ? (
-                        <div className="edge-targets">
+                        <div className="vp-links">
                           {outgoing.map((e) => (
-                            <span key={`${e.from}-${e.to}`} className="edge-target-chip">
-                              → {nameOf(e.to)} <small>({e.label}{e.protocol ? `, ${e.protocol}` : ''})</small>
+                            <span key={`${e.from}-${e.to}`} className="vp-link">
+                              {nameOf(e.to)} <small>{[e.label, e.protocol].filter(Boolean).join(' · ')}</small>
                             </span>
                           ))}
                         </div>
-                      ) : <span className="text-muted">None</span>}
+                      ) : <span className="vp-none">None</span>}
                     </td>
-                    <td>{incoming.length ? incoming.map((e) => nameOf(e.from)).join(', ') : <span className="text-muted">None</span>}</td>
+                    <td>{incoming.length ? incoming.map((e) => nameOf(e.from)).join(', ') : <span className="vp-none">None</span>}</td>
+                    {fromCode && (
+                      <td>
+                        {c.origin === 'code'
+                          ? <span className="vp-tag" data-tone="teal">In code</span>
+                          : <span className="vp-tag" data-tone="amber">Planned</span>}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     </section>
   );
 }

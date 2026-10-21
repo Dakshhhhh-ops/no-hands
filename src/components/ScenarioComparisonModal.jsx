@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { sound } from '../utils/sound.js';
+import { useDialog } from '../hooks/useDialog.ts';
 
 const ROWS = [
   ['version', 'Model version', (v) => `v${v}`],
@@ -23,14 +24,19 @@ function delta(a, b) {
  * models; nothing is estimated, priced, or prewritten.
  */
 export default function ScenarioComparisonModal({ comparison, onClose, onSelectBranch }) {
+  const dialogRef = useDialog(true, onClose);
   const { branchA, branchB, riskDelta, componentChanges, connectionChanges } = comparison;
   const { addedInB, removedInB, modifiedInB } = componentChanges;
   const noDifferences = !addedInB.length && !removedInB.length && !modifiedInB.length
     && !connectionChanges.addedInB.length && !connectionChanges.removedInB.length;
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label="Branch comparison">
+    <div className="modal-backdrop" onClick={onClose}>
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Branch comparison"
         className="modal-content scenario-modal comparison-modal"
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: 820, width: '92vw', maxHeight: '90vh', overflowY: 'auto', padding: 24 }}

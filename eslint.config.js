@@ -25,6 +25,12 @@ const browserGlobals = {
   fetch: 'readonly',
   Response: 'readonly',
   AbortController: 'readonly',
+  IntersectionObserver: 'readonly',
+  MutationObserver: 'readonly',
+  Element: 'readonly',
+  sessionStorage: 'readonly',
+  performance: 'readonly',
+  requestIdleCallback: 'readonly',
 };
 
 const nodeGlobals = {
@@ -59,8 +65,9 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      // The TypeScript rule understands JSX references; the core rule double-reports.
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
       'no-console': 'off',
       'react-hooks/set-state-in-effect': 'off',
     },

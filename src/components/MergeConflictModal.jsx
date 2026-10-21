@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { X, GitMerge, AlertTriangle, Check, ArrowRight } from 'lucide-react';
+import { X, GitMerge, AlertTriangle, Check } from 'lucide-react';
 import { sound } from '../utils/sound.js';
+import { useDialog } from '../hooks/useDialog.ts';
 
 export default function MergeConflictModal({
   sourceBranchName,
@@ -9,6 +10,7 @@ export default function MergeConflictModal({
   onClose,
   onConfirmMerge,
 }) {
+  const dialogRef = useDialog(true, onClose);
   const [resolutions, setResolutions] = useState(() => {
     const initial = {};
     conflicts.forEach((c) => {
@@ -28,8 +30,12 @@ export default function MergeConflictModal({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label="Resolve Merge Conflicts">
+    <div className="modal-backdrop" onClick={onClose}>
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Resolve merge conflicts"
         className="modal-content conflict-modal"
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: 740, width: '90vw' }}
@@ -96,13 +102,13 @@ export default function MergeConflictModal({
                       padding: 10,
                       borderRadius: 6,
                       cursor: 'pointer',
-                      border: currentChoice === 'source' ? '1.5px solid #a78bfa' : '1px solid var(--line-dim)',
+                      border: currentChoice === 'source' ? '1.5px solid var(--va-violet)' : '1px solid var(--line-dim)',
                       background: currentChoice === 'source' ? 'rgba(167, 139, 250, 0.08)' : 'var(--surface-1)',
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span className="eyebrow" style={{ color: '#a78bfa' }}>ACCEPT SOURCE ({sourceBranchName})</span>
-                      {currentChoice === 'source' && <Check size={14} style={{ color: '#a78bfa' }} />}
+                      <span className="eyebrow" style={{ color: 'var(--va-violet)' }}>ACCEPT SOURCE ({sourceBranchName})</span>
+                      {currentChoice === 'source' && <Check size={14} style={{ color: 'var(--va-violet)' }} />}
                     </div>
                     <pre style={{ margin: 0, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-pure)' }}>
                       {JSON.stringify(conflict.sourceValue, null, 2)}

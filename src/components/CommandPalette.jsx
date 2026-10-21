@@ -1,6 +1,7 @@
 import React from 'react';
-import { Search, X, Keyboard, ArrowUp, ArrowDown, ExternalLink, Zap, GitBranch, FileArchive, RotateCcw, HelpCircle } from 'lucide-react';
+import { Search, ExternalLink, Zap, GitBranch, FileArchive, HelpCircle } from 'lucide-react';
 import { sound } from '../utils/sound.js';
+import { useDialog } from '../hooks/useDialog.ts';
 
 const CATEGORIES = [
   { id: 'actions', label: 'Actions', icon: Zap, color: 'var(--va-accent)' },
@@ -12,7 +13,8 @@ const CATEGORIES = [
 
 function highlightMatch(text, query) {
   if (!query.trim()) return <span>{text}</span>;
-  const parts = text.split(new RegExp(`(${query})`, 'gi'));
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
   return (
     <span>
       {parts.map((part, i) =>
@@ -29,6 +31,7 @@ export function CommandPalette({ isOpen, onClose, commands }) {
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const inputRef = React.useRef(null);
   const listRef = React.useRef(null);
+  const dialogRef = useDialog(Boolean(isOpen), onClose);
 
   const filteredCommands = React.useMemo(() => {
     if (!query.trim()) return commands;
@@ -62,15 +65,10 @@ export function CommandPalette({ isOpen, onClose, commands }) {
   React.useEffect(() => {
     if (!isOpen) return;
     const item = listRef.current?.querySelector('[data-index="' + selectedIndex + '"]');
-    item?.scrollIntoView({ block: 'nearest' });
+    item?.scrollIntoView?.({ block: 'nearest' });
   }, [selectedIndex, isOpen]);
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      onClose();
-      return;
-    }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex(i => Math.min(i + 1, getFlattenedCommands().length - 1));
@@ -106,7 +104,7 @@ export function CommandPalette({ isOpen, onClose, commands }) {
   if (!isOpen) return null;
 
   return React.createElement('div', { className: 'va-backdrop', onMouseDown: (e) => { if (e.target === e.currentTarget) onClose(); } },
-    React.createElement('section', { className: 'va-command-palette', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'palette-title' },
+    React.createElement('section', { ref: dialogRef, className: 'va-command-palette', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'palette-title' },
       React.createElement('div', { className: 'va-palette-header' },
         React.createElement('div', { className: 'va-palette-search' },
           React.createElement(Search, { size: 18 }),
@@ -131,11 +129,11 @@ export function CommandPalette({ isOpen, onClose, commands }) {
             if (!cmds.length) return null;
             return React.createElement(React.Fragment, { key: cat.id },
               React.createElement('li', { className: 'va-palette-category' },
-                React.createElement('span', { className: 'va-category-icon', style: { color: cat.color } }, cat.icon),
+                React.createElement('span', { className: 'va-category-icon', style: { color: cat.color } }, React.createElement(cat.icon, { size: 14, 'aria-hidden': true })),
                 React.createElement('span', { className: 'va-category-label' }, cat.label),
                 React.createElement('span', { className: 'va-category-count' }, cmds.length)
               ),
-              cmds.map((cmd, cmdIndex) => {
+              cmds.map((cmd) => {
                 const globalIndex = getFlattenedCommands().indexOf(cmd);
                 return React.createElement('li', {
                   key: cmd.id,

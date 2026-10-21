@@ -24,7 +24,7 @@ describe('OpenApiPanel', () => {
     render(<OpenApiPanel project={mockProject} onNotify={vi.fn()} />);
     const openApiElements = screen.getAllByText(/openapi 3\.1/i);
     expect(openApiElements.length).toBeGreaterThan(0);
-    expect(screen.getByText(/multi-service spec/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'API contract' })).toBeInTheDocument();
   });
 
   it('has copy and download buttons', () => {
@@ -35,7 +35,7 @@ describe('OpenApiPanel', () => {
 
   it('has view mode buttons', () => {
     render(<OpenApiPanel project={mockProject} onNotify={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /multi-service spec/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /endpoints/i })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: /contract drift/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /terraform & k8s/i })).toBeInTheDocument();
   });

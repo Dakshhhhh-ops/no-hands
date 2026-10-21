@@ -126,7 +126,7 @@ describe('Accessibility', () => {
 
   it('has proper heading hierarchy', () => {
     renderApp();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Say the architecture change');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Say the change.');
   });
 
   it('has landmark regions', () => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wifi, WifiOff, Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { WifiOff, Cloud, Loader2 } from 'lucide-react';
 
 export function ConnectionStatus() {
   const [isOnline, setIsOnline] = React.useState(true);

@@ -52,7 +52,8 @@ describe('Model interpretation flow', () => {
   it('previews a Claude proposal, shows skipped operations, and applies the valid ones', async () => {
     render(<MemoryRouter><App /></MemoryRouter>);
 
-    expect(await screen.findByText(/Interpreted by Groq \(openai\/gpt-oss-120b\)/)).toBeInTheDocument();
+    expect(await screen.findByText('Interpreted by Groq')).toBeInTheDocument();
+    expect(await screen.findByText(/Groq · openai\/gpt-oss-120b/)).toBeInTheDocument();
     fireEvent.click(screen.getByText('Load sample'));
 
     fireEvent.change(screen.getByLabelText('Your instruction'), {

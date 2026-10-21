@@ -1,0 +1,500 @@
+/* ==========================================================================
+   VoiceArchitect visual system (loaded last).
+
+   Color: a 60-30-10 split.
+     60  ink neutrals       backgrounds, surfaces, text
+     30  indigo -> violet   brand, primary actions, focus
+     10  signal accents     teal = in sync / healthy, amber = planned / attention,
+                            rose = failure. These match the app's own states.
+   Indigo and amber sit opposite each other on the wheel, so attention states
+   stand out against the brand color without competing with it.
+
+   Motion: reveal-on-scroll, a scroll-linked 3D stack in the hero, a timeline
+   that fills as you scroll, and tilt cards. All of it is switched off for
+   prefers-reduced-motion.
+   ========================================================================== */
+
+/* ---------- Palette ---------- */
+:root,
+[data-theme="dark"] {
+  --va-bg: #0a0d16;
+  --va-bg-sunken: #070910;
+  --va-panel: #10141f;
+  --va-panel-2: #161b29;
+  --va-panel-3: #1e2536;
+  --va-line: #212839;
+  --va-line-strong: #2f3850;
+  --va-line-bright: #46526f;
+
+  --va-ink: #eceef6;
+  --va-muted: #a2a9c0;
+  --va-faint: #7a829b;
+
+  --va-indigo: #7b7fff;
+  --va-violet: #b28cff;
+  --va-teal: #2dd4bf;
+  --va-amber: #f5b544;
+  --va-rose: #fb7185;
+
+  --va-accent: var(--va-indigo);
+  --va-accent-strong: #a1a4ff;
+  --va-accent-ink: #0b0d24;
+  --va-ok: var(--va-teal);
+  --va-warn: var(--va-amber);
+  --va-danger: var(--va-rose);
+  --va-rec: var(--va-rose);
+  --va-downstream: var(--va-violet);
+
+  --va-brand-gradient: linear-gradient(115deg, #8b8fff 0%, #b28cff 45%, #2dd4bf 100%);
+  --va-gradient-primary: linear-gradient(135deg, #6c70ff 0%, #9b7bff 100%);
+  --va-surface: linear-gradient(160deg, color-mix(in srgb, var(--va-panel-2) 92%, transparent), color-mix(in srgb, var(--va-panel) 96%, transparent));
+  --va-ring: 0 0 0 1px color-mix(in srgb, var(--va-indigo) 45%, transparent);
+  --va-shadow-lg: 0 30px 80px -30px rgba(0, 0, 0, .75), 0 12px 30px -12px rgba(0, 0, 0, .5);
+  --va-aurora-opacity: .55;
+}
+
+[data-theme="light"] {
+  --va-bg: #f5f6fb;
+  --va-bg-sunken: #eceef7;
+  --va-panel: #ffffff;
+  --va-panel-2: #f1f3fa;
+  --va-panel-3: #e5e8f3;
+  --va-line: #dde1ec;
+  --va-line-strong: #c6ccdc;
+  --va-line-bright: #9ea6bf;
+
+  --va-ink: #12152a;
+  --va-muted: #4f5672;
+  --va-faint: #767e99;
+
+  --va-indigo: #4f46e5;
+  --va-violet: #7c3aed;
+  --va-teal: #0d8f7f;
+  --va-amber: #b26a00;
+  --va-rose: #e11d48;
+
+  --va-accent: var(--va-indigo);
+  --va-accent-strong: #4338ca;
+  --va-accent-ink: #ffffff;
+  --va-ok: var(--va-teal);
+  --va-warn: var(--va-amber);
+  --va-danger: var(--va-rose);
+  --va-rec: var(--va-rose);
+  --va-downstream: var(--va-violet);
+
+  --va-brand-gradient: linear-gradient(115deg, #4f46e5 0%, #7c3aed 50%, #0d8f7f 100%);
+  --va-gradient-primary: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  --va-surface: linear-gradient(160deg, #ffffff, #f7f8fd);
+  --va-ring: 0 0 0 1px color-mix(in srgb, var(--va-indigo) 35%, transparent);
+  --va-shadow-lg: 0 30px 70px -32px rgba(30, 34, 80, .35), 0 10px 24px -12px rgba(30, 34, 80, .18);
+  --va-aurora-opacity: .35;
+}
+
+.tone-indigo, .va-tilt.tone-indigo { --tone: var(--va-indigo); }
+.tone-teal, .va-tilt.tone-teal { --tone: var(--va-teal); }
+.tone-amber, .va-tilt.tone-amber { --tone: var(--va-amber); }
+.tone-violet, .va-tilt.tone-violet { --tone: var(--va-violet); }
+
+body { background: var(--va-bg); }
+.va-app { background: var(--va-bg); color: var(--va-ink); overflow-x: clip; }
+::selection { background: color-mix(in srgb, var(--va-indigo) 35%, transparent); }
+
+/* ---------- Reveal on scroll ----------
+   Uses the individual translate/scale properties so it composes with any
+   transform an element already has (tilt cards, the 3D stack). */
+[data-reveal] {
+  opacity: 0;
+  translate: 0 22px;
+  scale: .985;
+  filter: blur(6px);
+  transition:
+    opacity .8s var(--va-ease-out),
+    translate .9s var(--va-ease-out),
+    scale .9s var(--va-ease-out),
+    filter .8s var(--va-ease-out);
+  transition-delay: calc(var(--d, 0) * 90ms);
+}
+[data-reveal].is-revealed { opacity: 1; translate: 0 0; scale: 1; filter: none; }
+
+/* ---------- Scroll progress ---------- */
+.va-scroll-progress {
+  position: fixed; inset: 0 auto auto 0; z-index: 60;
+  width: 100%; height: 2px;
+  background: var(--va-brand-gradient);
+  transform-origin: left center;
+  transform: scaleX(var(--va-scroll, 0));
+  pointer-events: none;
+}
+
+/* ---------- Top bar ---------- */
+.va-app .va-topbar {
+  background: color-mix(in srgb, var(--va-bg) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  border-bottom: 1px solid color-mix(in srgb, var(--va-line) 80%, transparent);
+}
+.va-app .va-brand-mark {
+  background: var(--va-gradient-primary);
+  color: #fff;
+  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--va-indigo) 70%, transparent);
+}
+.va-app .va-nav a { position: relative; transition: color .2s ease; }
+.va-app .va-nav a::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: 2px; height: 2px; border-radius: 2px;
+  background: var(--va-brand-gradient); transform: scaleX(0); transform-origin: left; transition: transform .3s var(--va-ease-out);
+}
+.va-app .va-nav a:hover { background: transparent; }
+.va-app .va-nav a:hover::after { transform: scaleX(1); }
+
+/* ---------- Buttons ---------- */
+.va-app .va-btn-primary {
+  background: var(--va-gradient-primary);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 10px 30px -10px color-mix(in srgb, var(--va-indigo) 80%, transparent), inset 0 1px 0 rgba(255, 255, 255, .18);
+  transition: transform .2s var(--va-ease-out), box-shadow .2s ease, filter .2s ease;
+}
+.va-app .va-btn-primary:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.06); }
+.va-app .va-btn-primary:active:not(:disabled) { transform: translateY(0); }
+.va-app .va-btn-glass {
+  background: color-mix(in srgb, var(--va-panel) 55%, transparent);
+  border: 1px solid var(--va-line-strong);
+  color: var(--va-ink);
+  backdrop-filter: blur(10px);
+}
+.va-app .va-btn-glass:hover { border-color: color-mix(in srgb, var(--va-indigo) 55%, var(--va-line-strong)); }
+.va-shine { position: relative; overflow: hidden; }
+.va-shine::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .35) 50%, transparent 70%);
+  translate: -120% 0; transition: translate .8s var(--va-ease-out);
+}
+.va-shine:hover::after { translate: 120% 0; }
+
+/* ---------- Eyebrow ---------- */
+.va-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin: 0 0 16px; padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--va-indigo) 35%, var(--va-line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--va-indigo) 8%, transparent);
+  color: var(--va-accent-strong);
+  font-size: 12.5px; font-weight: 600; letter-spacing: .02em;
+}
+[data-theme="light"] .va-eyebrow { color: var(--va-indigo); }
+.va-live-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--va-teal);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--va-teal) 60%, transparent);
+  animation: va-live 2.2s ease-out infinite;
+}
+@keyframes va-live { 70% { box-shadow: 0 0 0 8px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+.va-hero-v2 h1 .va-gradient-text { display: block; }
+.va-gradient-text {
+  background: var(--va-brand-gradient);
+  background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+  animation: va-gradient-pan 8s ease-in-out infinite alternate;
+}
+@keyframes va-gradient-pan { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+
+/* ---------- Hero ---------- */
+.va-app .va-hero.va-hero-v2 {
+  position: relative; isolation: isolate; overflow: visible;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 48px; align-items: center;
+  max-width: 1280px; min-height: min(860px, calc(100vh - 60px));
+  margin: 0 auto; padding: 56px 24px 72px;
+}
+.va-app .va-hero-v2::before { display: none; }
+.va-hero-v2 h1 {
+  margin: 0 0 20px; max-width: 17ch;
+  font-size: clamp(38px, 4.6vw, 64px); line-height: 1.04; font-weight: 700; letter-spacing: -.04em;
+  text-wrap: balance;
+}
+.va-hero-v2 .va-hero-description {
+  margin: 0 0 30px; max-width: 54ch;
+  color: var(--va-muted); font-size: 18px; line-height: 1.6;
+}
+.va-hero-v2 .va-hero-actions { gap: 12px; margin: 0 0 34px; justify-content: flex-start; }
+/* The reveal handles entrance; drop the legacy slide-up animations from ui-effects.css. */
+.va-hero-v2 .va-hero-description,
+.va-hero-v2 .va-hero-actions,
+.va-hero-v2 h1 { animation: none; }
+.va-hero-v2 .va-btn-lg { height: 48px; padding: 0 22px; border-radius: 12px; font-size: 15px; }
+
+.va-hero-facts { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; color: var(--va-muted); font-size: 15px; }
+.va-hero-facts li { display: flex; align-items: center; gap: 12px; }
+.va-hero-facts b { color: var(--va-ink); font-weight: 650; }
+.va-fact-icon {
+  display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 9px;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent);
+}
+
+/* Backdrop: drifting aurora light and a fading grid */
+.va-hero-backdrop { position: absolute; inset: -80px -40vw 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.va-aurora {
+  position: absolute; border-radius: 50%; filter: blur(90px); opacity: var(--va-aurora-opacity);
+  animation: va-drift 22s ease-in-out infinite alternate;
+}
+.va-aurora-1 { width: 620px; height: 620px; left: 42%; top: -120px; background: radial-gradient(circle, color-mix(in srgb, var(--va-indigo) 75%, transparent), transparent 70%); }
+.va-aurora-2 { width: 520px; height: 520px; left: 62%; top: 220px; background: radial-gradient(circle, color-mix(in srgb, var(--va-violet) 60%, transparent), transparent 70%); animation-delay: -7s; }
+.va-aurora-3 { width: 440px; height: 440px; left: 30%; top: 360px; background: radial-gradient(circle, color-mix(in srgb, var(--va-teal) 45%, transparent), transparent 70%); animation-delay: -14s; }
+@keyframes va-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-60px, 40px, 0) scale(1.08); }
+  100% { transform: translate3d(40px, -30px, 0) scale(.95); }
+}
+.va-hero-grid-lines {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--va-line) 70%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--va-line) 70%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 55% 60% at 60% 35%, #000 20%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 55% 60% at 60% 35%, #000 20%, transparent 75%);
+  opacity: .55;
+}
+
+/* ---------- 3D architecture stack ---------- */
+.va-hero-visual { position: relative; min-height: 640px; }
+.va-stack {
+  --gap: calc(132px + var(--stack-progress, 0) * 60px);
+  position: relative; height: 640px; perspective: 1900px; perspective-origin: 50% 25%;
+}
+.va-stack-glow {
+  position: absolute; left: 50%; top: 58%; width: 420px; height: 240px; translate: -50% -50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--va-indigo) 45%, transparent), transparent 70%);
+  filter: blur(30px); opacity: .7;
+}
+.va-stack-scene {
+  position: absolute; left: 54%; top: 47%; width: 380px; height: 230px;
+  margin: -115px 0 0 -190px;
+  transform-style: preserve-3d;
+  transform:
+    rotateX(calc(52deg + var(--stack-tilt-x, 0deg)))
+    rotateZ(calc(-32deg + var(--stack-tilt-y, 0deg) + var(--stack-progress, 0) * 24deg));
+  transition: transform .6s var(--va-ease-out);
+}
+.va-stack-layer {
+  --tone: var(--va-indigo);
+  position: absolute; inset: 0; padding: 14px 18px;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 8px;
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--tone) 55%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--tone) 26%, transparent), color-mix(in srgb, var(--tone) 4%, transparent)),
+    color-mix(in srgb, var(--va-panel) 38%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent),
+    0 40px 60px -30px color-mix(in srgb, var(--tone) 60%, transparent);
+  backdrop-filter: blur(4px);
+  transform: translateZ(calc((var(--i) - (var(--stack-layers) - 1) / 2) * var(--gap)));
+  transition: transform .6s var(--va-ease-out);
+  animation: va-layer-float 7s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -1.4s);
+}
+.va-stack-layer.tone-data { --tone: var(--va-teal); }
+.va-stack-layer.tone-services { --tone: var(--va-indigo); }
+.va-stack-layer.tone-edge { --tone: var(--va-amber); }
+.va-stack-layer.tone-clients { --tone: var(--va-violet); }
+@keyframes va-layer-float { 0%, 100% { translate: 0 0 0; } 50% { translate: 0 0 12px; } }
+.va-stack-label {
+  display: block; margin: 0;
+  color: var(--tone); font: 600 11px/1 var(--va-mono); letter-spacing: .12em; text-transform: uppercase;
+}
+.va-stack-chips { display: flex; flex-wrap: nowrap; gap: 7px; overflow: hidden; }
+.va-stack-chip {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 190px;
+  padding: 7px 11px; border-radius: 10px;
+  background: color-mix(in srgb, var(--va-panel) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 30%, var(--va-line));
+  color: var(--va-ink); font-size: 13px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 6px 14px -8px rgba(0, 0, 0, .5);
+}
+.va-stack-chip i { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--tone); box-shadow: 0 0 8px var(--tone); }
+.va-stack-chip.is-more { color: var(--va-muted); font-weight: 500; }
+.va-stack-beam {
+  position: absolute; top: 50%; left: calc(22% + var(--b) * 28%);
+  width: 2px; height: calc(var(--gap) * (var(--stack-layers) - 1));
+  transform-origin: top center;
+  transform: translateZ(calc((var(--stack-layers) - 1) / -2 * var(--gap))) rotateX(90deg);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--va-teal) 80%, transparent), color-mix(in srgb, var(--va-indigo) 80%, transparent), color-mix(in srgb, var(--va-violet) 80%, transparent));
+  opacity: .55;
+  transition: height .6s var(--va-ease-out), transform .6s var(--va-ease-out);
+}
+.va-stack-beam::after {
+  content: ''; position: absolute; left: -3px; top: 0; width: 8px; height: 8px; border-radius: 50%;
+  background: #fff; box-shadow: 0 0 12px 3px color-mix(in srgb, var(--va-teal) 80%, transparent);
+  animation: va-beam 2.8s linear infinite; animation-delay: calc(var(--b) * -0.9s);
+}
+@keyframes va-beam { from { top: 0%; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } to { top: 100%; opacity: 0; } }
+
+/* Transcript card floating over the stack */
+.va-transcript {
+  position: absolute; left: -120px; bottom: -48px; z-index: 2;
+  width: min(340px, 90%); margin: 0; padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--va-line-bright) 45%, transparent);
+  background: color-mix(in srgb, var(--va-panel) 78%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: var(--va-shadow-lg);
+}
+.va-transcript figcaption {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  color: var(--va-muted); font-size: 12px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase;
+}
+.va-app .va-transcript .va-hero-command {
+  margin: 0; padding: 0; border: 0; background: none;
+  color: var(--va-ink); font-family: var(--va-font); font-size: 15px; line-height: 1.55;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+}
+.va-transcript-foot { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; color: var(--va-faint); font-size: 12px; }
+.va-transcript-foot span { display: inline-flex; align-items: center; gap: 5px; }
+.va-transcript-foot svg { color: var(--va-teal); }
+.va-mini-wave { display: inline-flex; align-items: center; gap: 2px; height: 14px; }
+.va-mini-wave i { width: 3px; height: 100%; border-radius: 2px; background: var(--va-rose); animation: va-wave 1.1s ease-in-out infinite; }
+.va-mini-wave i:nth-child(2) { animation-delay: -.2s; }
+.va-mini-wave i:nth-child(3) { animation-delay: -.4s; }
+.va-mini-wave i:nth-child(4) { animation-delay: -.6s; }
+.va-mini-wave i:nth-child(5) { animation-delay: -.8s; }
+@keyframes va-wave { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
+
+/* ---------- Sections ---------- */
+.va-app .va-section { position: relative; padding: 112px 24px; border-top: 0; }
+.va-app .va-section::before {
+  content: ''; position: absolute; left: 50%; top: 0; width: min(1100px, 90%); height: 1px; translate: -50% 0;
+  background: linear-gradient(90deg, transparent, var(--va-line-strong), transparent);
+}
+.va-app .va-section-inner > h2 { font-size: clamp(30px, 4vw, 50px); font-weight: 700; letter-spacing: -.035em; line-height: 1.06; max-width: 22ch; }
+.va-app .va-section-lead { max-width: 62ch; font-size: 17px; line-height: 1.6; }
+
+/* How it works: a timeline that fills as you scroll */
+.va-app .va-timeline {
+  --fill: clamp(0, (var(--va-progress, 0) - .18) * 2.4, 1);
+  position: relative; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; margin-top: 56px;
+}
+.va-app .va-timeline::before,
+.va-app .va-timeline::after {
+  content: ''; position: absolute; left: 18px; right: 18px; top: 17px; height: 2px; border-radius: 2px;
+}
+.va-app .va-timeline::before { background: var(--va-line-strong); }
+.va-app .va-timeline::after { background: var(--va-brand-gradient); transform-origin: left; transform: scaleX(var(--fill)); }
+.va-app .va-timeline li { position: relative; z-index: 1; padding: 0; border: 0; }
+.va-app .va-timeline li:nth-child(1) { --n: 0; }
+.va-app .va-timeline li:nth-child(2) { --n: 1; }
+.va-app .va-timeline li:nth-child(3) { --n: 2; }
+.va-app .va-timeline li:nth-child(4) { --n: 3; }
+.va-app .va-timeline .va-step-n {
+  --lit: clamp(0, var(--fill) * 3.2 - var(--n), 1);
+  position: relative; display: grid; place-items: center; width: 36px; height: 36px; margin-bottom: 18px;
+  border-radius: 50%; border: 1px solid var(--va-line-strong);
+  background: var(--va-panel); color: var(--va-muted); font: 700 13px var(--va-mono);
+  box-shadow: 0 0 0 6px var(--va-bg);
+}
+.va-app .va-timeline .va-step-n::before {
+  content: ''; position: absolute; inset: -1px; border-radius: 50%;
+  background: var(--va-gradient-primary); opacity: var(--lit);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--va-indigo) 60%, transparent);
+  z-index: -1;
+}
+.va-app .va-timeline .va-step-n { isolation: isolate; color: color-mix(in srgb, #fff calc(var(--lit) * 100%), var(--va-muted)); }
+.va-app .va-timeline h3 { font-size: 19px; letter-spacing: -.01em; }
+.va-app .va-timeline p { font-size: 15px; line-height: 1.6; }
+
+/* Capabilities: 3D tilt cards */
+.va-app .va-caps { gap: 22px; margin-top: 48px; }
+.va-tilt {
+  --tone: var(--va-indigo);
+  position: relative; overflow: hidden; isolation: isolate;
+  padding: 28px !important; border-radius: 20px !important;
+  border: 1px solid var(--va-line) !important;
+  background: var(--va-surface) !important;
+  box-shadow: var(--va-shadow-lg);
+  transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transform-style: preserve-3d;
+  transition: transform .35s var(--va-ease-out), border-color .3s ease, opacity .8s var(--va-ease-out), translate .9s var(--va-ease-out), scale .9s var(--va-ease-out), filter .8s var(--va-ease-out);
+}
+.va-tilt:hover { border-color: color-mix(in srgb, var(--tone) 55%, var(--va-line)) !important; }
+.va-tilt-glow {
+  position: absolute; inset: 0; z-index: -1; opacity: 0; transition: opacity .3s ease;
+  background: radial-gradient(420px circle at var(--glow-x, 50%) var(--glow-y, 0%), color-mix(in srgb, var(--tone) 20%, transparent), transparent 60%);
+}
+.va-tilt:hover .va-tilt-glow { opacity: 1; }
+.va-cap-icon {
+  display: grid; place-items: center; width: 46px; height: 46px; margin-bottom: 14px; border-radius: 13px;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
+  transform: translateZ(30px);
+}
+.va-app .va-caps .va-tilt > svg { display: none; }
+.va-tilt h3 { transform: translateZ(18px); font-size: 19px; }
+
+/* ---------- Workspace surfaces ---------- */
+.va-app .va-section-work { background: radial-gradient(ellipse 70% 40% at 50% 0%, color-mix(in srgb, var(--va-indigo) 7%, transparent), transparent 70%); }
+.va-app .va-journey,
+.va-app .va-composer,
+.va-app .va-card {
+  border-color: var(--va-line);
+  background: var(--va-surface);
+  box-shadow: var(--va-shadow-lg);
+}
+.va-app .va-journey { border-radius: 20px; }
+.va-app .va-composer, .va-app .va-card { border-radius: 18px; }
+.va-app .va-mic {
+  background: var(--va-gradient-primary); color: #fff; border: 0;
+  box-shadow: 0 10px 26px -8px color-mix(in srgb, var(--va-indigo) 80%, transparent);
+}
+.va-app .va-mic[data-live="true"] { background: linear-gradient(135deg, var(--va-rose), #f97316); box-shadow: 0 0 0 8px color-mix(in srgb, var(--va-rose) 18%, transparent); }
+.va-app textarea:focus-visible,
+.va-app input:focus-visible,
+.va-app select:focus-visible { outline: none; border-color: var(--va-indigo); box-shadow: 0 0 0 4px color-mix(in srgb, var(--va-indigo) 18%, transparent); }
+
+/* ---------- Footer ---------- */
+.va-app .va-footer {
+  justify-content: space-between; align-items: center;
+  padding: 28px 24px 36px; border-top: 1px solid var(--va-line);
+  color: var(--va-faint);
+}
+.va-footer-brand { display: inline-flex; align-items: center; gap: 8px; color: var(--va-ink); font-weight: 650; }
+.va-footer-brand svg { color: var(--va-indigo); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1080px) {
+  .va-app .va-timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 40px; }
+  .va-app .va-timeline::before, .va-app .va-timeline::after { display: none; }
+  .va-app .va-timeline .va-step-n::before { opacity: 1; }
+  .va-app .va-timeline .va-step-n { color: #fff; }
+}
+@media (max-width: 960px) {
+  .va-app .va-hero.va-hero-v2 { grid-template-columns: minmax(0, 1fr); min-height: 0; padding-top: 40px; }
+  .va-hero-visual { min-height: 460px; }
+  .va-stack { height: 420px; }
+  .va-transcript { left: 0; }
+}
+@media (max-width: 760px) {
+  .va-app .va-section { padding: 72px 16px; }
+  .va-app .va-hero-v2 .va-hero-actions { justify-content: flex-start; align-items: flex-start; }
+  .va-app .va-timeline { grid-template-columns: minmax(0, 1fr); }
+  .va-stack-scene { scale: .82; }
+  .va-transcript { position: relative; width: 100%; bottom: auto; margin-top: -40px; }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] { opacity: 1; translate: none; scale: none; filter: none; transition: none; }
+  .va-aurora, .va-stack-layer, .va-stack-beam::after, .va-gradient-text, .va-live-dot, .va-mini-wave i { animation: none; }
+  .va-stack-scene, .va-stack-layer, .va-tilt { transition: none; }
+  .va-scroll-progress { display: none; }
+  .va-app .va-timeline .va-step-n::before { opacity: 1; }
+  .va-app .va-timeline::after { transform: scaleX(1); }
+}
+
+/* Phones: keyboard shortcuts are irrelevant on touch, and the space lets Export fit. */
+@media (max-width: 520px) {
+  .va-app .va-topbar-actions .va-btn-icon[aria-label="Keyboard shortcuts"] { display: none; }
+  .va-app .va-topbar { gap: 8px; }
+}

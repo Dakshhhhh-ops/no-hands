@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import TopologyPanel, { referentialChecks } from '../src/components/TopologyPanel.jsx';
+import TopologyPanel from '../src/components/TopologyPanel.jsx';
+import { referentialChecks } from '../src/data/referentialChecks.js';
 
 vi.mock('lucide-react', async (importOriginal) => importOriginal());
 
@@ -34,7 +35,7 @@ describe('Topology panel', () => {
   });
 
   it('says so when no connection records a protocol', () => {
-    const project = { ...base, relationships: base.relationships.map(({ protocol, ...rest }) => rest) };
+    const project = { ...base, relationships: base.relationships.map(({ protocol: _protocol, ...rest }) => rest) };
     render(<TopologyPanel project={project} />);
     expect(screen.getByText('No connection in this model records a protocol.')).toBeInTheDocument();
     expect(screen.getByText('0 recorded protocols')).toBeInTheDocument();
@@ -54,5 +55,26 @@ describe('Topology panel', () => {
       'Duplicate connection web → api',
     ]));
     expect(referentialChecks(base)).toMatchObject({ percent: 100, problems: [] });
+  });
+});
+
+describe('Topology panel source column', () => {
+  it('marks components as in code or planned only for imported projects', () => {
+    const imported = {
+      ...base,
+      components: [
+        { ...base.components[0], origin: 'code' },
+        { ...base.components[1], origin: 'code' },
+        base.components[2],
+      ],
+    };
+    const { unmount } = render(<TopologyPanel project={imported} />);
+    expect(screen.getByRole('columnheader', { name: 'Source' })).toBeInTheDocument();
+    expect(screen.getAllByText('In code')).toHaveLength(2);
+    expect(screen.getAllByText('Planned')).toHaveLength(1);
+    unmount();
+
+    render(<TopologyPanel project={base} />);
+    expect(screen.queryByRole('columnheader', { name: 'Source' })).not.toBeInTheDocument();
   });
 });

@@ -524,3 +524,10 @@ body { margin: 0; overflow-x: visible; background: var(--va-bg); }
 .va-app .chaos-assumptions {
   flex-basis: 100%; margin: 6px 0 0; font-size: var(--va-fs-xs, 11px); color: var(--va-muted);
 }
+
+/* Planned components (in the diagram, not in the imported code yet) */
+.va-app .legend-planned {
+  display: inline-block; width: 12px; height: 8px; border-radius: 2px;
+  border: 1.5px dashed var(--va-warn); background: transparent;
+}
+.va-app .endpoints-empty { margin: 12px 0; font-size: var(--va-fs-sm); color: var(--va-muted); }

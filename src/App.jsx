@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
-  Activity, ArrowRight, AudioLines, Check, ChevronDown, ClipboardCheck, ClipboardList,
-  FileArchive, FileCode2, GitBranch, Layers, Mic, Network, Play, Redo2, RotateCcw, Server, ShieldAlert, Undo2, X,
-  Sun, Moon, Keyboard, HelpCircle, Target, Zap,
+  Activity, ArrowRight, AudioLines, Check, ChevronDown, ClipboardCheck, ClipboardList, FileArchive,
+  FileCode2, GitBranch, Layers, Mic, Network, Play, Redo2, RotateCcw, Server, ShieldAlert, Undo2, X,
+  Sun, Moon, Keyboard, HelpCircle,
 } from 'lucide-react';
 import CommandPresets from './components/CommandPresets.jsx';
 import ScenarioBranchingBar from './components/ScenarioBranchingBar.jsx';
@@ -14,7 +14,7 @@ import CommandPalette from './components/CommandPalette.jsx';
 import ConnectionStatus from './components/ConnectionStatus.jsx';
 import ParticleBackground from './components/ParticleBackground.jsx';
 import { DiagramSkeleton, TableSkeleton, ListSkeleton } from './components/Skeleton.jsx';
-import { getProjectSyncStatus } from './data/analysis.js';
+import { countOpenDecisions, getProjectSyncStatus } from './data/analysis.js';
 import { sound } from './utils/sound.js';
 import { useProjectState } from './hooks/useProjectState.ts';
 import { useDictation } from './hooks/useDictation.ts';
@@ -25,7 +25,20 @@ import { providerLabel } from './data/aiClient.ts';
 import { useToast } from './hooks/useToast.ts';
 import useLocalStorage from './hooks/useLocalStorage.ts';
 import { useTheme } from './hooks/useTheme.ts';
-import { useScrollReveal } from './hooks/useScrollAnimations.ts';
+import { useRevealOnScroll, useScrollProgress } from './hooks/useMotion.ts';
+import HeroStack3D from './components/HeroStack3D.jsx';
+import TiltCard from './components/TiltCard.jsx';
+import VoiceField from './components/landing/VoiceField.jsx';
+import StoryScroll from './components/landing/StoryScroll.jsx';
+import IntroLoader from './components/landing/IntroLoader.jsx';
+import { CustomCursor, Magnetic, SplitWords } from './components/landing/Interactions.jsx';
+import { useSmoothScroll } from './hooks/useSmoothScroll.ts';
+import { HeroFragments, SelectionFrame, CodeLine } from './components/landing/HeroCanvas.jsx';
+import { SectionLabel, RedlineStatement } from './components/landing/Editorial.jsx';
+import { useScrollSpy } from './hooks/useScrollSpy.ts';
+import { isDialogOpen } from './hooks/useDialog.ts';
+
+const NAV_SECTIONS = ['top', 'how', 'workspace', 'capabilities'];
 import './app-shell.css';
 
 const ArchitectureDiagram = lazy(() => import('./components/ArchitectureDiagram.jsx'));
@@ -71,10 +84,27 @@ function PanelWrapper({ children, fallback }) {
 export default function App() {
   const [tab, setTab] = useState('diagram');
   const [showHistory, setShowHistory] = useState(false);
+  const [showSourceMenu, setShowSourceMenu] = useState(false);
+  const sourceMenuRef = useRef(null);
+  useEffect(() => {
+    if (!showSourceMenu) return undefined;
+    const onPointer = (event) => {
+      if (!sourceMenuRef.current?.contains(event.target)) setShowSourceMenu(false);
+    };
+    const onKey = (event) => {
+      if (event.key === 'Escape') setShowSourceMenu(false);
+    };
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [showSourceMenu]);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const exportMenuRef = useRef(null);
   const composeInputRef = useRef(null);
+  const driftInputRef = useRef(null);
 
   const { toast, notify } = useToast();
 
@@ -138,16 +168,21 @@ export default function App() {
     handleTabChange: journeyHandleTabChange,
   } = journey;
 
-  const exportHooks = useExport(project);
+  const exportHooks = useExport(project, notify);
   const {
     exportOpen,
     setExportOpen,
+    exportMenuRef,
     exportAll,
     exportDevOps,
     exportDiagram,
   } = exportHooks;
 
   const { theme, toggleTheme } = useTheme();
+  useRevealOnScroll();
+  useScrollProgress();
+  useSmoothScroll();
+  const activeSection = useScrollSpy(NAV_SECTIONS);
 
   const proposalHooks = useProposalReview(project, sampleChoice, notify, { command, setCommand });
   const {
@@ -161,7 +196,6 @@ export default function App() {
     showProposal,
     _confirmChange: _proposalConfirmChange,
     playDemoDictation,
-    activeDemoCommand,
     proposalHasRateLimit,
     proposalHasRedisFallback,
     proposalCaveats,
@@ -180,12 +214,20 @@ export default function App() {
 
   const activeTab = tabs.find((item) => item.id === tab) || tabs[0];
 
-  const rateLimitRequirement = project?.requirements.find((item) => /rate.?limit/i.test(item.text));
-  const redisResilienceRequirement = project?.requirements.find((item) => /redis/i.test(item.text) && /(unavailable|resilien|fallback)/i.test(item.text));
-  const openDecisionCount = project
-    ? Number(!rateLimitRequirement || /threshold unresolved/i.test(rateLimitRequirement.text))
-      + Number(!redisResilienceRequirement || /fallback unresolved/i.test(redisResilienceRequirement.text))
-    : 0;
+  // Tier counts for the 3D model section, computed from the loaded model.
+  const layerSummary = useMemo(() => {
+    const comps = project?.components || [];
+    const count = (types) => comps.filter((c) => types.includes(c.type)).length;
+    return [
+      { label: 'Clients', count: count(['CLIENT']), tone: 'tone-violet' },
+      { label: 'Edge', count: count(['GATEWAY']), tone: 'tone-amber' },
+      { label: 'Services', count: count(['SERVICE']), tone: 'tone-indigo' },
+      { label: 'Data & events', count: count(['DATABASE', 'CACHE', 'QUEUE', 'EXTERNAL']), tone: 'tone-teal' },
+    ];
+  }, [project]);
+
+  // Counted from the model's own risk findings, so imported stacks get their own decisions.
+  const openDecisionCount = countOpenDecisions(project);
 
   const syncStatus = getProjectSyncStatus(project);
   const isLive = isListening || isDictatingSim;
@@ -196,7 +238,7 @@ export default function App() {
   // Ctrl/Cmd+Z and Ctrl/Cmd+Y undo the model, but never while typing
   useEffect(() => {
     function onKeyDown(e) {
-      if (proposal || isTypingTarget(e.target)) return;
+      if (proposal || isDialogOpen() || isTypingTarget(e.target)) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -217,23 +259,6 @@ export default function App() {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [proposal, handleUndo, handleRedo]);
-
-  // Close the export menu on outside click or Escape
-  useEffect(() => {
-    if (!exportOpen) return undefined;
-    function onPointer(e) {
-      if (!exportMenuRef.current?.contains(e.target)) setExportOpen(false);
-    }
-    function onKey(e) {
-      if (e.key === 'Escape') setExportOpen(false);
-    }
-    document.addEventListener('mousedown', onPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onPointer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [exportOpen, setExportOpen]);
 
   // Sync dictation state with proposal hook
   useEffect(() => {
@@ -285,6 +310,50 @@ export default function App() {
       await importComposeText(await response.text(), 'ride-share-compose.yml');
     } catch (error) {
       notify(error instanceof Error ? error.message : 'Import failed.');
+    }
+  };
+
+  // Fixes chosen in the Risks tab open the same review dialog as any other change.
+  const reviewResolution = (resolution) => {
+    if (!resolution) return;
+    sound.click();
+    setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
+    setProposal(resolution);
+  };
+
+  // Code drift: compare the diagram with a docker-compose file and review the differences.
+  const checkDriftText = async (text, fileName) => {
+    if (!project) return;
+    try {
+      const { detectCodeDrift, driftProposal } = await import('./data/driftCheck.ts');
+      const report = detectCodeDrift(project, text, fileName);
+      const drift = driftProposal(report, project);
+      if (!drift) {
+        const planned = report.plannedNotInCode.length;
+        notify(`The diagram matches ${fileName}.${planned ? ` ${planned} planned component${planned === 1 ? ' is' : 's are'} not in code yet.` : ''}`);
+        return;
+      }
+      sound.click();
+      setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
+      setProposal(drift);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Drift check failed.');
+    }
+  };
+
+  const onDriftFile = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) file.text().then((text) => checkDriftText(text, file.name));
+  };
+
+  const checkExampleDrift = async () => {
+    try {
+      const response = await fetch('/samples/ride-share-compose.v2.yml');
+      if (!response.ok) throw new Error('The example update could not be loaded.');
+      await checkDriftText(await response.text(), 'ride-share-compose.v2.yml');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Drift check failed.');
     }
   };
 
@@ -342,7 +411,7 @@ export default function App() {
     }
     if (tab === 'diagram') return <Suspense fallback={<DiagramSkeleton />}><PanelWrapper fallback={<div>Diagram unavailable</div>}><ArchitectureDiagram project={project} /></PanelWrapper></Suspense>;
     if (tab === 'openapi') return <Suspense fallback={<TableSkeleton rows={6} columns={4} />}><PanelWrapper fallback={<div>API contract unavailable</div>}><OpenApiPanel project={project} onNotify={notify} /></PanelWrapper></Suspense>;
-    if (tab === 'risk') return <Suspense fallback={<TableSkeleton rows={5} columns={5} />}><PanelWrapper fallback={<div>Risks unavailable</div>}><RiskPanel project={project} /></PanelWrapper></Suspense>;
+    if (tab === 'risk') return <Suspense fallback={<TableSkeleton rows={5} columns={5} />}><PanelWrapper fallback={<div>Risks unavailable</div>}><RiskPanel project={project} onResolve={reviewResolution} /></PanelWrapper></Suspense>;
     if (tab === 'tasks') return <Suspense fallback={<TableSkeleton rows={5} columns={6} />}><PanelWrapper fallback={<div>Tasks unavailable</div>}><TaskPanel project={project} /></PanelWrapper></Suspense>;
     if (tab === 'impact') return <Suspense fallback={<ListSkeleton items={4} />}><PanelWrapper fallback={<div>Change impact unavailable</div>}><ChangeImpactPanel project={project} /></PanelWrapper></Suspense>;
     return <Suspense fallback={<DiagramSkeleton />}><PanelWrapper fallback={<div>Topology unavailable</div>}><TopologyPanel project={project} /></PanelWrapper></Suspense>;
@@ -380,10 +449,10 @@ export default function App() {
           <b>VoiceArchitect</b>
         </a>
         <nav className="va-nav" aria-label="Page sections">
-          <a href="#top">Overview</a>
-          <a href="#how">How it works</a>
-          <a href="#workspace">Workspace</a>
-          <a href="#capabilities">Capabilities</a>
+          <a href="#top" aria-current={activeSection === 'top' ? 'true' : undefined}>Overview</a>
+          <a href="#how" aria-current={activeSection === 'how' ? 'true' : undefined}>How it works</a>
+          <a href="#workspace" aria-current={activeSection === 'workspace' ? 'true' : undefined}>Workspace</a>
+          <a href="#capabilities" aria-current={activeSection === 'capabilities' ? 'true' : undefined}>Capabilities</a>
         </nav>
         <div className="va-topbar-actions">
           <button type="button" className="va-btn va-btn-ghost va-btn-icon" onClick={() => { setIsShortcutsOpen(true); sound.click(); }} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">
@@ -439,180 +508,253 @@ export default function App() {
         </div>
       </header>
 
-      <section className="va-hero" id="top" aria-labelledby="va-hero-title">
-        <div className="va-hero-background">
-          <div className="va-hero-orb va-hero-orb-1" />
-          <div className="va-hero-orb va-hero-orb-2" />
-          <div className="va-hero-orb va-hero-orb-3" />
-          <div className="va-hero-grid" />
-        </div>
-        <div className="va-hero-content">
-          <div className="va-hero-badge va-float">
-            <span className="va-badge-dot va-pulse" />
-            <span>VoiceArchitect</span>
-            <kbd className="va-kbd">Ctrl+K</kbd>
-          </div>
-          <h1 id="va-hero-title">
-            Say the architecture change
-            <br />
-            <span className="va-gradient-text">see what it affects</span>
-          </h1>
-          <p className="va-hero-description">
-            VoiceArchitect turns a spoken instruction into a reviewable change, then updates the diagram,
-            API contract, risks, and engineering tasks together.
+      <section className="va-hero va-hero-canvas" id="top" aria-labelledby="va-hero-title" data-cursor-zone>
+        <span className="va-canvas-grid" aria-hidden="true" />
+        <VoiceField />
+        <HeroFragments project={project} />
+
+        <div className="va-canvas-center">
+          <SelectionFrame label="h1 · say the change">
+            <h1 id="va-hero-title" className="va-display">
+              <SplitWords text="Say the change." />
+              <SplitWords text="See what it touches." offset={3} className="va-display-serif" />
+            </h1>
+          </SelectionFrame>
+          <p className="va-hero-description" data-reveal style={{ '--d': 4 }}>
+            Describe an architecture change out loud. VoiceArchitect turns it into a reviewable diff and keeps the diagram,
+            API contract, risks, and tasks true to your code.
           </p>
-          <div className="va-hero-actions">
-            <button type="button" className="va-btn va-btn-primary va-btn-lg va-glow" onClick={startDemo}>
-              <Play size={15} /> Start guided demo
-            </button>
-            <a className="va-btn va-btn-lg va-glass" href="#workspace">
-              Open the workspace <ArrowRight size={15} />
-            </a>
+          <div className="va-hero-actions" data-reveal style={{ '--d': 5 }}>
+            <Magnetic>
+              <button type="button" className="va-btn va-btn-primary va-btn-xl va-shine" onClick={startDemo} data-cursor="Play">
+                <Play size={16} /> Start guided demo
+              </button>
+            </Magnetic>
+            <Magnetic strength={0.22}>
+              <a className="va-btn va-btn-xl va-btn-glass" href="#workspace" data-cursor="Open">
+                Open the workspace <ArrowRight size={16} />
+              </a>
+            </Magnetic>
           </div>
-          <ul className="va-hero-stats" aria-label="What VoiceArchitect does">
-            <li className="va-stat">
-              <span className="va-stat-value">Import</span>
-              <span className="va-stat-label">your docker-compose file</span>
-            </li>
-            <li className="va-stat">
-              <span className="va-stat-value">Review</span>
-              <span className="va-stat-label">every change before it applies</span>
-            </li>
-            <li className="va-stat">
-              <span className="va-stat-value">Sync</span>
-              <span className="va-stat-label">diagram, API, risks, and tasks</span>
-            </li>
-          </ul>
+          <div data-reveal style={{ '--d': 6 }}>
+            <CodeLine name="interpreter">
+              {aiStatus.ai ? `${providerLabel(aiStatus.provider)} · ${aiStatus.model}` : 'offline rules · add a key for full understanding'}
+            </CodeLine>
+          </div>
         </div>
-        <figure className="va-hero-card va-card-3d va-glass-strong">
-          <div className="va-hero-card-header">
-            <span className="va-card-tag">Example</span>
-            <div className="va-card-dots">
-              <span />
-              <span />
-              <span />
-            </div>
-          </div>
-          <figcaption>You say</figcaption>
-          <blockquote className="va-hero-command">{activeDemoCommand}</blockquote>
-          <div className="va-hero-results">
-            <span>You get</span>
-            <ul>
-              <li><Network size={15} /> An updated architecture diagram</li>
-              <li><FileCode2 size={15} /> A revised API contract</li>
-              <li><ShieldAlert size={15} /> Risks found in the new design</li>
-              <li><ClipboardList size={15} /> Tasks your team can pick up</li>
-            </ul>
-          </div>
-          <div className="va-hero-card-footer">
-            <span className="va-footer-item">
-              <Target size={12} /> Schema-validated
-            </span>
-            <span className="va-footer-item">
-              <Activity size={12} /> Reviewed before applied
-            </span>
-            <span className="va-footer-item">
-              <Zap size={12} /> Works offline with basic rules
-            </span>
-          </div>
-        </figure>
+
+        <a className="va-scroll-cue" href="#statement" aria-label="Scroll to the next section">
+          <span>Scroll</span><i />
+        </a>
       </section>
 
-      <section className="va-section" id="how" aria-labelledby="va-how-title">
+      <div id="statement">
+        <RedlineStatement id="va-statement-title" />
+      </div>
+
+      <section className="va-section va-layers" id="layers" aria-labelledby="va-layers-title" data-cursor-zone>
         <div className="va-section-inner">
-          <h2 id="va-how-title">From a sentence to a reviewed change</h2>
-          <ol className="va-steps">
-            <li>
-              <span className="va-step-n">1</span>
-              <h3>Say it</h3>
-              <p>Describe the change in the instruction box. Plain language is enough.</p>
-            </li>
-            <li>
-              <span className="va-step-n">2</span>
-              <h3>Review it</h3>
-              <p>See how the change was interpreted and which decisions are still open. Nothing is applied until you confirm.</p>
-            </li>
-            <li>
-              <span className="va-step-n">3</span>
-              <h3>See what follows</h3>
-              <p>Every view updates from the same model, so the diagram, contract, risks, and tasks never disagree.</p>
-            </li>
-          </ol>
+          <SectionLabel index={1}>Your model</SectionLabel>
+          <h2 id="va-layers-title" className="va-section-title" data-reveal style={{ '--d': 1 }}>
+            Every layer, <em>in one</em> view
+          </h2>
+          <div className="va-layers-body">
+            <div className="va-layers-stage" data-reveal style={{ '--d': 2 }}>
+              <HeroStack3D project={project} />
+            </div>
+            <ul className="va-layers-legend" data-reveal style={{ '--d': 3 }}>
+              {layerSummary.map((row) => (
+                <li key={row.label} className={row.tone}>
+                  <span className="va-layers-count">{String(row.count).padStart(2, '0')}</span>
+                  <span>{row.label}</span>
+                </li>
+              ))}
+              <li className="va-layers-note">Counted live from {project?.name || 'the loaded model'}. Move your pointer to tilt it.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section className="va-section va-how va-how-v3" id="how" aria-labelledby="va-how-title" data-cursor-zone>
+        <div className="va-section-inner">
+          <SectionLabel index={2}>How it works</SectionLabel>
+          <h2 id="va-how-title" className="va-section-title" data-reveal style={{ '--d': 1 }}>
+            From a sentence to a <em>reviewed</em> change
+          </h2>
+          <StoryScroll />
         </div>
       </section>
 
       <section className="va-section va-section-work" id="workspace" aria-labelledby="va-work-title">
         <div className="va-section-inner">
-          <h2 id="va-work-title">Workspace</h2>
-          <p className="va-section-lead">Follow the steps below. Use everyday language; the prototype shows what your request would affect.</p>
+          <SectionLabel index={3}>Try it</SectionLabel>
+          <h2 id="va-work-title" data-reveal style={{ '--d': 1 }}>Workspace</h2>
+          <p className="va-section-lead" data-reveal style={{ '--d': 2 }}>Load a system, describe a change in everyday language, and review exactly what it would affect before anything is applied.</p>
         </div>
-      <section className="va-journey" aria-label="Demo walkthrough progress">
-        <div className="va-journey-top">
-          <div>
-            <span className="va-journey-eyebrow">YOUR WALKTHROUGH</span>
-            <p aria-live="polite">{journeyGuidance}</p>
+      <div className="va-studio">
+        <header className="va-studio-head">
+          <div className="va-model-title">
+            <h2>{project ? project.name : 'System architecture'}</h2>
+            {project && (
+              <span className="va-version" data-changed={Boolean(project.changed)}>
+                v{project.version}{project.changed ? ' · updated' : ' · baseline'}
+              </span>
+            )}
+            {project && (
+              <span className="va-stats">
+                <span>{project.components.length} components</span>
+                {openDecisionCount > 0 && (
+                  <button type="button" className="va-stat-warn" onClick={() => handleTabChange('risk')}>
+                    {openDecisionCount} open decision{openDecisionCount === 1 ? '' : 's'}
+                  </button>
+                )}
+              </span>
+            )}
           </div>
-          <div className="va-sample-picker">
-            <select id="va-sample-choice" aria-label="Sample architecture" value={sampleChoice} onChange={(event) => setSampleChoice(event.target.value)}>
-              <option value="commerce">Commerce Platform</option>
-              <option value="food">Food Delivery</option>
-            </select>
-            <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={loadSample}>
-              <RotateCcw size={14} /> Load sample
-            </button>
-            <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={() => composeInputRef.current?.click()}>
-              <FileCode2 size={14} /> Import docker-compose
-            </button>
-            <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={importExampleCompose}>
-              Try example stack
-            </button>
-            <input
-              ref={composeInputRef}
-              type="file"
-              accept=".yml,.yaml"
-              hidden
-              aria-label="docker-compose file"
-              onChange={onComposeFile}
+
+          <div className="va-studio-tools">
+            <div className="va-sample-picker">
+              <select id="va-sample-choice" aria-label="Sample architecture" value={sampleChoice} onChange={(event) => setSampleChoice(event.target.value)}>
+                <option value="commerce">Commerce Platform</option>
+                <option value="food">Food Delivery</option>
+              </select>
+              <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={loadSample}>
+                <RotateCcw size={14} /> Load sample
+              </button>
+            </div>
+
+            <div className="va-pop" ref={sourceMenuRef}>
+              <button
+                type="button"
+                className="va-btn va-btn-ghost va-btn-sm"
+                aria-expanded={showSourceMenu}
+                aria-controls="va-source-menu"
+                onClick={() => setShowSourceMenu((open) => !open)}
+              >
+                <FileCode2 size={14} /> From code <ChevronDown size={14} />
+              </button>
+              {showSourceMenu && (
+                <div className="va-pop-panel" id="va-source-menu">
+                  <button type="button" onClick={() => { setShowSourceMenu(false); composeInputRef.current?.click(); }}>
+                    Import docker-compose
+                    <small aria-hidden="true">Draw the model from your compose file</small>
+                  </button>
+                  <button type="button" onClick={() => { setShowSourceMenu(false); importExampleCompose(); }}>
+                    Try example stack
+                    <small aria-hidden="true">A ride-share stack, imported from compose</small>
+                  </button>
+                  <hr />
+                  <button type="button" disabled={!project} onClick={() => { setShowSourceMenu(false); driftInputRef.current?.click(); }}>
+                    Check against code
+                    <small aria-hidden="true">Compare the diagram with a newer compose file</small>
+                  </button>
+                  {project?.name === 'ride-share-platform' && (
+                    <button type="button" onClick={() => { setShowSourceMenu(false); checkExampleDrift(); }}>
+                      Try example update
+                      <small aria-hidden="true">Check this diagram against the next compose version</small>
+                    </button>
+                  )}
+                </div>
+              )}
+              <input
+                ref={driftInputRef}
+                type="file"
+                accept=".yml,.yaml"
+                hidden
+                aria-label="docker-compose file to check against"
+                onChange={onDriftFile}
+              />
+              <input
+                ref={composeInputRef}
+                type="file"
+                accept=".yml,.yaml"
+                hidden
+                aria-label="docker-compose file"
+                onChange={onComposeFile}
+              />
+            </div>
+
+            <span className="va-toolbar-sep" aria-hidden="true" />
+
+            <div className="va-history">
+              <button
+                type="button"
+                className="va-btn va-btn-ghost va-btn-sm va-branch-btn"
+                aria-expanded={showHistory}
+                aria-label={`Branches and history, on ${currentBranch?.name || 'Main Branch'}`}
+                onClick={() => setShowHistory((open) => !open)}
+              >
+                <GitBranch size={14} /> {currentBranch?.name || 'Main Branch'} <ChevronDown size={14} />
+              </button>
+              <button type="button" className="va-btn va-btn-ghost va-btn-icon va-btn-sm" onClick={handleUndo} disabled={!canUndo} aria-label="Undo last change" title="Undo (Ctrl+Z)">
+                <Undo2 size={15} />
+              </button>
+              <button type="button" className="va-btn va-btn-ghost va-btn-icon va-btn-sm" onClick={handleRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Ctrl+Y)">
+                <Redo2 size={15} />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className="va-studio-progress">
+          <ol className="va-journey-steps" aria-label="Demo walkthrough progress">
+            {journeySteps.map((step, index) => {
+              const done = step.complete;
+              const current = !done && index === currentJourneyStep;
+              return (
+                <li key={step.title} data-state={done ? 'done' : current ? 'current' : 'upcoming'} title={step.title}>
+                  <span className="va-journey-marker" aria-hidden="true">{done ? <Check size={11} /> : index + 1}</span>
+                  <span className={current ? 'va-journey-title' : 'va-sr-only'}>{step.title}</span>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="va-sr-only" aria-live="polite">{journeyGuidance}</p>
+          {project?.changed && (
+            <div className="va-journey-outputs" aria-label="Updated output review progress">
+              <span className="va-journey-outputs-label">Review</span>
+              {journeyOutputs.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  data-viewed={inspectedArtifacts.has(item.id)}
+                  aria-pressed={tab === item.id}
+                  aria-label={`View updated ${item.label}`}
+                  onClick={() => handleTabChange(item.id)}
+                >
+                  {inspectedArtifacts.has(item.id) && <Check size={12} />} {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {showHistory && (
+          <div className="va-history-panel">
+            <ScenarioBranchingBar
+              currentBranchId={currentBranchId}
+              branches={branchList}
+              onSwitchBranch={handleSwitchBranch}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              timeline={timelineEntries}
+              changes={project?.changes || []}
+              onJumpToVersion={handleJumpToVersion}
+              comparison={scenarioComparison}
+              onOpenComparison={handleOpenComparison}
+              onForkBranch={() => { handleForkBranch(); notify('Forked the current model into a new branch. Changes here stay off main until you merge.'); }}
+              onMergeBranch={currentBranchId !== 'main' ? handleInitiateMerge : undefined}
             />
           </div>
-        </div>
-        <ol className="va-journey-steps">
-          {journeySteps.map((step, index) => {
-            const done = step.complete;
-            const current = !done && index === currentJourneyStep;
-            return (
-              <li key={step.title} data-state={done ? 'done' : current ? 'current' : 'upcoming'}>
-                <span className="va-journey-marker" aria-hidden="true">{done ? <Check size={13} /> : index + 1}</span>
-                <span>{step.title}</span>
-              </li>
-            );
-          })}
-        </ol>
-        {project?.changed && (
-          <div className="va-journey-outputs" aria-label="Updated output review progress">
-            {journeyOutputs.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                data-viewed={inspectedArtifacts.has(item.id)}
-                aria-pressed={tab === item.id}
-                aria-label={`View updated ${item.label}`}
-                onClick={() => handleTabChange(item.id)}
-              >
-                {inspectedArtifacts.has(item.id) && <Check size={12} />} {item.label}
-              </button>
-            ))}
-          </div>
         )}
-      </section>
+
       <div className="va-layout">
         {/* ---------------- Composer ---------------- */}
         <section className="va-composer" aria-labelledby="va-composer-title">
           <div className="va-composer-head">
-            <div>
-              <h2 id="va-composer-title">What should change?</h2>
-              <p>Use your own words, or start with the sample instruction below. You review it before anything is applied.</p>
-            </div>
+            <h2 id="va-composer-title">What should change?</h2>
             <button
               type="button"
               className="va-mic"
@@ -622,7 +764,7 @@ export default function App() {
               title={isListening ? 'Stop dictation' : 'Start browser dictation'}
               onClick={toggleDictation}
             >
-              <Mic size={22} />
+              <Mic size={20} />
             </button>
           </div>
 
@@ -633,10 +775,11 @@ export default function App() {
           </div>
 
           <div className="va-field">
-            <label htmlFor="architecture-command">Your instruction</label>
+            <label htmlFor="architecture-command" className="va-sr-only">Your instruction</label>
             <textarea
               id="architecture-command"
               value={command}
+              rows={5}
               onChange={(event) => {
                 setCommand(event.target.value);
                 setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
@@ -647,15 +790,17 @@ export default function App() {
                   showProposal();
                 }
               }}
-              placeholder="Move session storage to Redis, keep PostgreSQL as the source of truth, add login rate limiting, and keep login working if Redis is down."
+              placeholder="Say it or type it. For example: move session storage to Redis and keep login working if Redis is down."
             />
             <div className="va-field-hint">
-              <span className="va-engine" data-ai={aiStatus.ai}>
-                {aiStatus.ai
-                  ? `Interpreted by ${providerLabel(aiStatus.provider)}${aiStatus.model ? ` (${aiStatus.model})` : ''}, checked against the schema`
-                  : 'Offline rules only. Add GROQ_API_KEY or ANTHROPIC_API_KEY to .env.local for full understanding.'}
+              <span
+                className="va-engine"
+                data-ai={aiStatus.ai}
+                title={aiStatus.ai ? 'Every proposal is checked against the schema before you see it.' : 'Add GROQ_API_KEY or ANTHROPIC_API_KEY to .env.local for full understanding.'}
+              >
+                {aiStatus.ai ? `Interpreted by ${providerLabel(aiStatus.provider)}` : 'Offline rules only'}
               </span>
-              <span><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to preview</span>
+              <span aria-label="Press Control and Enter to preview"><kbd>Ctrl</kbd> <kbd>Enter</kbd></span>
             </div>
           </div>
 
@@ -672,20 +817,6 @@ export default function App() {
             </div>
           )}
 
-          <div>
-            <p className="va-prompts-label">Or start from an example</p>
-            <CommandPresets
-              sampleKind={sampleChoice}
-              project={project}
-              isImported={isImported}
-              onSelectPreset={(value) => {
-                setCommand(value);
-                setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
-              }}
-              currentCommand={command}
-            />
-          </div>
-
           <div className="va-composer-actions">
             <button
               type="button"
@@ -696,87 +827,46 @@ export default function App() {
             >
               <ClipboardCheck size={16} /> {isInterpreting ? 'Interpreting…' : 'Preview my change'}
             </button>
-            <button type="button" className="va-btn va-btn-ghost va-btn-sm" onClick={playDemoDictation} disabled={isDictatingSim}>
-              <Play size={13} /> Play sample instruction
-            </button>
-            <button
-              type="button"
-              className="va-btn va-btn-ghost va-btn-sm"
-              onClick={() => {
-                sound.click();
-                setCommand('');
-                setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
-                setProposal(null);
-              }}
-              disabled={!command}
-            >
-              Clear
-            </button>
+            <div className="va-composer-links">
+              <button type="button" className="va-link-btn" onClick={playDemoDictation} disabled={isDictatingSim}>
+                <Play size={12} /> Play sample instruction
+              </button>
+              {command && (
+                <button
+                  type="button"
+                  className="va-link-btn"
+                  onClick={() => {
+                    sound.click();
+                    setCommand('');
+                    setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
+                    setProposal(null);
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
+
+          <details className="va-examples">
+            <summary>Examples <ChevronDown size={14} aria-hidden="true" /></summary>
+            <CommandPresets
+              sampleKind={sampleChoice}
+              project={project}
+              isImported={isImported}
+              onSelectPreset={(value) => {
+                setCommand(value);
+                setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
+              }}
+              currentCommand={command}
+            />
+          </details>
+
+          <p className="va-composer-note">Nothing applies until you review it.</p>
         </section>
 
         {/* ---------------- Output ---------------- */}
         <section className="va-output" aria-label="Generated architecture">
-          <div className="va-modelbar">
-            <div className="va-model-title">
-              <h2>{project ? project.name : 'System architecture'}</h2>
-              {project && (
-                <span className="va-version" data-changed={Boolean(project.changed)}>
-                  v{project.version}{project.changed ? ' · updated' : ' · baseline'}
-                </span>
-              )}
-            </div>
-            {project && (
-              <div className="va-stats">
-                <span>{project.components.length} components</span>
-                {openDecisionCount > 0 && (
-                  <button type="button" className="va-stat-warn" onClick={() => handleTabChange('risk')}>
-                    {openDecisionCount} open decision{openDecisionCount === 1 ? '' : 's'}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="va-history">
-            <span className="va-branch-chip"><GitBranch size={14} /> {currentBranch?.name || 'Main Branch'}</span>
-            <button type="button" className="va-btn va-btn-ghost va-btn-icon va-btn-sm" onClick={handleUndo} disabled={!canUndo} aria-label="Undo last change" title="Undo (Ctrl+Z)">
-              <Undo2 size={15} />
-            </button>
-            <button type="button" className="va-btn va-btn-ghost va-btn-icon va-btn-sm" onClick={handleRedo} disabled={!canRedo} aria-label="Redo" title="Redo (Ctrl+Y)">
-              <Redo2 size={15} />
-            </button>
-            <button
-              type="button"
-              className="va-btn va-btn-ghost va-btn-sm"
-              aria-expanded={showHistory}
-              onClick={() => setShowHistory((open) => !open)}
-            >
-              Branches and history <ChevronDown size={14} />
-            </button>
-          </div>
-
-          {showHistory && (
-            <div className="va-history-panel">
-              <ScenarioBranchingBar
-                currentBranchId={currentBranchId}
-                branches={branchList}
-                onSwitchBranch={handleSwitchBranch}
-                canUndo={canUndo}
-                canRedo={canRedo}
-                onUndo={handleUndo}
-                onRedo={handleRedo}
-                timeline={timelineEntries}
-                changes={project?.changes || []}
-                onJumpToVersion={handleJumpToVersion}
-                comparison={scenarioComparison}
-                onOpenComparison={handleOpenComparison}
-                onForkBranch={() => { handleForkBranch(); notify('Forked the current model into a new branch. Changes here stay off main until you merge.'); }}
-                onMergeBranch={currentBranchId !== 'main' ? handleInitiateMerge : undefined}
-              />
-            </div>
-          )}
-
           <div className="va-card">
             <div
               className="va-tabs"
@@ -811,7 +901,7 @@ export default function App() {
                 </button>
               ))}
               <span
-                className="va-sync"
+                className="va-sync va-sr-only"
                 data-unresolved={Boolean(project && syncStatus.includes('unresolved'))}
                 role="status"
                 aria-live="polite"
@@ -832,19 +922,25 @@ export default function App() {
           </div>
         </section>
       </div>
+      </div>
       </section>
 
-      <section className="va-section" id="capabilities" aria-labelledby="va-cap-title">
+      <section className="va-section va-caps-section" id="capabilities" aria-labelledby="va-cap-title" data-cursor-zone>
         <div className="va-section-inner">
-          <h2 id="va-cap-title">Go beyond one change</h2>
-          <div className="va-caps">
-            <article>
-              <GitBranch size={20} />
+          <SectionLabel index={4}>Capabilities</SectionLabel>
+          <h2 id="va-cap-title" className="va-section-title" data-reveal style={{ '--d': 1 }}>
+            Go beyond <em>one</em> change
+          </h2>
+          <div className="va-bento">
+            <TiltCard className="tone-indigo va-bento-tall" data-reveal style={{ '--d': 1 }}>
+              <span className="va-cap-icon"><GitBranch size={20} /></span>
               <h3>Try an alternative safely</h3>
               <p>Fork your model into a branch, try changes there, compare the branch with main, then merge what works.</p>
+              <div className="va-bento-art va-art-branch" aria-hidden="true"><i /><i /><i /><b /><b /><b /></div>
               <button
                 type="button"
                 className="va-btn"
+                data-cursor="Fork"
                 onClick={() => {
                   handleForkBranch();
                   notify('Forked the current model into a new branch. Changes here stay off main until you merge.');
@@ -853,31 +949,56 @@ export default function App() {
               >
                 Fork this version
               </button>
-            </article>
-            <article>
-              <Undo2 size={20} />
+            </TiltCard>
+            <TiltCard className="tone-teal" data-reveal style={{ '--d': 2 }}>
+              <span className="va-cap-icon"><Undo2 size={20} /></span>
               <h3>Go back in time</h3>
               <p>Undo, redo, or jump to any earlier version of the model without losing your place.</p>
-              <button type="button" className="va-btn" onClick={() => { setShowHistory(true); document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' }); }}>
+              <div className="va-bento-art va-art-timeline" aria-hidden="true"><i /><i /><i /><i /><i /></div>
+              <button type="button" className="va-btn" data-cursor="Open" onClick={() => { setShowHistory(true); document.getElementById('workspace')?.scrollIntoView({ behavior: 'smooth' }); }}>
                 Open history
               </button>
-            </article>
-            <article>
-              <FileArchive size={20} />
+            </TiltCard>
+            <TiltCard className="tone-amber" data-reveal style={{ '--d': 3 }}>
+              <span className="va-cap-icon"><FileArchive size={20} /></span>
               <h3>Take it with you</h3>
-              <p>Export the model, contract, risks, and tasks, or a DevOps bundle with Terraform and Kubernetes manifests.</p>
+              <p>Export the model, contract, risks, and tasks, or a DevOps bundle with Terraform and Kubernetes scaffolding.</p>
               <div className="va-cap-actions">
                 <button type="button" className="va-btn" onClick={exportAll}>Artifacts ZIP</button>
                 <button type="button" className="va-btn" onClick={exportDevOps}>DevOps ZIP</button>
               </div>
-            </article>
+            </TiltCard>
+            <TiltCard className="tone-violet va-bento-wide" data-reveal style={{ '--d': 4 }}>
+              <span className="va-cap-icon"><ShieldAlert size={20} /></span>
+              <h3>Checked, never guessed</h3>
+              <p>
+                Every proposal is validated against your model before you see it. Unknown components are skipped and
+                explained, open questions stay open, and without an API key the app still runs on built-in rules.
+              </p>
+            </TiltCard>
           </div>
         </div>
       </section>
 
-      <footer className="va-footer">
-        <span>Deterministic demo on a synthetic Commerce Platform model.</span>
+      <footer className="va-footer va-footer-v3" data-cursor-zone>
+        <div className="va-footer-cta">
+          <p className="va-eyebrow">Ready when you are</p>
+          <a className="va-footer-link" href="#workspace" data-cursor="Try">
+            Try it on your own stack <ArrowRight size={22} />
+          </a>
+        </div>
+        <div className="va-footer-wordmark" aria-hidden="true">
+          <span>Voice</span><span className="is-serif">Architect</span>
+        </div>
+        <div className="va-footer-meta">
+          <span className="va-footer-brand"><AudioLines size={14} /> VoiceArchitect</span>
+          <span>Architecture docs that stay true to the code. Nothing changes without your review.</span>
+        </div>
       </footer>
+      <div className="va-scroll-progress" aria-hidden="true" />
+      <div className="va-grain" aria-hidden="true" />
+      <CustomCursor />
+      <IntroLoader />
 
       {/* Review dialog */}
       {proposal && (

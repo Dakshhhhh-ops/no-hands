@@ -250,7 +250,7 @@ export function simulateChaosAndTelemetry(
       latencyMs: to?.activeLatencyMs ?? ASSUMED_HOP_LATENCY_MS,
       particleSpeedSeconds: severed ? 0 : degraded ? 4.8 : 2.0,
       particleDensity: severed ? 0 : degraded ? 1 : 3,
-      particleColor: severed ? '#ef4444' : degraded ? '#f59e0b' : '#4ef2d2',
+      particleColor: severed ? 'var(--va-rose)' : degraded ? 'var(--va-amber)' : 'var(--va-accent)',
     });
   }
 

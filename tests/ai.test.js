@@ -195,3 +195,25 @@ test('assumptions that only narrate JSON plumbing are dropped, real questions ar
   const result = await interpretInstruction('x', {}, { provider: 'anthropic', anthropic: fakeClient(reply) });
   assert.deepEqual(result.assumptions, ['Which delivery channels (email, SMS, push) should be supported?']);
 });
+
+test('VOICEARCHITECT_PROVIDER=offline ignores configured keys', async () => {
+  const { activeProvider, activeModel, aiConfigured } = await import('../server/interpret.ts');
+  const saved = { ...process.env };
+  try {
+    process.env.GROQ_API_KEY = 'gsk_test';
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
+    delete process.env.VOICEARCHITECT_PROVIDER;
+    assert.equal(activeProvider(), 'groq');
+
+    process.env.VOICEARCHITECT_PROVIDER = 'offline';
+    assert.equal(activeProvider(), null);
+    assert.equal(activeModel(), null);
+    assert.equal(aiConfigured(), false);
+    await assert.rejects(interpretInstruction('add a cache', {}), (e) => e instanceof InterpretError && e.status === 503);
+  } finally {
+    for (const key of ['GROQ_API_KEY', 'ANTHROPIC_API_KEY', 'VOICEARCHITECT_PROVIDER']) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  }
+});

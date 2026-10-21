@@ -11,14 +11,14 @@ interface ExportBundle {
 
 interface UseExportReturn {
   exportOpen: boolean;
-  setExportOpen: (_open: boolean) => void;
+  setExportOpen: React.Dispatch<React.SetStateAction<boolean>>;
   exportMenuRef: React.RefObject<HTMLDivElement | null>;
   exportAll: () => Promise<void>;
   exportDevOps: () => Promise<void>;
   exportDiagram: (_format: 'svg' | 'png' | 'mermaid') => Promise<void>;
 }
 
-export function useExport(project: Project | null): UseExportReturn {
+export function useExport(project: Project | null, notify: (_message: string) => void = () => {}): UseExportReturn {
   const [exportOpen, setExportOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +44,7 @@ export function useExport(project: Project | null): UseExportReturn {
     label: string
   ) => {
     if (!project) {
-      alert('Load a project before exporting.');
+      notify('Load a project before exporting.');
       return;
     }
     sound.export();
@@ -60,11 +60,11 @@ export function useExport(project: Project | null): UseExportReturn {
       anchor.click();
       anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1500);
-      alert(`${label} downloaded (${files.length} files).`);
+      notify(`${label} downloaded (${files.length} files).`);
     } catch (error) {
-      alert(`Export failed: ${error instanceof Error ? error.message : 'could not create the ZIP.'}`);
+      notify(`Export failed: ${error instanceof Error ? error.message : 'could not create the ZIP.'}`);
     }
-  }, [project]);
+  }, [project, notify]);
 
   const exportAll = useCallback(async () => {
     await downloadBundle(
@@ -82,7 +82,7 @@ export function useExport(project: Project | null): UseExportReturn {
   }, [downloadBundle]);
 
   const exportDiagram = useCallback(async (format: 'svg' | 'png' | 'mermaid') => {
-    if (!project) return alert('Load a project before exporting its diagram.');
+    if (!project) return notify('Load a project before exporting its diagram.');
     try {
       sound.export();
       setExportOpen(false);
@@ -102,11 +102,11 @@ export function useExport(project: Project | null): UseExportReturn {
       anchor.click();
       anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1500);
-      alert(`${format === 'mermaid' ? 'Mermaid' : format.toUpperCase()} diagram downloaded.`);
+      notify(`${format === 'mermaid' ? 'Mermaid' : format.toUpperCase()} diagram downloaded.`);
     } catch (error) {
-      alert(`Diagram export failed: ${error instanceof Error ? error.message : 'could not render the diagram.'}`);
+      notify(`Diagram export failed: ${error instanceof Error ? error.message : 'could not render the diagram.'}`);
     }
-  }, [project]);
+  }, [project, notify]);
 
   return {
     exportOpen,

@@ -23,16 +23,16 @@ describe('ChangeImpactPanel', () => {
 
   it('renders change impact header', () => {
     render(<ChangeImpactPanel project={mockProject} />);
-    expect(screen.getByText(/baseline.*current delta impact/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'What changed' })).toBeInTheDocument();
   });
 
-  it('shows no deltas message when baseline is null', () => {
+  it('shows an empty state when there is no baseline to compare', () => {
     render(<ChangeImpactPanel project={mockProject} />);
-    expect(screen.getByText(/no deltas detected on this baseline/i)).toBeInTheDocument();
+    expect(screen.getByText('No changes since the baseline')).toBeInTheDocument();
   });
 
-  it('shows governance section', () => {
+  it('hides the open decisions section when the model calls for none', () => {
     render(<ChangeImpactPanel project={mockProject} />);
-    expect(screen.getByText(/governance.*unresolved_decisions/i)).toBeInTheDocument();
+    expect(screen.queryByText('Decisions still open')).not.toBeInTheDocument();
   });
 });

@@ -50,6 +50,8 @@ export function applyOperations(project: Project, proposal: Proposal): Operation
   const next = structuredClone(project) as Project;
   const changeId = `CHG-${String(next.version + 1).padStart(4, '0')}`;
   const provenance = { sourceChangeId: changeId, originalInstruction: proposal.text };
+  // A drift sync brings in what the docker-compose file shows, so mark it as coming from code.
+  const fromCode = proposal.source === 'drift' ? { origin: 'code' as const } : {};
   const affected = new Set<Artifact>();
   const outcomes: OperationOutcome[] = [];
   const hasComponent = (id: string) => next.components.some((c) => c.id === id);
@@ -73,6 +75,7 @@ export function applyOperations(project: Project, proposal: Proposal): Operation
           responsibilities: op.responsibilities || [],
           x: 0,
           y: 0,
+          ...fromCode,
           ...provenance,
         });
         affected.add('components');
@@ -136,6 +139,7 @@ export function applyOperations(project: Project, proposal: Proposal): Operation
           to,
           label: op.label.trim() || 'calls',
           ...(op.protocol ? { protocol: op.protocol } : {}),
+          ...fromCode,
           ...provenance,
         });
         affected.add('relationships');
@@ -191,7 +195,8 @@ export function applyOperations(project: Project, proposal: Proposal): Operation
       }
       case 'add_requirement': {
         const id = toRequirementId(op.id);
-        const requirement = { id, text: op.text.trim(), status: op.status, ...provenance };
+        const resolution = op.resolution?.trim();
+        const requirement = { id, text: op.text.trim(), status: op.status, ...provenance, ...(resolution ? { resolution } : {}) };
         if (!requirement.text) { skip(op, 'Skipped an empty requirement.'); break; }
         const index = next.requirements.findIndex((r) => r.id === id);
         if (index >= 0) next.requirements[index] = { ...next.requirements[index], ...requirement };
