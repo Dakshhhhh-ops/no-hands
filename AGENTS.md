@@ -7,11 +7,12 @@ architecture workspace.
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Start Vite dev server (`vite`, opens browser) |qa
+| `npm run dev` | Start Vite dev server (`vite`, opens browser) |
 | `npm run build` | Production build (`vite build`) |
 | `npm run preview` | Preview the production build |
 | `npm run test` | Run all `tests/*.test.js` via `node --test` |
 | `npm run typecheck` | Run `tsc --noEmit` against `src` + `tests` |
+| `npm run lint` | Run ESLint on the project |
 
 ## Project layout
 
@@ -19,7 +20,8 @@ architecture workspace.
   `styles.css`, `responsive.css`, `theme.css` (legacy utility classes), `tokens.css`,
   `bridge.css`, `app-shell.css`, `landing.css`, `landing-v3.css`, `landing-canvas.css`
   (landing sections and the workspace studio layout), `theme-editorial.css` (the
-  paper/ink/vermilion palette; loaded last so it overrides every earlier color).
+  paper/ink/vermilion palette; overrides every earlier color), `panels.css` (the
+  workspace output panels, built only from theme tokens; loaded last).
 - `src/components/` — React components (`.jsx`).
 - `src/data/` — domain modules (`.ts` and `.js`). Mixed extension is intentional:
   `.ts` modules use `.ts` extension imports (`allowImportingTsExtensions: true` in
@@ -31,7 +33,6 @@ architecture workspace.
 
 ## Conventions
 
-- No linter is installed. `npm run typecheck` is the only static check.
 - Do not commit secrets or keys.
 - Keep the working tree clean; only commit when explicitly asked.
 - CSS files: `tokens.css` (design tokens), `app-shell.css` (shell layout), `bridge.css`

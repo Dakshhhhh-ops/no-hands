@@ -6,23 +6,22 @@ Without an API key the app still runs, using a small set of offline rules.
 
 ## Features
 
-- **Model interpretation** — Groq (`openai/gpt-oss-120b`, free tier) or Claude returns schema-constrained operations; invalid ones are skipped and shown to the reviewer, never applied
-- **Import docker-compose** — Builds the starting diagram from services, `depends_on`, and connection strings in environment variables
-- **Check against code** — Compare the diagram with a newer docker-compose file. New services, retired services, image changes, and new connections become one reviewable sync; components planned in the diagram but not built yet are reported and kept, and shown dashed as "planned"
-- **Plain-language input** — Type or dictate; common transcription errors are corrected locally
-- **Interactive diagram** — Dagre layout, blast radius, cycle detection, deployment order, keyboard navigation
-- **OpenAPI 3.1 contract** — Paths come only from the model's API operations; rate limits and cache outage choices appear where the requirements say; fields stay open until modeled
-- **Evidence-based risk audit** — Deterministic findings with explicit requirement foreign keys
-- **Traceable engineering tasks** — Acceptance criteria, priority, requirement provenance
-- **Branches** — Fork your current model, try changes on the branch, compare it with main using computed metrics, then merge
-- **Semantic 3-way merge** — Conflict detection with user resolution
-- **Outage simulator (simulated)** — Take down any model's cache or database and see a cascade computed from component types and connections; throughput and latency come from stated assumptions, not measurement
-- **ADR drafts** — Architecture Decision Records generated from each change; every sign-off starts pending until a reviewer marks it
-- **Model inventory** — Component counts, connection labels, and checks for cycles, isolated components, and open requirements
-- **Verified exports** — ZIP bundles of the model's artifacts, plus a DevOps bundle: Terraform and Kubernetes scaffolding (one resource per component; sizes and versions are placeholders to review) and a TypeScript client with one method per API operation
-- **Dark/Light theme** — Persisted, respects system preference
-- **PWA + Offline** — Service Worker caches all assets for offline demo
-- **Docker ready** — One-command production deploy
+- **Import docker-compose** — Builds the starting diagram from your real services, `depends_on`, and connection strings in environment variables
+- **Spoken or typed changes, validated before they apply** — A model (Groq `openai/gpt-oss-120b` on the free tier, or Claude) turns each request into explicit operations. Every operation is checked against the current model and the Zod schema; invalid ones are skipped and shown, never applied. You review the exact before/after diff, and every applied change can be undone
+- **Check against code** — Compare the diagram with a newer docker-compose file. New services, retired services, image changes, and new connections become one reviewable sync; components planned in the diagram but not built yet are reported, kept, and shown dashed as "planned"
+
+### Also included
+
+- Interactive diagram: layout, blast radius, cycle detection, deployment order, keyboard navigation
+- OpenAPI 3.1 contract derived only from the model's API operations
+- Risks with the facts behind each finding, and fixes you choose and review in one step
+- Engineering tasks with acceptance criteria and requirement provenance
+- Topology tab: components by type, recorded protocols, and checks for referential integrity, cycles, isolated components, and open requirements
+- Branches with computed comparison and a semantic three-way merge
+- Outage simulator, labeled simulated: cascades come from component types and connections, numbers from stated assumptions
+- ADR drafts generated from each change, with sign-off pending until a reviewer marks it
+- Exports: artifact ZIP, DevOps ZIP (Terraform and Kubernetes scaffolding, TypeScript client), SVG, PNG, Mermaid
+- Light and dark themes, offline PWA, Docker image
 
 ## Quick Start
 
@@ -39,16 +38,17 @@ Open the local URL printed by Vite. The app is a single-page React app under `sr
 ## Verify
 
 ```sh
-npm test           # 61 unit tests
-npm run test:vitest  # 43 component tests (Vitest + RTL)
+npm test             # 82 unit tests
+npm run test:vitest  # 54 component tests (Vitest + RTL)
 npm run typecheck    # TypeScript strict mode
-npm run lint         # ESLint (0 errors)
+npm run lint         # ESLint, 0 problems
 npm run build        # Production build
+npx playwright test  # 9 browser tests against the production build
 ```
 
 ## Deploy
 
-Production runs a small Node server that serves the built app and the Claude API routes. Pass the key (`GROQ_API_KEY` or `ANTHROPIC_API_KEY`) as an environment variable at run time; it is never baked into the image or the browser bundle.
+Production runs a small Node server that serves the built app and the interpretation API routes (`/api/status` and `/api/interpret`). Pass the key (`GROQ_API_KEY` or `ANTHROPIC_API_KEY`) as an environment variable at run time; it is never baked into the image or the browser bundle.
 
 ```sh
 # Without Docker
@@ -70,7 +70,7 @@ Any host that runs a Docker image or a Node process works, for example Render, R
 2. **Enter instruction** — Type or dictate; try the example cards
 3. **Preview change** — Review interpretation, before/after diff, unresolved assumptions
 4. **Apply** — Creates versioned, undoable history entry
-5. **Explore tabs** — Diagram, API Contract, Risks, Tasks, Change Impact, Telemetry
+5. **Explore tabs** — Diagram, API contract, Risks, Tasks, What changed, Topology
 6. **Export** — Verified ZIP (artifacts/DevOps) or standalone SVG/PNG/Mermaid
 7. **Branches** — Fork this version → apply a change → Compare with main → Merge to main
 8. **Outage simulator** — Diagram tab → More tools → take down the cache or database (simulated)
@@ -81,29 +81,33 @@ Any host that runs a Docker image or a Node process works, for example Render, R
 
 ```
 src/
-├── App.jsx                 # Root component (~900 lines, uses extracted hooks)
-├── hooks/                  # 8 composable hooks
-│   ├── useProjectState.ts   # Project, branches, history, merging
-│   ├── useDictation.ts      # Web Speech API wrapper
-│   ├── useJourney.ts        # Walkthrough progress
-│   ├── useExport.ts         # All export logic
-│   ├── useProposalReview.ts # Proposal dialog state
-│   ├── useToast.ts          # Notifications
-│   ├── useLocalStorage.ts   # Generic persistence
-│   └── useTheme.ts          # Dark/Light toggle + persistence
-├── components/              # 15+ components (lazy-loaded)
-├── data/                    # Domain logic (pure TS/JS)
+├── App.jsx                  # Root component: landing page and the workspace studio
+├── main.jsx                 # Entry point and CSS load order
+├── hooks/                   # 14 hooks
+│   ├── useProjectState.ts    # Project, branches, history, merging
+│   ├── useProposalReview.ts  # Interpretation, review dialog, apply
+│   ├── useDictation.ts       # Web Speech API wrapper
+│   ├── useExport.ts          # ZIP, SVG, PNG, and Mermaid exports
+│   ├── useDialog.ts          # Focus, Escape, and stacking for every modal
+│   ├── useJourney.ts         # Walkthrough progress
+│   ├── useChaosWorker.ts     # Outage simulation in a Web Worker
+│   └── ...                   # Theme, toast, storage, motion, scroll
+├── components/              # Workspace panels (lazy-loaded) and dialogs
+│   └── landing/             # Landing page sections
+├── data/                    # Domain logic, pure TS/JS: compose import, drift check,
+│                            # operations applier, risks and fixes, OpenAPI, exports
 ├── types/schema.ts          # Zod schema (single source of truth)
-└── utils/                   # Shared utilities
+└── utils/                   # Sound cues
+server/                      # /api/status and /api/interpret (Groq or Claude)
 ```
 
 ## Testing
 
 | Suite | Command | Tests |
 |-------|---------|-------|
-| Unit (Node) | `npm test` | 61 |
-| Component (Vitest + RTL) | `npm run test:vitest` | 43 |
-| E2E (Playwright) | `npm run test:e2e` | Demo flow, PWA, a11y |
+| Unit (Node) | `npm test` | 82 |
+| Component (Vitest + RTL) | `npm run test:vitest` | 54 |
+| E2E (Playwright) | `npm run test:e2e` | 9 |
 
 CI runs on every push: Lint → Typecheck → Tests → Build.
 
@@ -118,4 +122,4 @@ CI runs on every push: Lint → Typecheck → Tests → Build.
 
 ## License
 
-MIT — WeMakeDevs 2024 Hackathon Prototype
+MIT. Prototype built for a WeMakeDevs hackathon, October 2026.

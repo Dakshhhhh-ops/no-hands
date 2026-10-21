@@ -23,6 +23,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "tests", "server"]
+  "include": ["src", "tests", "server", "playwright.config.ts"]
 }
 
