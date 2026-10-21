@@ -158,6 +158,16 @@ test('Groq requests use strict structured output and validate the reply', async 
   assert.equal(body.response_format.json_schema.strict, true);
   assert.equal(body.messages[0].role, 'system');
   assert.match(body.messages[1].content, /<instruction>\nadd a notification service\n<\/instruction>/);
+  assert.equal(body.temperature, 0.5);
+  assert.equal(body.seed, 7);
+});
+
+test('Groq sampling uses a fixed seed and a low temperature, both overridable', async () => {
+  const { groqSampling } = await import('../server/interpret.ts');
+  assert.deepEqual(groqSampling({}), { temperature: 0.5, seed: 7 });
+  assert.deepEqual(groqSampling({ GROQ_TEMPERATURE: '0.7', GROQ_SEED: '42' }), { temperature: 0.7, seed: 42 });
+  assert.deepEqual(groqSampling({ GROQ_TEMPERATURE: 'warm', GROQ_SEED: '1.5' }), { temperature: 0.5, seed: 7 });
+  assert.equal(groqSampling({}, 3).seed, 3);
 });
 
 test('Groq rate limits are retried once after a short wait, and errors map to clear messages', async () => {

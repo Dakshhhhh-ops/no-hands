@@ -168,7 +168,21 @@ async function interpretWithAnthropic(instruction: string, project: ModelSnapsho
 
 type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
-async function interpretWithGroq(instruction: string, project: ModelSnapshot, fetchImpl: FetchLike): Promise<Interpretation> {
+/**
+ * Sampling settings that keep the same instruction close to the same proposal.
+ * Groq documents seed as best-effort determinism and recommends 0.5-0.7 for
+ * reasoning models, so the default is the low end of that range plus a fixed seed.
+ */
+export function groqSampling(env: NodeJS.ProcessEnv = process.env, seedOverride?: number) {
+  const temperature = Number(env.GROQ_TEMPERATURE);
+  const seed = seedOverride ?? Number(env.GROQ_SEED);
+  return {
+    temperature: Number.isFinite(temperature) && env.GROQ_TEMPERATURE !== undefined && env.GROQ_TEMPERATURE !== '' ? temperature : 0.5,
+    seed: Number.isInteger(seed) && (seedOverride !== undefined || (env.GROQ_SEED ?? '') !== '') ? seed : 7,
+  };
+}
+
+async function interpretWithGroq(instruction: string, project: ModelSnapshot, fetchImpl: FetchLike, seed?: number): Promise<Interpretation> {
   const model = activeModel('groq')!;
   const request = (responseFormat: Record<string, unknown>, system: string) => {
     const body: Record<string, unknown> = {
@@ -180,6 +194,7 @@ async function interpretWithGroq(instruction: string, project: ModelSnapshot, fe
       response_format: responseFormat,
       // Groq's free tier allows ~8k tokens a minute; a typical reply uses well under 1k.
       max_completion_tokens: Number(process.env.GROQ_MAX_TOKENS) || 3000,
+      ...groqSampling(process.env, seed),
     };
     if (model.startsWith('openai/gpt-oss')) body.reasoning_effort = process.env.GROQ_REASONING_EFFORT || 'medium';
     return fetchImpl(GROQ_URL, {
@@ -238,6 +253,8 @@ export interface InterpretOptions {
   provider?: Provider | null;
   anthropic?: Anthropic;
   fetch?: FetchLike;
+  /** Overrides the sampling seed (Groq); the eval uses a different seed per run. */
+  seed?: number;
 }
 
 export async function interpretInstruction(text: string, project: ModelSnapshot, options: InterpretOptions = {}): Promise<Interpretation> {
@@ -246,7 +263,7 @@ export async function interpretInstruction(text: string, project: ModelSnapshot,
   if (instruction.length > 4000) throw new InterpretError('The instruction is too long. Keep it under 4,000 characters.', 400);
 
   const provider = options.provider === undefined ? activeProvider() : options.provider;
-  if (provider === 'groq') return interpretWithGroq(instruction, project, options.fetch || fetch);
+  if (provider === 'groq') return interpretWithGroq(instruction, project, options.fetch || fetch, options.seed);
   if (provider === 'anthropic') {
     anthropicClient ??= options.anthropic ? null : new Anthropic();
     return interpretWithAnthropic(instruction, project, options.anthropic || anthropicClient!);

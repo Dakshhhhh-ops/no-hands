@@ -88,6 +88,8 @@ Any host that runs a Node process or a Docker image works. Set these as environm
 | `ANTHROPIC_API_KEY` | none | Claude key, used when no Groq key is set or `VOICEARCHITECT_PROVIDER=anthropic`. |
 | `VOICEARCHITECT_PROVIDER` | auto | `groq`, `anthropic`, or `offline` to ignore keys. |
 | `GROQ_MODEL` | `openai/gpt-oss-120b` | Groq model id. |
+| `GROQ_TEMPERATURE` | `0.5` | Sampling temperature. Groq recommends 0.5 to 0.7 for reasoning models; the low end keeps proposals consistent. |
+| `GROQ_SEED` | `7` | Fixed seed, so the same instruction tends to give the same proposal. Groq documents this as best effort, not a guarantee. |
 | `VOICEARCHITECT_RATE_PER_MINUTE` | `6` | Model previews per client IP per minute. |
 | `VOICEARCHITECT_DAILY_CAP` | `300` | Model previews per UTC day across all clients. |
 | `VOICEARCHITECT_TIMEOUT_MS` | `45000` | Longest a preview may take before it falls back. |
