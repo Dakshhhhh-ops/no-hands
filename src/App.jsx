@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
   Activity, ArrowRight, AudioLines, Check, ChevronDown, ClipboardCheck, ClipboardList, FileArchive,
   FileCode2, GitBranch, Layers, Mic, Network, Play, Redo2, RotateCcw, Server, ShieldAlert, Undo2, X,
-  Sun, Moon, Keyboard, HelpCircle,
+  Sun, Moon, Keyboard, HelpCircle, FileText,
 } from 'lucide-react';
 import CommandPresets from './components/CommandPresets.jsx';
 import ScenarioBranchingBar from './components/ScenarioBranchingBar.jsx';
@@ -11,6 +11,7 @@ import MergeConflictModal from './components/MergeConflictModal.jsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
 import ShortcutsModal from './components/ShortcutsModal.jsx';
 import CommandPalette from './components/CommandPalette.jsx';
+import WisprImportDialog from './components/WisprImportDialog.jsx';
 import ConnectionStatus from './components/ConnectionStatus.jsx';
 import ParticleBackground from './components/ParticleBackground.jsx';
 import { DiagramSkeleton, TableSkeleton, ListSkeleton } from './components/Skeleton.jsx';
@@ -62,7 +63,7 @@ const TOPOLOGY_TAB = { id: 'topology', label: 'Topology', icon: Layers };
 // The guided demo on the example ride-share stack. Each step works without a model key.
 const GUIDED_STEPS = [
   { language: 'English', say: 'Add a Redis cache in front of the trips API', changes: 'trips-api gets a connection to Redis. You see the exact diff before anything applies.' },
-  { language: 'Hinglish', say: 'payment service ko alag container mein daalo', changes: 'A new Payment Service appears behind the gateway, drawn dashed because it is planned and not in code yet.' },
+  { language: 'Hinglish', say: 'payment service ko alag container mein daalo', changes: 'A new Payment Service appears, drawn dashed because it is planned and not in code yet.' },
   { drift: true, say: 'Check the diagram against the next docker-compose file', changes: 'The newer file adds two services, retires one, and upgrades PostgreSQL. Your planned Payment Service is kept, not deleted.' },
 ];
 
@@ -131,6 +132,16 @@ export default function App() {
     };
   }, [showSourceMenu]);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  // Import notes dialog: null when closed, otherwise { returned } describing a return from Wispr Flow's sign-in.
+  const [notesImport, setNotesImport] = useState(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('wispr');
+    if (!result) return;
+    setNotesImport({ returned: result === 'connected' ? { connected: true } : { errorCode: params.get('code') || 'unavailable' } });
+    // Drop the query so a reload does not reopen the dialog.
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
+  }, []);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const composeInputRef = useRef(null);
   const driftInputRef = useRef(null);
@@ -241,6 +252,9 @@ export default function App() {
     undoRevision,
     revisionCount,
     fallbackReason,
+    answerSource,
+    proposeFromNotes,
+    proposalNotes,
   } = proposalHooks;
 
   const handleTabChange = (id) => {
@@ -1007,11 +1021,16 @@ export default function App() {
               <span
                 className="va-engine"
                 data-ai={aiStatus.ai}
-                title={aiStatus.ai ? 'Every proposal is checked against the schema before you see it.' : 'Add GROQ_API_KEY or ANTHROPIC_API_KEY to .env.local for full understanding.'}
+                title={aiStatus.ai ? 'Every proposal is checked against the schema before you see it.' : 'Add ANTHROPIC_API_KEY (or GROQ_API_KEY) to .env.local for full understanding.'}
               >
-                {aiStatus.ai ? `Interpreted by ${providerLabel(aiStatus.provider)}` : 'Offline rules only'}
+                {aiStatus.ai
+                  ? `Interpreted by ${providerLabel(aiStatus.provider)}`
+                  : aiStatus.recordings ? 'Recorded answers, then offline rules' : 'Offline rules only'}
               </span>
-              {aiStatus.ai && fallbackReason && (
+              {answerSource?.recorded && !fallbackReason && (
+                <span className="va-recorded-badge" role="status">Recorded answer{answerSource.model ? ` from ${answerSource.model}` : ''}</span>
+              )}
+              {fallbackReason && (aiStatus.ai || aiStatus.recordings > 0) && (
                 <span className="va-fallback-badge" role="status">Offline rules for now: {fallbackLabel(fallbackReason)}</span>
               )}
               <span aria-label="Press Control and Enter to preview"><kbd>Ctrl</kbd> <kbd>Enter</kbd></span>
@@ -1044,6 +1063,9 @@ export default function App() {
             <div className="va-composer-links">
               <button type="button" className="va-link-btn" onClick={playDemoDictation} disabled={isDictatingSim}>
                 <Play size={12} /> Play sample instruction
+              </button>
+              <button type="button" className="va-link-btn" onClick={() => setNotesImport({ returned: null })} disabled={!project || isInterpreting}>
+                <FileText size={12} /> Import from Wispr Flow or paste notes
               </button>
               {micSupported && (
                 <button type="button" className="va-link-btn" onClick={toggleDictation} aria-pressed={isListening}>
@@ -1364,6 +1386,16 @@ export default function App() {
               </section>
             )}
 
+            {proposalNotes && (() => {
+              const removals = (proposal.operations || []).filter((op) => op.op === 'remove_component').length;
+              return (
+                <p className="va-review-caveat va-notes-caveat" data-warn={removals > 0}>
+                  <b>From {proposalNotes.source === 'wispr' ? `Wispr Flow${proposalNotes.title ? `: "${proposalNotes.title}"` : ''}` : 'pasted notes'}.</b>{' '}
+                  The notes were read as data, not commands.
+                  {removals > 0 && ` This proposal removes ${removals} component${removals === 1 ? '' : 's'}; apply only if your team decided that.`}
+                </p>
+              );
+            })()}
             {unresolvedProposalAssumptions.length > 0 && (
               <div className="va-open-questions">
                 <h3>Still undecided</h3>
@@ -1436,6 +1468,13 @@ export default function App() {
           <span>{toast.message}</span>
         </div>
       )}
+      <WisprImportDialog
+        isOpen={Boolean(notesImport)}
+        returned={notesImport?.returned}
+        isImported={isImported}
+        onClose={() => setNotesImport(null)}
+        onPropose={proposeFromNotes}
+      />
       <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
       <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} commands={paletteCommands} />
       <ConnectionStatus />

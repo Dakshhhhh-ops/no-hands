@@ -58,7 +58,8 @@
       "C8",
       "F3",
       "F4"
-    ]
+    ],
+    "tokensPerPreview": null
   },
   "perCase": [
     {
@@ -251,6 +252,7 @@
           "found": 1,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -270,6 +272,7 @@
           "found": 1,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -289,6 +292,7 @@
           "found": 1,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -308,6 +312,7 @@
           "found": 1,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -327,6 +332,7 @@
           "found": 0,
           "unexpected": 0,
           "correct": false,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -344,6 +350,7 @@
           "found": 0,
           "unexpected": 0,
           "correct": false,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -361,6 +368,7 @@
           "found": 0,
           "unexpected": 0,
           "correct": false,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -378,6 +386,7 @@
           "found": 2,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [
               "payment-service (SERVICE)"
@@ -399,6 +408,7 @@
           "found": 1,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [
@@ -420,6 +430,7 @@
           "found": 1,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [
@@ -441,6 +452,7 @@
           "found": 0,
           "unexpected": 0,
           "correct": false,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -458,6 +470,7 @@
           "found": 0,
           "unexpected": 0,
           "correct": false,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -475,6 +488,7 @@
           "found": 1,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -494,6 +508,7 @@
           "found": 1,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -513,6 +528,7 @@
           "found": 0,
           "unexpected": 0,
           "correct": false,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -530,6 +546,7 @@
           "found": 0,
           "unexpected": 0,
           "correct": false,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -547,6 +564,7 @@
           "found": 0,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -564,6 +582,7 @@
           "found": 0,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -581,6 +600,7 @@
           "found": 1,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -600,6 +620,7 @@
           "found": 1,
           "unexpected": 0,
           "correct": true,
+          "usage": null,
           "actual": {
             "addComponents": [],
             "removeComponents": [],
@@ -619,6 +640,7 @@
           "found": 1,
           "unexpected": 1,
           "correct": false,
+          "usage": null,
           "actual": {
             "addComponents": [
               "restaurant-service-cache (CACHE)"
@@ -640,6 +662,7 @@
           "found": 1,
           "unexpected": 1,
           "correct": false,
+          "usage": null,
           "actual": {
             "addComponents": [
               "restaurant-service-cache (CACHE)"

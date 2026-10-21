@@ -97,6 +97,6 @@ export const server = createServer((req, res) => {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   server.listen(PORT, () => {
     const provider = activeProvider();
-    console.log(`VoiceArchitect on http://localhost:${PORT} (${provider ? `${provider}: ${activeModel(provider)}` : 'no model key, offline rules only'})`);
+    console.log(`VoiceArchitect on http://localhost:${PORT} (${provider ? `${provider}: ${activeModel(provider)}` : 'no model key: recorded answers, then offline rules'})`);
   });
 }

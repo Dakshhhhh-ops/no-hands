@@ -66,3 +66,19 @@ test('the voice loop works from the keyboard alone: instruction, preview, follow
   await page.keyboard.press('Control+Enter');
   await expect(page.getByText('v1 · baseline')).toBeVisible();
 });
+
+test('pasted notes become an ordinary proposal through the import dialog, which is accessible', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Load sample' }).click();
+  await page.getByRole('button', { name: /Import from Wispr Flow or paste notes/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Import notes' });
+  await expect(dialog.getByRole('link', { name: /Connect Wispr Flow/ })).toHaveAttribute('href', '/api/wispr/connect');
+  await dialog.getByLabel('Or paste notes').fill('Sync notes.\nMove session storage to Redis and add login rate limiting.');
+  await expectNoSeriousViolations(page, 'import dialog');
+  await dialog.getByRole('button', { name: 'Propose changes from these notes' }).click();
+
+  const review = page.getByRole('dialog', { name: 'Review this change' });
+  await expect(review).toBeVisible();
+  await expect(review.getByText(/From pasted notes/)).toBeVisible();
+  await expectNoSeriousViolations(page, 'review from notes');
+});

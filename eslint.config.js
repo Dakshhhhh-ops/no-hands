@@ -13,6 +13,7 @@ const browserGlobals = {
   setInterval: 'readonly',
   clearInterval: 'readonly',
   URL: 'readonly',
+  URLSearchParams: 'readonly',
   Blob: 'readonly',
   Image: 'readonly',
   HTMLElement: 'readonly',

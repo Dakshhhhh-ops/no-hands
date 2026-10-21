@@ -14,7 +14,7 @@ import type { IncomingMessage } from 'node:http';
  * to the offline rules, so the app keeps working.
  */
 
-export type FallbackReason = 'rate_limit' | 'daily_cap' | 'timeout' | 'provider_limit' | 'provider_error';
+export type FallbackReason = 'rate_limit' | 'daily_cap' | 'timeout' | 'provider_limit' | 'provider_error' | 'no_key';
 
 const num = (value: string | undefined, fallback: number) => {
   const parsed = Number(value);

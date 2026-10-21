@@ -166,7 +166,8 @@ test.describe('VoiceArchitect demo flow', () => {
     await sync.getByRole('button', { name: /Apply change/ }).click();
     await expect(guide.getByText(/Guided demo · done/)).toBeVisible();
     await page.getByRole('tab', { name: 'Diagram' }).click();
-    await expect(page.getByRole('button', { name: /^Payment Service, SERVICE/ })).toBeVisible();
+    // The model matches the stack's kebab-case names (payment-service); the offline rule says Payment Service.
+    await expect(page.getByRole('button', { name: /^payment[- ]service, SERVICE/i })).toBeVisible();
   });
 
   test('diagram nodes are keyboard selectable', async ({ page }) => {

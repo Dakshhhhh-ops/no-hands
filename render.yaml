@@ -1,0 +1,31 @@
+# Render Blueprint: one web service built from the Dockerfile. The image runs
+# server/serve.ts, which serves the app and the /api routes, so a static host
+# would not work.
+#
+# Keys are secrets (sync: false): Render asks for them when you create the
+# service from this file, and they never live in the repo or the browser bundle.
+# Leave both empty to run on recorded answers and the offline rules.
+#
+# Free plan: the service spins down after 15 minutes without traffic, and the
+# next request waits about a minute while it starts again.
+services:
+  - type: web
+    name: voicearchitect
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      # Render sits behind a proxy, so rate limits must read the client address
+      # from X-Forwarded-For.
+      - key: VOICEARCHITECT_TRUST_PROXY
+        value: "1"
+      # The port server/serve.ts listens on inside the image.
+      - key: PORT
+        value: "8080"

@@ -1,0 +1,26 @@
+{
+  "key": "cf9276aebbb919a12a63bfaef5e52cb999f49de9d529ebc7895e67368216b316",
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "recordedAt": "2026-10-21T18:27:38.773Z",
+  "interpretation": {
+    "understood": true,
+    "summary": "Added Redis cache relationship in front of trips API.",
+    "items": [
+      {
+        "title": "Add cache relationship for trips API",
+        "detail": "Connect trips-api to redis with a cache relationship."
+      }
+    ],
+    "assumptions": [],
+    "operations": [
+      {
+        "op": "add_relationship",
+        "from": "trips-api",
+        "to": "redis",
+        "label": "cache",
+        "protocol": null
+      }
+    ]
+  }
+}

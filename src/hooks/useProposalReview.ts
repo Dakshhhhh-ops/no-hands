@@ -5,7 +5,7 @@ import { FOOD_DELIVERY_DEMO_COMMAND } from '../data/foodDelivery.js';
 import { deriveChangeDiff } from '../data/changeDiff.js';
 import { sound } from '../utils/sound.js';
 import { AiInterpretError, fetchAiStatus, interpretWithModel } from '../data/aiClient.ts';
-import type { FallbackReason } from '../data/aiClient.ts';
+import type { AnswerSource, FallbackReason, ImportedNotes } from '../data/aiClient.ts';
 import { interpretPattern } from '../data/patternRules.ts';
 import { cleanDictation } from '../data/dictation.ts';
 import { combineInstruction } from '../data/reviewCommands.ts';
@@ -47,6 +47,12 @@ interface UseProposalReviewReturn {
   revisionCount: number;
   /** Why the last preview used the offline rules instead of the model, or null. */
   fallbackReason: FallbackReason | null;
+  /** Where the last model answer came from, or null when the offline rules answered. */
+  answerSource: AnswerSource | null;
+  /** Preview a change proposed from imported notes (Wispr Flow or pasted). */
+  proposeFromNotes: (_notes: ImportedNotes) => void;
+  /** The imported notes the current proposal was made from, or null for a spoken or typed instruction. */
+  proposalNotes: ImportedNotes | null;
 }
 
 export function useProposalReview(
@@ -62,6 +68,8 @@ export function useProposalReview(
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [revisions, setRevisions] = useState<Proposal[]>([]);
   const [fallbackReason, setFallbackReason] = useState<FallbackReason | null>(null);
+  const [answerSource, setAnswerSource] = useState<AnswerSource | null>(null);
+  const [proposalNotes, setProposalNotes] = useState<ImportedNotes | null>(null);
   // A closed review (applied or cancelled) starts the next one without history.
   useEffect(() => {
     if (!proposal) setRevisions([]);
@@ -149,15 +157,27 @@ export function useProposalReview(
     };
   }, [proposal]);
 
-  /** Interpret text with the model, or the offline rules when no model is available or it fails. */
-  function interpret(text: string) {
+  /** Interpret text with the model (live or recorded), or the offline rules when neither can answer. */
+  function interpret(text: string, notes?: ImportedNotes) {
     if (!project) return;
-    const offline = () => interpretPattern(text, project) || proposeChange(text);
-    if (!aiStatus.ai) {
+    setProposalNotes(notes || null);
+    const offline = () => {
+      setAnswerSource(null);
+      // Offline, notes are read line by line against the same patterns as a spoken instruction.
+      if (notes) {
+        for (const line of notes.text.split(/[\n.;]+/)) {
+          const match = interpretPattern(line, project);
+          if (match) return match;
+        }
+      }
+      return interpretPattern(text, project) || proposeChange(text);
+    };
+    const canAsk = aiStatus.ai || Boolean(aiStatus.recordings);
+    if (!canAsk) {
       setProposal(offline());
       return;
     }
-    if (aiStatus.fallback === 'daily_cap') {
+    if (aiStatus.ai && aiStatus.fallback === 'daily_cap' && !aiStatus.recordings) {
       setFallbackReason('daily_cap');
       setProposal(offline());
       return;
@@ -166,7 +186,7 @@ export function useProposalReview(
     const controller = new AbortController();
     interpretAbort.current = controller;
     setIsInterpreting(true);
-    interpretWithModel(text, project, controller.signal)
+    interpretWithModel(text, project, controller.signal, (source) => { if (!controller.signal.aborted) setAnswerSource(source); }, notes)
       .then((result) => {
         if (controller.signal.aborted) return;
         setFallbackReason(null);
@@ -176,7 +196,7 @@ export function useProposalReview(
         if (controller.signal.aborted) return;
         const reason = error instanceof Error ? error.message : 'Interpretation failed.';
         setFallbackReason(error instanceof AiInterpretError ? error.fallback : 'provider_error');
-        onNotify(`${reason} Using offline rules instead.`);
+        if (aiStatus.ai) onNotify(`${reason} Using offline rules instead.`);
         setProposal(offline());
       })
       .finally(() => {
@@ -185,6 +205,14 @@ export function useProposalReview(
           setIsInterpreting(false);
         }
       });
+  }
+
+  function proposeFromNotes(notes: ImportedNotes) {
+    if (!project || !notes.text.trim()) return;
+    sound.click();
+    const text = 'Update the architecture to match the decisions in the imported notes.';
+    setRevisions([]);
+    interpret(text, notes);
   }
 
   function showProposal() {
@@ -284,5 +312,8 @@ export function useProposalReview(
     undoRevision,
     revisionCount: revisions.length,
     fallbackReason,
+    answerSource,
+    proposeFromNotes,
+    proposalNotes,
   };
 }

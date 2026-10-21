@@ -77,7 +77,11 @@ function fakeClient(reply, stopReason = 'end_turn') {
       messages: {
         create: async (params) => {
           calls.push(params);
-          return { stop_reason: stopReason, content: [{ type: 'text', text: typeof reply === 'string' ? reply : JSON.stringify(reply) }] };
+          return {
+            stop_reason: stopReason,
+            content: [{ type: 'text', text: typeof reply === 'string' ? reply : JSON.stringify(reply) }],
+            usage: { input_tokens: 1200, output_tokens: 300, cache_read_input_tokens: 900, cache_creation_input_tokens: 0 },
+          };
         },
       },
     },
@@ -104,6 +108,9 @@ test('interpretInstruction sends the model and instruction, and validates the st
   const params = client.calls[0];
   assert.equal(params.model, 'claude-opus-5-5');
   assert.equal(params.fallbacks, 'default');
+  assert.deepEqual(params.betas, ['server-side-fallback-2026-07-01']);
+  assert.deepEqual(params.system[0].cache_control, { type: 'ephemeral' });
+  assert.match(params.system[0].text, /^You turn a spoken or typed instruction/);
   assert.equal(params.output_config.format.type, 'json_schema');
   const userText = params.messages[0].content;
   assert.match(userText, /<instruction>\nadd a notification service\n<\/instruction>/);
@@ -213,7 +220,13 @@ test('VOICEARCHITECT_PROVIDER=offline ignores configured keys', async () => {
     process.env.GROQ_API_KEY = 'gsk_test';
     process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
     delete process.env.VOICEARCHITECT_PROVIDER;
-    assert.equal(activeProvider(), 'groq');
+    assert.equal(activeProvider(), 'anthropic', 'Claude is the default when both keys are set');
+    process.env.VOICEARCHITECT_PROVIDER = 'groq';
+    assert.equal(activeProvider(), 'groq', 'Groq stays available on request');
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.VOICEARCHITECT_PROVIDER;
+    assert.equal(activeProvider(), 'groq', 'Groq is the fallback without a Claude key');
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
 
     process.env.VOICEARCHITECT_PROVIDER = 'offline';
     assert.equal(activeProvider(), null);
@@ -233,4 +246,26 @@ test('the interpretation prompt accepts Hinglish and answers reviewers in Englis
   assert.match(SYSTEM_PROMPT, /Hinglish/);
   assert.match(SYSTEM_PROMPT, /"hata do"/);
   assert.match(SYSTEM_PROMPT, /Always write items and assumptions in English/);
+});
+
+test('Claude Haiku 5.5 gets no server-side fallback; other Claude models do; usage reports counts only', async () => {
+  const { supportsServerSideFallback } = await import('../server/interpret.ts');
+  assert.equal(supportsServerSideFallback('claude-haiku-5-5'), false);
+  assert.equal(supportsServerSideFallback('claude-sonnet-5-5'), true);
+  assert.equal(supportsServerSideFallback('claude-opus-5-5'), true);
+
+  const saved = process.env.VOICEARCHITECT_MODEL;
+  process.env.VOICEARCHITECT_MODEL = 'claude-haiku-5-5';
+  try {
+    const client = fakeClient(validReply);
+    const usage = [];
+    await interpretInstruction('add a notification service', makeCommerceProject(), { provider: 'anthropic', anthropic: client, onUsage: (u) => usage.push(u) });
+    assert.equal(client.calls[0].model, 'claude-haiku-5-5');
+    assert.equal('fallbacks' in client.calls[0], false);
+    assert.equal('betas' in client.calls[0], false);
+    assert.deepEqual(usage, [{ inputTokens: 1200, outputTokens: 300, cacheReadTokens: 900, cacheWriteTokens: 0 }]);
+    assert.doesNotMatch(JSON.stringify(usage), /notification/);
+  } finally {
+    if (saved === undefined) delete process.env.VOICEARCHITECT_MODEL; else process.env.VOICEARCHITECT_MODEL = saved;
+  }
 });

@@ -8,9 +8,11 @@ export interface AiStatus {
   model: string | null;
   /** Set when the server already knows previews will fall back, for example after its daily cap. */
   fallback?: FallbackReason | null;
+  /** How many recorded answers the server holds; they can answer even without a key. */
+  recordings?: number;
 }
 
-export type FallbackReason = 'rate_limit' | 'daily_cap' | 'timeout' | 'provider_limit' | 'provider_error';
+export type FallbackReason = 'rate_limit' | 'daily_cap' | 'timeout' | 'provider_limit' | 'provider_error' | 'no_key';
 
 /** Why the offline rules answered instead of the model, in words for the badge. */
 export function fallbackLabel(reason: FallbackReason | null | undefined): string {
@@ -19,11 +21,12 @@ export function fallbackLabel(reason: FallbackReason | null | undefined): string
     case 'daily_cap': return "today's model limit is used up";
     case 'timeout': return 'the model took too long';
     case 'provider_limit': return "the model provider's rate limit";
+    case 'no_key': return 'no model key and no recorded answer for this request';
     default: return 'the model is unavailable';
   }
 }
 
-const REASONS: FallbackReason[] = ['rate_limit', 'daily_cap', 'timeout', 'provider_limit', 'provider_error'];
+const REASONS: FallbackReason[] = ['rate_limit', 'daily_cap', 'timeout', 'provider_limit', 'provider_error', 'no_key'];
 const asReason = (value: unknown): FallbackReason | null => (REASONS.includes(value as FallbackReason) ? value as FallbackReason : null);
 
 export function providerLabel(provider: AiStatus['provider']): string {
@@ -37,7 +40,13 @@ export async function fetchAiStatus(signal?: AbortSignal): Promise<AiStatus> {
     if (!response.ok) return { ai: false, provider: null, model: null };
     const body = await response.json();
     const provider = body?.provider === 'groq' || body?.provider === 'anthropic' ? body.provider : null;
-    return { ai: Boolean(body?.ai), provider, model: typeof body?.model === 'string' ? body.model : null, fallback: asReason(body?.fallback) };
+    return {
+      ai: Boolean(body?.ai),
+      provider,
+      model: typeof body?.model === 'string' ? body.model : null,
+      fallback: asReason(body?.fallback),
+      recordings: Number.isFinite(body?.recordings) ? Number(body.recordings) : 0,
+    };
   } catch {
     return { ai: false, provider: null, model: null };
   }
@@ -51,18 +60,37 @@ export class AiInterpretError extends Error {
   }
 }
 
+/** Where a model answer came from: a live call, or a recording of the same request. */
+export interface AnswerSource {
+  recorded: boolean;
+  model: string | null;
+}
+
+/** Notes imported from Wispr Flow or pasted, sent to the model as quoted, untrusted context. */
+export interface ImportedNotes {
+  source: 'wispr' | 'pasted';
+  title?: string;
+  text: string;
+}
+
 /**
  * Sends the instruction and current model to the server's model provider, validates the reply, and
  * dry-runs the operations so the reviewer sees skipped operations before applying.
  */
-export async function interpretWithModel(text: string, project: Project, signal?: AbortSignal): Promise<Proposal> {
+export async function interpretWithModel(
+  text: string,
+  project: Project,
+  signal?: AbortSignal,
+  onSource?: (source: AnswerSource) => void,
+  notes?: ImportedNotes,
+): Promise<Proposal> {
   const { components, relationships, apiOperations, requirements, name } = project;
   let response: Response;
   try {
     response = await fetch('/api/interpret', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, project: { name, components, relationships, apiOperations, requirements } }),
+      body: JSON.stringify({ text, project: { name, components, relationships, apiOperations, requirements }, ...(notes ? { notes } : {}) }),
       signal,
     });
   } catch (error) {
@@ -74,6 +102,7 @@ export async function interpretWithModel(text: string, project: Project, signal?
     throw new AiInterpretError(body?.error || `Interpretation failed (${response.status}).`, asReason(body?.fallback) || 'provider_error');
   }
 
+  onSource?.({ recorded: body?.recorded === true, model: typeof body?.model === 'string' ? body.model : null });
   const parsed = InterpretationSchema.safeParse(body?.interpretation);
   if (!parsed.success) throw new AiInterpretError('The interpretation did not match the expected schema.');
   const interpretation = parsed.data;

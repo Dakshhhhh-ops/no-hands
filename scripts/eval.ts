@@ -20,6 +20,7 @@ import { cleanDictation } from '../src/data/dictation.ts';
 import { validateProposal } from '../src/types/schema.ts';
 import type { Project, Proposal } from '../src/types/schema.ts';
 import { interpretInstruction, activeModel } from '../server/interpret.ts';
+import type { Usage } from '../server/interpret.ts';
 
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string) => {
@@ -32,16 +33,28 @@ const delayMs = Number(flag('delay', provider === 'groq' ? '21000' : '0'));
 const runs = Math.max(1, Math.round(Number(flag('runs', provider === 'offline' ? '1' : '3'))) || 1);
 const seeds = Array.from({ length: runs }, (_, i) => i + 1);
 
+// Fail fast instead of recording a run of authentication errors.
+const keyFor = { groq: 'GROQ_API_KEY', anthropic: 'ANTHROPIC_API_KEY' } as const;
+if (provider !== 'offline' && !process.env[keyFor[provider]] && !(provider === 'anthropic' && process.env.ANTHROPIC_AUTH_TOKEN)) {
+  console.error(`${keyFor[provider]} is not set. Add it to .env.local (never commit it) and run again.`);
+  process.exit(1);
+}
+const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
 function model(name: EvalCase['model']): Project {
   if (name === 'commerce') return makeCommerceProject();
   if (name === 'food') return makeFoodDeliveryProject();
   return projectFromCompose(readFileSync(new URL('../public/samples/ride-share-compose.yml', import.meta.url), 'utf8'), 'ride-share-compose.yml');
 }
 
+// Token counts of the most recent model call (counts only; no instruction text is kept).
+let lastUsage: Usage | null = null;
+
 async function interpret(text: string, project: Project, seed: number): Promise<Proposal> {
   const cleaned = cleanDictation(text);
   if (provider === 'offline') return interpretPattern(cleaned, project) || proposeChange(cleaned);
-  const result = await interpretInstruction(cleaned, project, { provider, seed });
+  lastUsage = null;
+  const result = await interpretInstruction(cleaned, project, { provider, seed, onUsage: (usage) => { lastUsage = usage; } });
   const items = result.items.length
     ? result.items.map((item, i) => ({ key: `ai-${i}`, title: item.title, detail: item.detail }))
     : [{ key: 'ai-summary', title: result.summary || 'No change', detail: '' }];
@@ -129,6 +142,7 @@ interface CaseResult {
   unexpected: number;
   correct: boolean;
   error?: string;
+  usage?: Usage | null;
   actual?: unknown;
 }
 async function runOnce(seed: number, label: string): Promise<CaseResult[]> {
@@ -143,7 +157,7 @@ async function runOnce(seed: number, label: string): Promise<CaseResult[]> {
       const actual = delta(before, after);
       const options = 'anyOf' in testCase.expect ? testCase.expect.anyOf : [testCase.expect];
       const best = options.map((e) => score(e, actual, after)).sort((x, y) => Number(y.correct) - Number(x.correct) || y.found - x.found || x.unexpected - y.unexpected)[0];
-      outcome = { ...best, actual: { ...actual, addComponents: actual.addComponents.map((c) => `${c.id} (${c.type})`) } };
+      outcome = { ...best, usage: lastUsage, actual: { ...actual, addComponents: actual.addComponents.map((c) => `${c.id} (${c.type})`) } };
     } catch (error) {
       outcome = { expected: 1, found: 0, unexpected: 0, correct: false, error: error instanceof Error ? error.message : String(error) };
     }
@@ -186,6 +200,16 @@ function across(perRun: Summary[]) {
   };
 }
 
+/** Mean token counts per preview, or null when the interpreter reports none (offline rules). */
+function averageUsage(rows: CaseResult[]) {
+  const usages = rows.map((r) => r.usage).filter((u): u is Usage => Boolean(u));
+  if (!usages.length) return null;
+  const mean = (pick: (u: Usage) => number) => Math.round(usages.reduce((n, u) => n + pick(u), 0) / usages.length);
+  const input = mean((u) => u.inputTokens + u.cacheReadTokens + u.cacheWriteTokens);
+  const output = mean((u) => u.outputTokens);
+  return { previews: usages.length, input, cacheRead: mean((u) => u.cacheReadTokens), output, total: input + output };
+}
+
 const runResults: Array<{ seed: number; results: CaseResult[] }> = [];
 for (const [i, seed] of seeds.entries()) {
   const label = runs > 1 ? `[run ${i + 1}/${runs}, seed ${seed}]` : '';
@@ -211,9 +235,12 @@ const summary = {
   passEveryRun: perCase.filter((c) => c.passes === runs).map((c) => c.id),
   passSomeRuns: perCase.filter((c) => c.passes > 0 && c.passes < runs).map((c) => `${c.id} (${c.passes}/${runs})`),
   passNoRun: perCase.filter((c) => c.passes === 0).map((c) => c.id),
+  tokensPerPreview: averageUsage(runResults.flatMap((r) => r.results)),
 };
 mkdirSync(new URL('../evals/results/', import.meta.url), { recursive: true });
-writeFileSync(new URL(`../evals/results/${provider}.json`, import.meta.url), `${JSON.stringify({ summary, perCase, runs: runResults }, null, 2)}\n`);
+// One file per interpreter and model, so comparing Claude models keeps every result.
+const resultFile = provider === 'offline' ? 'offline' : `${provider}-${slug(activeModel(provider) || provider)}`;
+writeFileSync(new URL(`../evals/results/${resultFile}.json`, import.meta.url), `${JSON.stringify({ summary, perCase, runs: runResults }, null, 2)}\n`);
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 const correct = (s: ReturnType<typeof across>) => (runs === 1 || s.correctMin === s.correctMax
@@ -224,6 +251,11 @@ console.log(`| Set | Correct cases${runs > 1 ? ', mean' : ''} | Recall | Precisi
 console.log('|---|---|---|---|');
 for (const [label, s] of [['All', summary.all], ['English', summary.english], ['Hinglish', summary.hinglish]] as const) {
   console.log(`| ${label} | ${correct(s)} | ${pct(s.recallMean)} | ${pct(s.precisionMean)} |`);
+}
+if (summary.tokensPerPreview) {
+  const t = summary.tokensPerPreview;
+  console.log(`
+Tokens per preview (mean of ${t.previews}): ${t.input} input (${t.cacheRead} read from cache), ${t.output} output, ${t.total} total.`);
 }
 if (summary.all.errors) console.log(`\nWarning: ${summary.all.errors} request(s) failed and were left out of the score; see the JSON for messages.`);
 console.log(`\nPass every run: ${summary.passEveryRun.length}/${CASES.length}. Pass some runs: ${summary.passSomeRuns.join(', ') || 'none'}. Pass no run: ${summary.passNoRun.join(', ') || 'none'}.`);

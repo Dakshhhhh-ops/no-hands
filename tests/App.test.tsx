@@ -4,6 +4,10 @@ import type { ReactElement } from 'react';
 vi.mock('lucide-react', () => {
   const icons = {
     HelpCircle: 'HelpCircle',
+    FileText: 'FileText',
+    Link2: 'Link2',
+    RefreshCw: 'RefreshCw',
+    Unlink: 'Unlink',
     Network: 'Network',
     FileCode2: 'FileCode2',
     ShieldAlert: 'ShieldAlert',
