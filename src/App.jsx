@@ -894,7 +894,7 @@ export default function App() {
                   aria-controls="artifact-panel"
                   aria-selected={tab === id}
                   tabIndex={tab === id ? 0 : -1}
-                  onClick={() => handleTabChange(id)}
+                  onClick={(event) => { handleTabChange(id); event.currentTarget.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); }}
                 >
                   <Icon size={15} /> {label}
                 </button>

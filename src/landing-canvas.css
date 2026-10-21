@@ -379,7 +379,12 @@
 @media (max-width: 640px) {
   .va-studio { width: calc(100% - 24px); border-radius: 14px; }
   .va-studio-head, .va-studio-progress { padding-left: 14px; padding-right: 14px; }
+  .va-studio .va-journey-steps { flex-wrap: wrap; row-gap: 8px; }
   .va-studio .va-journey-steps li:not(:last-child)::after { width: 8px; }
+  .va-studio .va-toolbar-sep { display: none; }
+  /* The tab row scrolls sideways; fade the edge so hidden tabs read as "more this way". */
+  .va-studio .va-tabs { scrollbar-width: none; mask-image: linear-gradient(to right, #000 82%, transparent); }
+  .va-studio .va-tabs::-webkit-scrollbar { display: none; }
   .va-pop-panel { right: auto; left: 0; width: min(300px, calc(100vw - 48px)); }
 }
 
