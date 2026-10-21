@@ -184,7 +184,7 @@ export function deriveTasks(project) {
         unresolved: requirement.resolution
           ? `Decision recorded: ${requirement.resolution}. Implementation remains proposed.`
           : 'The product owner must choose the limit and time window.',
-        // Direct foreign keys (Phase 1)
+        // Direct foreign keys
         requirementId: requirement.id,
         sourceChangeId: requirement.sourceChangeId,
         originalInstruction: requirement.originalInstruction,
@@ -207,7 +207,7 @@ export function deriveTasks(project) {
         unresolved: requirement.resolution
           ? `Decision recorded: ${requirement.resolution}. Implementation remains proposed.`
           : 'Choose and document the login behavior when Redis is unavailable.',
-        // Direct foreign keys (Phase 1)
+        // Direct foreign keys
         requirementId: requirement.id,
         sourceChangeId: requirement.sourceChangeId,
         originalInstruction: requirement.originalInstruction,
@@ -226,7 +226,7 @@ export function deriveTasks(project) {
           'Tests or architecture documentation show the ownership boundary.',
         ],
         unresolved: 'The model does not define replication or recovery policy.',
-        // Direct foreign keys (Phase 1)
+        // Direct foreign keys
         requirementId: requirement.id,
         sourceChangeId: requirement.sourceChangeId,
         originalInstruction: requirement.originalInstruction,

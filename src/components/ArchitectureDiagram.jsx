@@ -82,10 +82,10 @@ export default function ArchitectureDiagram({ project }) {
     [model.components, model.relationships]
   );
 
-  // Phase 5: Chaos Simulation & Telemetry Stream (Web Worker)
+  // Outage simulation, computed in a Web Worker
   const telemetry = useChaosWorker(project, chaosInjections);
 
-  // Phase 5: Architecture Decision Record (ADR)
+  // Architecture Decision Record (ADR)
   const baseAdr = useMemo(() => generateAdrFromChange(project), [project]);
   const currentAdr = useMemo(() => {
     const updatedSignoffs = baseAdr.complianceSignoffs.map((s) => {
@@ -1239,7 +1239,7 @@ return (
         </div>
       )}
 
-      {/* Phase 5: Architecture Decision Record (ADR) & Sign-Off Modal */}
+      {/* Architecture Decision Record (ADR) and sign-off dialog */}
       {showAdrModal && (
         <div className="modal-backdrop" onClick={() => setShowAdrModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 740 }}>

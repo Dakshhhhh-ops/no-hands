@@ -2,7 +2,7 @@
    Editorial layer (loaded after landing.css).
    Display type pairs Instrument Sans with Instrument Serif italic. Motion:
    masked word reveals, a WebGL voice field, a pinned scroll story,
-   magnetic buttons, a custom cursor, film grain, and an intro curtain.
+   magnetic buttons, a custom cursor, and film grain.
    Everything degrades to static for prefers-reduced-motion.
    ========================================================================== */
 
@@ -27,8 +27,7 @@
 }
 .va-display-serif .va-split-word,
 .va-section-title em,
-.va-footer-wordmark .is-serif,
-.va-intro-word.is-serif {
+.va-footer-wordmark .is-serif {
   background: var(--va-brand-gradient);
   background-size: 180% 100%;
   -webkit-background-clip: text; background-clip: text;
@@ -248,20 +247,6 @@
 .va-cursor-ring.has-label span { opacity: 1; scale: .5; }
 .va-cursor-on .va-cursor-dot, .va-cursor-on .va-cursor-ring { opacity: 1; }
 .va-cursor-on [data-cursor-zone], .va-cursor-on [data-cursor-zone] * { cursor: none; }
-
-/* ---------- Intro curtain ---------- */
-.va-intro {
-  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
-  background: var(--va-bg); color: var(--va-ink);
-  clip-path: inset(0 0 0 0); transition: clip-path .9s var(--va-ease-in-out);
-}
-.va-intro.is-leaving { clip-path: inset(0 0 100% 0); }
-.va-intro-mark { display: flex; gap: .2em; overflow: hidden; font-size: clamp(48px, 9vw, 140px); font-weight: 700; letter-spacing: -.06em; line-height: 1; }
-.va-intro-word { display: inline-block; translate: 0 110%; animation: va-intro-rise .9s var(--va-ease-out) forwards; }
-.va-intro-word.is-serif { font-family: var(--va-serif); font-style: italic; font-weight: 400; animation-delay: .12s; }
-@keyframes va-intro-rise { to { translate: 0 0; } }
-.va-intro-count { position: absolute; right: 40px; bottom: 32px; font: 500 clamp(28px, 4vw, 56px)/1 var(--va-mono); color: var(--va-faint); }
-.va-intro-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--va-brand-gradient); transform-origin: left; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {

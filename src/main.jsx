@@ -8,7 +8,6 @@ import './responsive.css';
 import './theme.css';
 
 // New system last, so it wins by order and specificity instead of !important.
-// (noHands.css is intentionally not imported any more. Archive the file.)
 import './tokens.css';
 import './bridge.css';
 import './app-shell.css';

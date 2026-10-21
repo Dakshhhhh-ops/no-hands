@@ -39,7 +39,7 @@ function apiOperations(project) {
 }
 
 /**
- * Direct Foreign Key Provenance Resolution (Phase 1)
+ * Provenance resolution through direct foreign keys.
  * Replaces heuristic regex string matching on evidence text with explicit foreign key lookups.
  */
 function resolveProvenance(project, category, before, after, latestChange) {

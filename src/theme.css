@@ -1,4 +1,4 @@
-/* VoiceArchitect UI component styles. Product layout overrides live in noHands.css. */
+/* VoiceArchitect UI component styles (legacy layer; later files override it). */
 
 
 :root {
@@ -3386,7 +3386,7 @@ body {
 }
 
 /* ==========================================================================
-   Phase 3: Scenario Branching & Time-Travel Toolbar Styles
+   Scenario branching and time-travel toolbar
    ========================================================================== */
 
 .scenario-branching-bar {
@@ -3610,7 +3610,7 @@ body {
 }
 
 /* ==========================================================================
-   Phase 5: Chaos Engineering, Edge Traffic Flow & Collaborative Studio
+   Outage simulator, edge traffic flow, and decision records
    ========================================================================== */
 
 .diagram-chaos-bar {

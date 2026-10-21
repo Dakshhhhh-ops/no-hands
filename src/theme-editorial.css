@@ -93,8 +93,7 @@
 .va-gradient-text,
 .va-display-serif .va-split-word,
 .va-section-title em,
-.va-footer-wordmark .is-serif,
-.va-intro-word.is-serif {
+.va-footer-wordmark .is-serif {
   background: none !important;
   -webkit-text-fill-color: currentColor !important;
   color: var(--va-accent) !important;

@@ -30,7 +30,6 @@ import HeroStack3D from './components/HeroStack3D.jsx';
 import TiltCard from './components/TiltCard.jsx';
 import VoiceField from './components/landing/VoiceField.jsx';
 import StoryScroll from './components/landing/StoryScroll.jsx';
-import IntroLoader from './components/landing/IntroLoader.jsx';
 import { CustomCursor, Magnetic, SplitWords } from './components/landing/Interactions.jsx';
 import { useSmoothScroll } from './hooks/useSmoothScroll.ts';
 import { HeroFragments, SelectionFrame, CodeLine } from './components/landing/HeroCanvas.jsx';
@@ -998,7 +997,6 @@ export default function App() {
       <div className="va-scroll-progress" aria-hidden="true" />
       <div className="va-grain" aria-hidden="true" />
       <CustomCursor />
-      <IntroLoader />
 
       {/* Review dialog */}
       {proposal && (

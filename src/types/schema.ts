@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /* ==========================================================================
    VoiceArchitect Domain Schema & Type Definitions
-   Phase 1: Type Safety, Zod Validation, and Explicit Foreign Keys
+   Zod schemas, validation, and explicit foreign keys
    ========================================================================== */
 
 export const ComponentTypeEnum = z.enum([
