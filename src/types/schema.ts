@@ -292,6 +292,68 @@ export const ProjectSchema = z.object({
 });
 export type Project = z.infer<typeof ProjectSchema>;
 
+/* ==========================================================================
+   Saved workspace
+   What survives a reload: every branch with its model and undo history, the
+   branch being worked on, and the imported baseline that Reset returns to.
+   Anything stored that fails this schema is ignored, never trusted.
+   ========================================================================== */
+
+export const JsonPatchOperationSchema = z.object({
+  op: z.enum(['add', 'remove', 'replace', 'move', 'copy', 'test']),
+  path: z.string(),
+  value: z.json().optional(),
+  from: z.string().optional(),
+});
+
+export const TimelineEntrySchema = z.object({
+  version: z.number().int(),
+  timestamp: z.number(),
+  label: z.string(),
+  changeId: z.string().optional(),
+  patchCount: z.number().int().nonnegative(),
+  project: ProjectSchema,
+  patch: z.array(JsonPatchOperationSchema),
+  inversePatch: z.array(JsonPatchOperationSchema),
+});
+
+export const HistorySnapshotSchema = z.object({
+  past: z.array(TimelineEntrySchema),
+  present: ProjectSchema,
+  future: z.array(TimelineEntrySchema),
+});
+export type HistorySnapshot = z.infer<typeof HistorySnapshotSchema>;
+
+export const BranchSnapshotSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string(),
+  baseProject: ProjectSchema.optional(),
+  project: ProjectSchema,
+  history: HistorySnapshotSchema,
+});
+export type BranchSnapshot = z.infer<typeof BranchSnapshotSchema>;
+
+export const WorkspaceSnapshotSchema = z.object({
+  schemaVersion: z.literal(1),
+  sampleChoice: z.enum(['commerce', 'food']),
+  currentBranchId: z.string().min(1),
+  /** The imported model Reset returns to; null when the workspace started from a sample. */
+  importedProject: ProjectSchema.nullable(),
+  branches: z.record(z.string(), BranchSnapshotSchema),
+}).superRefine((workspace, ctx) => {
+  if (!workspace.branches.main) {
+    ctx.addIssue({ code: 'custom', message: 'A saved workspace needs a main branch.', path: ['branches'] });
+  }
+  if (!workspace.branches[workspace.currentBranchId]) {
+    ctx.addIssue({ code: 'custom', message: `The current branch "${workspace.currentBranchId}" is not saved.`, path: ['currentBranchId'] });
+  }
+  for (const [key, branch] of Object.entries(workspace.branches)) {
+    if (branch.id !== key) ctx.addIssue({ code: 'custom', message: `Branch "${key}" is saved under the wrong id.`, path: ['branches', key, 'id'] });
+  }
+});
+export type WorkspaceSnapshot = z.infer<typeof WorkspaceSnapshotSchema>;
+
 /* Validation Helpers */
 export function validateProject(data: unknown): Project {
   return ProjectSchema.parse(data);

@@ -17,7 +17,7 @@ With a key, every preview is a live model call. A recorded answer is used only w
 ## Verify
 
 ```sh
-npm test             # 150 unit tests, including Wispr sign-in and MCP against a fake server, the server's headers, and hostile or oversized request bodies
+npm test             # 156 unit tests, including Wispr sign-in and MCP against a fake server, the server's headers, and hostile or oversized request bodies
 npm run test:vitest  # 62 component tests (Vitest + RTL)
 npm run typecheck    # strict TypeScript with noUncheckedIndexedAccess across src/ and server/, no any
 npm run lint         # ESLint, 0 problems
@@ -133,6 +133,7 @@ src/
 ├── data/                    # Domain logic, pure TypeScript: compose import, drift check,
 │                            # operations applier, risks and fixes, OpenAPI, exports,
 │                            # dictation cleanup, Hinglish and English patterns, follow-ups
+│   └── workspaceStorage.ts  # Saves branches, undo history, and the imported baseline; Zod-checked on load
 ├── types/schema.ts          # Zod schema (single source of truth)
 └── utils/                   # Sound cues
 server/                      # /api/health, /api/status, /api/interpret (Claude or Groq), limits
@@ -148,9 +149,9 @@ docs/                        # Wispr Flow research notes, submission notes, demo
 
 | Suite | Command | Tests |
 |-------|---------|-------|
-| Unit (Node) | `npm test` | 150 |
+| Unit (Node) | `npm test` | 156 |
 | Component (Vitest + RTL) | `npm run test:vitest` | 62 |
-| Browser (Playwright: axe, CSP, every flow) | `npx playwright test` | 36 in Chromium + the same 36 in WebKit + 1 offline (PWA) |
+| Browser (Playwright: axe, CSP, every flow) | `npx playwright test` | 40 in Chromium + the same 40 in WebKit + 1 offline (PWA) |
 
 App code in `src/` and `server/` is strict TypeScript (including `noUncheckedIndexedAccess`) with no `any`; the Node unit tests are plain JS. Measured on the production build (Brotli), the landing page's own scripts and stylesheets are 121 KB of JS and 15 KB of CSS; the four self-hosted font files total 100 KB; the page makes no third-party request.
 

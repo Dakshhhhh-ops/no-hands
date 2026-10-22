@@ -135,15 +135,15 @@ test('a callback with the wrong state is refused before any token request', asyn
   const start = await route(connector, '/api/wispr/connect');
   const bad = await route(connector, '/api/wispr/callback?code=x&state=forged', { cookie: cookieOf(start) });
   assert.equal(bad.status, 302);
-  assert.equal(bad.headers.location, '/?wispr=error&code=state_mismatch#workspace');
+  assert.equal(bad.headers.location, '/app?wispr=error&code=state_mismatch');
   assert.equal(log.tokenBodies.length, 0);
   const noCookie = await route(connector, `/api/wispr/callback?code=x&state=${new URL(start.headers.location).searchParams.get('state')}`);
-  assert.equal(noCookie.headers.location, '/?wispr=error&code=state_mismatch#workspace');
+  assert.equal(noCookie.headers.location, '/app?wispr=error&code=state_mismatch');
 });
 
 test('the code exchange sends the PKCE verifier and resource, and tokens never leave the server', async () => {
   const { connector, cookie, wispr, start, done } = await connected();
-  assert.equal(done.headers.location, '/?wispr=connected#workspace');
+  assert.equal(done.headers.location, '/app?wispr=connected');
   const body = wispr.log.tokenBodies[0];
   assert.equal(body.grant_type, 'authorization_code');
   assert.equal(body.code, 'auth-code-1');
@@ -162,7 +162,7 @@ test('a cancelled or failed sign-in explains the email-and-password case', async
   const start = await route(connector, '/api/wispr/connect');
   const state = new URL(start.headers.location).searchParams.get('state');
   const denied = await route(connector, `/api/wispr/callback?error=access_denied&state=${state}`, { cookie: cookieOf(start) });
-  assert.equal(denied.headers.location, '/?wispr=error&code=denied#workspace');
+  assert.equal(denied.headers.location, '/app?wispr=error&code=denied');
   assert.match(WISPR_MESSAGES.denied, /email and password/);
 });
 
@@ -269,7 +269,7 @@ test('if Wispr\'s sign-in service cannot be found, Connect returns to the app wi
   const connector = new WisprConnector({ fetch: async () => new Response('', { status: 500 }), resourceMetadataUrl: RESOURCE });
   const start = await route(connector, '/api/wispr/connect');
   assert.equal(start.status, 302);
-  assert.equal(start.headers.location, '/?wispr=error&code=discovery#workspace');
+  assert.equal(start.headers.location, '/app?wispr=error&code=discovery');
   const status = await route(connector, '/api/wispr/status?code=discovery');
   assert.deepEqual(status.body, { connected: false, message: WISPR_MESSAGES.discovery });
   const unknown = await route(connector, '/api/wispr/status?code=__proto__');

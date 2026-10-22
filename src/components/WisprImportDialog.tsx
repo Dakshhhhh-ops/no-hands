@@ -131,7 +131,7 @@ export default function WisprImportDialog({ isOpen, onClose, onPropose, returned
                 Opens Wispr Flow's sign-in. The app reads only recent meeting summaries and Scratchpad notes, never transcripts or dictation history, and keeps the sign-in on its server.
               </p>
               {isImported && (
-                <p className="va-notes-warn">Connecting reloads the page and the sample stack returns, so import your stack again afterwards, or paste notes below instead.</p>
+                <p className="va-notes-muted">Your stack is saved in this browser, so the sign-in brings you back to it.</p>
               )}
             </div>
           )}

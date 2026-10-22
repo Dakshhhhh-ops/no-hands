@@ -1,4 +1,4 @@
-import type { Project } from '../types/schema.ts';
+import type { HistorySnapshot, Project } from '../types/schema.ts';
 import { generateJsonPatch, applyJsonPatch, type JsonPatchOperation } from './jsonPatch.ts';
 
 export interface TimelineEntry {
@@ -139,6 +139,23 @@ export class HistoryTimeline {
     }
 
     return this.present;
+  }
+
+  /** A plain copy for storage, keeping the newest `limit` undo steps and the nearest `limit` redo steps. */
+  snapshot(limit = Infinity): HistorySnapshot {
+    return {
+      past: limit >= this.past.length ? this.past : this.past.slice(this.past.length - limit),
+      present: this.present,
+      future: this.future.slice(0, limit),
+    };
+  }
+
+  /** Rebuilds a timeline from a snapshot that has already passed HistorySnapshotSchema. */
+  static restore(snapshot: HistorySnapshot): HistoryTimeline {
+    const timeline = new HistoryTimeline(snapshot.present);
+    timeline.past = structuredClone(snapshot.past);
+    timeline.future = structuredClone(snapshot.future);
+    return timeline;
   }
 
   get canUndo(): boolean {

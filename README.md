@@ -11,7 +11,7 @@ Voice keeps your architecture diagram in sync with your code.
 1. **Import your docker-compose file.** In the workspace at `/app`, open **Switch project → Import docker-compose** and pick the `docker-compose.yml` (or `compose.yaml`) from your project folder, usually at the root of the repo. The diagram is drawn from your real services, `depends_on`, and the connection strings in their environment variables.
 2. **Say the change.** Click the instruction box, hold your Wispr Flow hotkey, and speak, in English or Hinglish: "order service ko Kafka se connect karo". A model (Groq's `openai/gpt-oss-120b`, measured below) turns it into a short list of explicit operations, and every operation is checked against the current model and the Zod schema.
 3. **Review the exact diff.** Nothing changes yet. In the follow-up field, say "make it PostgreSQL instead" to revise, "undo that" to step back, or "cancel".
-4. **Say "apply".** The diagram, the API contract, the risks, and the tasks update together, and every applied change can be undone.
+4. **Say "apply".** The diagram, the API contract, the risks, and the tasks update together, and every applied change can be undone. The workspace, its undo history, and its branches are saved in your browser, so a reload or a Wispr Flow sign-in brings you back to the same stack.
 5. **Check against the code.** When the code moves on, compare the diagram with the newer compose file. New and retired services become one reviewable sync; components planned in the diagram but not built yet are kept and shown dashed.
 
 Decisions from a meeting can enter the same loop: import a Wispr Flow Notetaker summary or Scratchpad note, or paste notes, and they become a proposal you review like a spoken one.
@@ -65,8 +65,9 @@ Claude is supported (`claude-opus-5-5`, used when `ANTHROPIC_API_KEY` is set) bu
 
 ## Limitations
 
-- The Wispr Flow import is tested against mocks only until a real sign-in has been done. Its sessions live in server memory for 8 hours, so a restart means connecting again, and connecting reloads the page, so an imported stack has to be imported again afterwards; pasting notes avoids both.
+- The Wispr Flow import is tested against mocks only until a real sign-in has been done. Its sessions live in server memory for 8 hours, so a server restart means connecting again; pasting notes avoids that.
 - Offline mode understands only a handful of request patterns; full understanding needs a model key.
+- The workspace is saved in this browser only (localStorage), with the last 25 undo steps per branch. Another browser or device starts fresh, and clearing site data clears it.
 - Drift checks compare services, images, and connections. Ports, volumes, and environment values are not modeled.
 - Risks are findings computed from the model, not from production telemetry; tasks are proposals and are not sent to an issue tracker.
 

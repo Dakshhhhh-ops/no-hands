@@ -526,15 +526,15 @@ export class WisprConnector {
           redirect(await this.startAuthorization(req, res));
         } catch (error) {
           const code = error instanceof WisprError ? error.code : 'discovery';
-          redirect(`/?wispr=error&code=${encodeURIComponent(code)}#workspace`);
+          redirect(`/app?wispr=error&code=${encodeURIComponent(code)}`);
         }
       } else if (route === 'callback' && req.method === 'GET') {
         try {
           await this.finishAuthorization(req, url.searchParams);
-          redirect('/?wispr=connected#workspace');
+          redirect('/app?wispr=connected');
         } catch (error) {
           const code = error instanceof WisprError ? error.code : 'unavailable';
-          redirect(`/?wispr=error&code=${encodeURIComponent(code)}#workspace`);
+          redirect(`/app?wispr=error&code=${encodeURIComponent(code)}`);
         }
       } else if (route === 'items' && req.method === 'GET') {
         const found = this.sessionFor(req);

@@ -13,12 +13,14 @@ const TITLES: Record<string, string> = {
 /** "/" is the landing page and "/app" the workspace; anything else shows the landing page. */
 export default function Root() {
   const { path, params, fromHistory } = useLocation();
-  // Wispr Flow's sign-in returns to "/?wispr=..."; the import dialog lives in the workspace.
+  // Wispr Flow's sign-in returns to "/app?wispr=..."; an older "/?wispr=..." link is forwarded
+  // there with its query, which the workspace reads to show how the sign-in went.
   const wisprReturn = path === '/' && params.has('wispr');
   const isApp = path === '/app' || wisprReturn;
+  const query = params.toString();
   useEffect(() => {
-    if (wisprReturn) navigate('/app', { replace: true });
-  }, [wisprReturn]);
+    if (wisprReturn) navigate(`/app?${query}`, { replace: true });
+  }, [wisprReturn, query]);
   const firstRender = useRef(true);
 
   useEffect(() => {

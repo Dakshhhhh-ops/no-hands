@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { HistoryTimeline } from '../data/historyManager.ts';
 import { makeCommerceProject } from '../data/commerce.ts';
 import { makeFoodDeliveryProject } from '../data/foodDelivery.ts';
 import type { Project } from '../types/schema.ts';
 import { forkBranch, compareBranches } from '../data/branching.ts';
 import { detectMergeConflicts, executeMerge, type MergeConflict } from '../data/semanticMerge.ts';
+import { loadWorkspace, saveWorkspace } from '../data/workspaceStorage.ts';
 
 export interface BranchState {
   id: string;
@@ -66,22 +67,38 @@ function makeMainBranch(project: Project): BranchState {
 }
 
 export function useProjectState(): UseProjectStateReturn {
-  const [sampleChoice, setSampleChoice] = useState<'commerce' | 'food'>('commerce');
-  const [project, setProject] = useState<Project>(() => makeCommerceProject());
-  const [currentBranchId, setCurrentBranchId] = useState('main');
+  // The workspace saved by the last visit, already checked against its schema; null starts fresh.
+  const [saved] = useState(() => loadWorkspace());
+  const savedBranch = saved?.branches[saved.currentBranchId];
+  const [sampleChoice, setSampleChoice] = useState<'commerce' | 'food'>(saved?.sampleChoice ?? 'commerce');
+  const [project, setProject] = useState<Project>(() => savedBranch?.project ?? makeCommerceProject());
+  const [currentBranchId, setCurrentBranchId] = useState(saved && savedBranch ? saved.currentBranchId : 'main');
   // An imported project replaces the sample as the baseline that Reset returns to.
-  const [importedProject, setImportedProject] = useState<Project | null>(null);
-  const [branches, setBranches] = useState<Record<string, BranchState>>(() => ({
+  const [importedProject, setImportedProject] = useState<Project | null>(saved?.importedProject ?? null);
+  const [branches, setBranches] = useState<Record<string, BranchState>>(() => saved?.branches ?? {
     main: makeMainBranch(makeCommerceProject()),
-  }));
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
+  });
+  const [canUndo, setCanUndo] = useState(() => Boolean(savedBranch?.history.canUndo));
+  const [canRedo, setCanRedo] = useState(() => Boolean(savedBranch?.history.canRedo));
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [mergeConflicts, setMergeConflicts] = useState<MergeConflict[]>([]);
   const [mergingBranchId, setMergingBranchId] = useState<string | null>(null);
 
   const currentBranch = branches[currentBranchId];
+
+  // Every change to a model, its history, or the branch in use is saved, so a reload
+  // (or a return from Wispr Flow's sign-in) lands on the same stack with undo intact.
+  // Opening the app saves nothing: a save that could not be read is left alone until
+  // the person changes something, rather than replaced by the default sample.
+  const opened = useRef(true);
+  useEffect(() => {
+    if (opened.current) {
+      opened.current = false;
+      return;
+    }
+    saveWorkspace({ sampleChoice, currentBranchId, importedProject, branches });
+  }, [sampleChoice, currentBranchId, importedProject, branches]);
 
   const branchList = useMemo(() => Object.values(branches).map((b) => ({
     id: b.id,
