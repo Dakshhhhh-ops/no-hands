@@ -354,6 +354,31 @@ export const WorkspaceSnapshotSchema = z.object({
 });
 export type WorkspaceSnapshot = z.infer<typeof WorkspaceSnapshotSchema>;
 
+/* ==========================================================================
+   Wispr Flow sign-in, sealed into an encrypted cookie by server/wisprSession.ts
+   Checked against this schema after every decryption; anything else counts as
+   signed out. Server-side only: the browser holds nothing but ciphertext.
+   ========================================================================== */
+
+export const WisprSessionSchema = z.object({
+  /** Random id: keys the server's in-memory MCP cache, and revocation on disconnect. */
+  sid: z.string().min(16),
+  createdAt: z.number().int().nonnegative(),
+  /** The cookie's own expiry; a cookie past it is refused even if the browser still sends it. */
+  expiresAt: z.number().int().positive(),
+  redirectUri: z.string().min(1).optional(),
+  clientId: z.string().min(1).optional(),
+  /** PKCE state and verifier, present only between Connect and the callback. */
+  state: z.string().min(1).optional(),
+  verifier: z.string().min(1).optional(),
+  tokens: z.object({
+    accessToken: z.string().min(1).optional(),
+    refreshToken: z.string().min(1).optional(),
+    expiresAt: z.number().optional(),
+  }).optional(),
+});
+export type WisprSession = z.infer<typeof WisprSessionSchema>;
+
 /* Validation Helpers */
 export function validateProject(data: unknown): Project {
   return ProjectSchema.parse(data);

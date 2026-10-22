@@ -1,5 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { SessionSealer, secretStatus } from './wisprSession.ts';
+import type { WisprSession } from '../src/types/schema.ts';
 
 /**
  * "Import from Wispr Flow": reads one recent Notetaker meeting summary or Scratchpad
@@ -9,8 +11,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
  *   server, and that server's RFC 8414 metadata names every endpoint.
  * - OAuth: dynamic client registration, authorization code grant with PKCE (S256),
  *   the resource parameter set to the MCP URL, and a checked state value.
- * - Tokens stay on this server, in memory, keyed by a random httpOnly, Secure,
- *   SameSite=Lax cookie. The browser never sees them.
+ * - The sign-in, tokens included, is sealed with AES-256-GCM into an HttpOnly, Secure,
+ *   SameSite=Lax cookie (server/wisprSession.ts, keyed by WISPR_SESSION_SECRET), so it
+ *   survives a server restart. The browser holds only ciphertext. An expired access
+ *   token is refreshed with the refresh token, with the same resource indicator.
  * - MCP over Streamable HTTP: initialize, tools/list, tools/call. Tools are chosen
  *   from what tools/list returns; transcript and dictation tools are never used.
  *
@@ -67,13 +71,8 @@ interface Tokens {
   expiresAt?: number;
 }
 
-interface Session {
-  createdAt: number;
-  redirectUri?: string;
-  clientId?: string;
-  state?: string;
-  verifier?: string;
-  tokens?: Tokens;
+/** A sign-in as one request sees it: the sealed part plus what this process remembers. */
+interface Session extends WisprSession {
   mcpSessionId?: string;
   tools?: McpTool[];
 }
@@ -228,14 +227,48 @@ export interface WisprOptions {
   now?: () => number;
   resourceMetadataUrl?: string;
   trustProxy?: boolean;
+  /** Key for sealing sign-ins into the cookie. Defaults to WISPR_SESSION_SECRET. */
+  secret?: string;
 }
+
+/** What one process remembers about a session; rebuilt on demand after a restart. */
+interface RuntimeEntry {
+  mcpSessionId?: string;
+  tools?: McpTool[];
+  /** An access token too large for the cookie, valid for the token generation that expires at tokenExpiresAt. */
+  accessToken?: string;
+  tokenExpiresAt?: number;
+  lastUsed: number;
+}
+
+/** Browsers drop cookies over 4096 bytes, name and attributes included. */
+const MAX_COOKIE_VALUE = 3800;
+const MAX_RUNTIME_ENTRIES = 500;
+let warnedAboutSecret = false;
+
+const persisted = (session: Session): WisprSession => ({
+  sid: session.sid,
+  createdAt: session.createdAt,
+  expiresAt: session.expiresAt,
+  ...(session.redirectUri ? { redirectUri: session.redirectUri } : {}),
+  ...(session.clientId ? { clientId: session.clientId } : {}),
+  ...(session.state ? { state: session.state } : {}),
+  ...(session.verifier ? { verifier: session.verifier } : {}),
+  ...(session.tokens ? { tokens: session.tokens } : {}),
+});
 
 export class WisprConnector {
   private fetchImpl: FetchLike;
   private now: () => number;
   private resourceMetadataUrl: string;
   private trustProxy: boolean;
-  private sessions = new Map<string, Session>();
+  private sealer: SessionSealer;
+  /** MCP session ids and tool lists per sign-in. A cache only: losing it costs one initialize. */
+  private runtime = new Map<string, RuntimeEntry>();
+  /** Sign-ins ended with Disconnect, refused by this process until they would have expired. */
+  private revoked = new Map<string, number>();
+  /** One refresh at a time per sign-in, so parallel requests do not spend a rotating refresh token twice. */
+  private refreshing = new Map<string, Promise<Tokens>>();
   private clients = new Map<string, string>();
   private authServer: Promise<AuthServer> | null = null;
   private mcpUrl = MCP_URL;
@@ -246,6 +279,14 @@ export class WisprConnector {
     this.now = options.now || Date.now;
     this.resourceMetadataUrl = options.resourceMetadataUrl || RESOURCE_METADATA_URL;
     this.trustProxy = options.trustProxy ?? process.env.VOICEARCHITECT_TRUST_PROXY === '1';
+    const secret = options.secret ?? process.env.WISPR_SESSION_SECRET;
+    this.sealer = new SessionSealer(secret);
+    if (options.secret === undefined && !this.sealer.persistent && !warnedAboutSecret) {
+      warnedAboutSecret = true;
+      const status = secretStatus(secret);
+      // Says only whether the secret is set and long enough, never its value.
+      console.warn(`WISPR_SESSION_SECRET is ${status === 'short' ? 'shorter than 32 characters, so it is ignored' : 'not set'}: Wispr Flow sign-ins will end when the server restarts.`);
+    }
   }
 
   // ---------- discovery and registration ----------
@@ -273,7 +314,9 @@ export class WisprConnector {
     return this.authServer;
   }
 
-  private async clientFor(redirectUri: string, meta: AuthServer): Promise<string> {
+  private async clientFor(redirectUri: string, meta: AuthServer, previous: Session | null): Promise<string> {
+    // The client registered for this callback URL is kept in the sealed session, so a restart needs no new registration.
+    if (previous?.clientId && previous.redirectUri === redirectUri) return previous.clientId;
     const known = this.clients.get(redirectUri);
     if (known) return known;
     if (!meta.registration_endpoint) throw new WisprError('discovery', WISPR_MESSAGES.discovery);
@@ -296,26 +339,65 @@ export class WisprConnector {
     return body.client_id;
   }
 
-  // ---------- sessions ----------
+  // ---------- sessions, sealed into the cookie ----------
 
-  private sessionFor(req: IncomingMessage): { id: string; session: Session } | null {
+  /** The sign-in this request carries, or null when there is none or its cookie does not open. */
+  private readSession(req: IncomingMessage): Session | null {
     const cookie = String(req.headers.cookie || '');
-    const id = cookie.split(/;\s*/).find((c) => c.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1);
-    if (!id) return null;
-    const session = this.sessions.get(id);
-    if (!session || this.now() - session.createdAt > SESSION_TTL_MS) {
-      this.sessions.delete(id);
-      return null;
+    const value = cookie.split(/;\s*/).find((c) => c.startsWith(`${COOKIE}=`))?.slice(COOKIE.length + 1);
+    if (!value) return null;
+    const stored = this.sealer.unseal(value, this.now());
+    if (!stored || this.revoked.has(stored.sid)) return null;
+    const session: Session = { ...stored };
+    const cached = this.runtime.get(stored.sid);
+    if (cached) {
+      session.mcpSessionId = cached.mcpSessionId;
+      session.tools = cached.tools;
+      if (session.tokens && !session.tokens.accessToken && cached.accessToken && cached.tokenExpiresAt === session.tokens.expiresAt) {
+        session.tokens = { ...session.tokens, accessToken: cached.accessToken };
+      }
     }
-    return { id, session };
+    return session;
   }
 
-  private newSession(res: ServerResponse): Session {
-    const id = b64url(randomBytes(32));
-    const session: Session = { createdAt: this.now() };
-    this.sessions.set(id, session);
-    res.setHeader('Set-Cookie', `${COOKIE}=${id}; Path=/api/wispr; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_TTL_MS / 1000}`);
-    return session;
+  /** Keeps what does not belong in the cookie (MCP session, tool list) for this process. */
+  private remember(session: Session) {
+    this.runtime.delete(session.sid);
+    this.runtime.set(session.sid, {
+      mcpSessionId: session.mcpSessionId,
+      tools: session.tools,
+      accessToken: session.tokens?.accessToken,
+      tokenExpiresAt: session.tokens?.expiresAt,
+      lastUsed: this.now(),
+    });
+    // Oldest first in insertion order, so the least recently used go first.
+    while (this.runtime.size > MAX_RUNTIME_ENTRIES) {
+      const oldest = this.runtime.keys().next().value;
+      if (oldest === undefined) break;
+      this.runtime.delete(oldest);
+    }
+  }
+
+  private writeCookie(res: ServerResponse, session: Session) {
+    const stored = persisted(session);
+    let value = this.sealer.seal(stored);
+    if (value.length > MAX_COOKIE_VALUE && stored.tokens?.accessToken) {
+      // A very large access token stays in this process; after a restart the refresh token fetches a new one.
+      value = this.sealer.seal({ ...stored, tokens: { ...stored.tokens, accessToken: undefined } });
+    }
+    const maxAge = Math.max(0, Math.floor((session.expiresAt - this.now()) / 1000));
+    res.setHeader('Set-Cookie', `${COOKIE}=${value}; Path=/api/wispr; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`);
+  }
+
+  private clearCookie(res: ServerResponse) {
+    res.setHeader('Set-Cookie', `${COOKIE}=; Path=/api/wispr; HttpOnly; Secure; SameSite=Lax; Max-Age=0`);
+  }
+
+  private revoke(session: Session) {
+    const now = this.now();
+    for (const [sid, expiresAt] of this.revoked) if (expiresAt <= now) this.revoked.delete(sid);
+    this.revoked.set(session.sid, session.expiresAt);
+    this.runtime.delete(session.sid);
   }
 
   /** The callback URL on the origin the person is using. */
@@ -332,34 +414,37 @@ export class WisprConnector {
 
   // ---------- OAuth ----------
 
-  /** Starts sign-in: returns the authorization URL to redirect the browser to. */
-  async startAuthorization(req: IncomingMessage, res: ServerResponse): Promise<string> {
+  /** Starts a fresh sign-in: returns it and the authorization URL to send the browser to. */
+  async startAuthorization(req: IncomingMessage, previous: Session | null): Promise<{ session: Session; url: string }> {
     const meta = await this.discover();
     const redirectUri = this.redirectUri(req);
-    const clientId = await this.clientFor(redirectUri, meta);
-    const session = this.sessionFor(req)?.session || this.newSession(res);
-    session.redirectUri = redirectUri;
-    session.clientId = clientId;
-    session.state = b64url(randomBytes(24));
-    session.verifier = b64url(randomBytes(48));
+    const clientId = await this.clientFor(redirectUri, meta, previous);
+    const now = this.now();
+    const session: Session = {
+      sid: b64url(randomBytes(18)),
+      createdAt: now,
+      expiresAt: now + SESSION_TTL_MS,
+      redirectUri,
+      clientId,
+      state: b64url(randomBytes(24)),
+      verifier: b64url(randomBytes(48)),
+    };
     const url = new URL(meta.authorization_endpoint);
     url.search = new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
       redirect_uri: redirectUri,
       scope: SCOPE,
-      state: session.state,
-      code_challenge: pkceChallenge(session.verifier),
+      state: session.state ?? '',
+      code_challenge: pkceChallenge(session.verifier ?? ''),
       code_challenge_method: 'S256',
       resource: this.mcpUrl,
     }).toString();
-    return url.toString();
+    return { session, url: url.toString() };
   }
 
-  /** Finishes sign-in from the callback query; tokens stay in the server-side session. */
-  async finishAuthorization(req: IncomingMessage, query: URLSearchParams): Promise<void> {
-    const found = this.sessionFor(req);
-    const session = found?.session;
+  /** Finishes sign-in from the callback query; the tokens go into the sealed session. */
+  async finishAuthorization(session: Session | null, query: URLSearchParams): Promise<void> {
     const state = query.get('state') || '';
     if (!session?.state || !session.verifier || !session.clientId || !session.redirectUri || !state || !sameString(state, session.state)) {
       throw new WisprError('state_mismatch', WISPR_MESSAGES.state_mismatch, 400);
@@ -394,30 +479,53 @@ export class WisprConnector {
     };
   }
 
+  /** A current access token, refreshed first when it has expired (or was not kept after a restart). */
   private async accessToken(session: Session): Promise<string> {
     const tokens = session.tokens;
-    if (!tokens) throw new WisprError('not_connected', WISPR_MESSAGES.not_connected, 401);
-    if (tokens.expiresAt && tokens.expiresAt - 30_000 < this.now()) {
-      if (!tokens.refreshToken || !session.clientId) throw new WisprError('unauthorized', WISPR_MESSAGES.unauthorized, 401);
-      const meta = await this.discover();
-      const response = await this.fetchImpl(meta.token_endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-        body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: tokens.refreshToken, client_id: session.clientId, resource: this.mcpUrl }).toString(),
-      });
-      if (!response.ok) {
-        session.tokens = undefined;
-        throw new WisprError('unauthorized', WISPR_MESSAGES.unauthorized, 401);
-      }
-      const fresh = this.readTokens(await response.json());
-      session.tokens = { ...fresh, refreshToken: fresh.refreshToken || tokens.refreshToken };
+    if (!tokens || (!tokens.accessToken && !tokens.refreshToken)) throw new WisprError('not_connected', WISPR_MESSAGES.not_connected, 401);
+    const stale = !tokens.accessToken || (tokens.expiresAt !== undefined && tokens.expiresAt - 30_000 < this.now());
+    if (!stale) return tokens.accessToken!;
+    const refreshToken = tokens.refreshToken;
+    const clientId = session.clientId;
+    if (!refreshToken || !clientId) {
+      session.tokens = undefined;
+      throw new WisprError('unauthorized', WISPR_MESSAGES.unauthorized, 401);
     }
-    return session.tokens!.accessToken;
+    let pending = this.refreshing.get(session.sid);
+    if (!pending) {
+      pending = this.refresh(refreshToken, clientId).finally(() => this.refreshing.delete(session.sid));
+      this.refreshing.set(session.sid, pending);
+    }
+    let fresh: Tokens;
+    try {
+      fresh = await pending;
+    } catch (error) {
+      session.tokens = undefined;
+      throw error;
+    }
+    session.tokens = fresh;
+    return fresh.accessToken;
+  }
+
+  /** The refresh_token grant, with the same resource indicator as the sign-in. */
+  private async refresh(refreshToken: string, clientId: string): Promise<Tokens> {
+    const meta = await this.discover();
+    const response = await this.fetchImpl(meta.token_endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: clientId, resource: this.mcpUrl }).toString(),
+    });
+    if (!response.ok) throw new WisprError('unauthorized', WISPR_MESSAGES.unauthorized, 401);
+    const fresh = this.readTokens(await response.json());
+    // A server that does not rotate refresh tokens leaves the old one in force.
+    return { ...fresh, refreshToken: fresh.refreshToken || refreshToken };
   }
 
   // ---------- MCP over Streamable HTTP ----------
 
   private async rpc(session: Session, method: string, params?: unknown): Promise<unknown> {
+    // The MCP URL comes from discovery; after a restart nothing has discovered it yet.
+    await this.discover();
     const id = ++this.rpcId;
     const response = await this.fetchImpl(this.mcpUrl, {
       method: 'POST',
@@ -497,13 +605,25 @@ export class WisprConnector {
   /** Handles /api/wispr/*; returns false for any other path. */
   async handle(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
     if (!url.pathname.startsWith('/api/wispr/')) return false;
+    let session = this.readSession(req);
+    const opened = session ? JSON.stringify(persisted(session)) : null;
+    let signedOut = false;
+    // Before any response: the cookie follows the session (new tokens, a refresh, a revoked connection).
+    const commit = () => {
+      if (signedOut) { this.clearCookie(res); return; }
+      if (!session) return;
+      this.remember(session);
+      if (JSON.stringify(persisted(session)) !== opened) this.writeCookie(res, session);
+    };
     const send = (status: number, body: unknown) => {
+      commit();
       res.statusCode = status;
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Cache-Control', 'no-store');
       res.end(JSON.stringify(body));
     };
     const redirect = (location: string) => {
+      commit();
       res.statusCode = 302;
       res.setHeader('Location', location);
       res.setHeader('Cache-Control', 'no-store');
@@ -513,43 +633,48 @@ export class WisprConnector {
       const e = error instanceof WisprError ? error : new WisprError('unavailable', WISPR_MESSAGES.unavailable);
       send(e.status, { error: e.message, code: e.code });
     };
+    const connectedSession = (): Session => {
+      const current = session;
+      if (!current?.tokens) throw new WisprError('not_connected', WISPR_MESSAGES.not_connected, 401);
+      return current;
+    };
     try {
       const route = url.pathname.slice('/api/wispr/'.length);
       if (route === 'status' && req.method === 'GET') {
         // A failed sign-in returns to the app with only a code; the message for it comes from here.
         const code = url.searchParams.get('code') || '';
         const message = Object.hasOwn(WISPR_MESSAGES, code) ? WISPR_MESSAGES[code as WisprErrorCode] : undefined;
-        send(200, { connected: Boolean(this.sessionFor(req)?.session.tokens), ...(message ? { message } : {}) });
+        send(200, { connected: Boolean(session?.tokens), ...(message ? { message } : {}) });
       } else if (route === 'connect' && req.method === 'GET') {
         // The browser navigated here, so a failure goes back to the app rather than to a JSON page.
         try {
-          redirect(await this.startAuthorization(req, res));
+          const started = await this.startAuthorization(req, session);
+          session = started.session;
+          redirect(started.url);
         } catch (error) {
           const code = error instanceof WisprError ? error.code : 'discovery';
           redirect(`/app?wispr=error&code=${encodeURIComponent(code)}`);
         }
       } else if (route === 'callback' && req.method === 'GET') {
         try {
-          await this.finishAuthorization(req, url.searchParams);
+          await this.finishAuthorization(session, url.searchParams);
           redirect('/app?wispr=connected');
         } catch (error) {
           const code = error instanceof WisprError ? error.code : 'unavailable';
           redirect(`/app?wispr=error&code=${encodeURIComponent(code)}`);
         }
       } else if (route === 'items' && req.method === 'GET') {
-        const found = this.sessionFor(req);
-        if (!found?.session.tokens) throw new WisprError('not_connected', WISPR_MESSAGES.not_connected, 401);
-        send(200, { items: await this.listRecent(found.session) });
+        send(200, { items: await this.listRecent(connectedSession()) });
       } else if (route === 'item' && req.method === 'GET') {
-        const found = this.sessionFor(req);
-        if (!found?.session.tokens) throw new WisprError('not_connected', WISPR_MESSAGES.not_connected, 401);
+        const current = connectedSession();
         const kind = url.searchParams.get('kind') === 'meeting' ? 'meeting' : 'scratchpad';
         const id = url.searchParams.get('id') || '';
         if (!id) throw new WisprError('not_found', WISPR_MESSAGES.not_found, 404);
-        send(200, { kind, id, text: await this.readItem(found.session, kind, id) });
+        send(200, { kind, id, text: await this.readItem(current, kind, id) });
       } else if (route === 'disconnect' && req.method === 'POST') {
-        const found = this.sessionFor(req);
-        if (found) this.sessions.delete(found.id);
+        if (session) this.revoke(session);
+        session = null;
+        signedOut = true;
         send(200, { connected: false });
       } else {
         send(404, { error: 'Not found.' });

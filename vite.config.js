@@ -25,7 +25,7 @@ function voiceArchitectApi() {
 }
 
 export default defineConfig(({ mode }) => {
-  const serverEnv = loadEnv(mode, process.cwd(), ['ANTHROPIC_', 'GROQ_', 'VOICEARCHITECT_']);
+  const serverEnv = loadEnv(mode, process.cwd(), ['ANTHROPIC_', 'GROQ_', 'VOICEARCHITECT_', 'WISPR_']);
   for (const [key, value] of Object.entries(serverEnv)) {
     if (!process.env[key]) process.env[key] = value;
   }

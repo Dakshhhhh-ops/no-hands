@@ -27,6 +27,11 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Seals the Wispr Flow sign-in into an encrypted cookie, so it survives the free
+      # plan's restarts. Render generates a random value once; keep it, because a new
+      # value signs everyone out.
+      - key: WISPR_SESSION_SECRET
+        generateValue: true
       # Render sits behind a proxy, so rate limits must read the client address
       # from X-Forwarded-For.
       - key: VOICEARCHITECT_TRUST_PROXY

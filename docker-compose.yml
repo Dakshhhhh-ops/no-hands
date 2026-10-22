@@ -14,6 +14,8 @@ services:
       - VOICEARCHITECT_TIMEOUT_MS=${VOICEARCHITECT_TIMEOUT_MS:-}
       - VOICEARCHITECT_MAX_BODY_KB=${VOICEARCHITECT_MAX_BODY_KB:-}
       - VOICEARCHITECT_TRUST_PROXY=${VOICEARCHITECT_TRUST_PROXY:-}
+      # Seals Wispr Flow sign-ins into an encrypted cookie; set it so they survive a restart.
+      - WISPR_SESSION_SECRET=${WISPR_SESSION_SECRET:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/health"]

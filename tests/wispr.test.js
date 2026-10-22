@@ -21,7 +21,7 @@ const TOOLS = [
   { name: 'get_dictation_history', description: 'Recent dictations', inputSchema: { properties: {} } },
 ];
 
-function fakeWispr({ mcpStatus = 200, toolError = null } = {}) {
+function fakeWispr({ mcpStatus = 200, toolError = null, refreshStatus = 200 } = {}) {
   const log = { calls: [], authorizeUrl: null, tokenBodies: [], registrations: [], toolCalls: [], mcpHeaders: [] };
   const sse = (obj, headers = {}) => new Response(`event: message\ndata: ${JSON.stringify(obj)}\n\n`, { status: 200, headers: { 'Content-Type': 'text/event-stream', ...headers } });
   const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
@@ -44,6 +44,10 @@ function fakeWispr({ mcpStatus = 200, toolError = null } = {}) {
     if (url === `${AUTH}/oauth2/token`) {
       const body = new URLSearchParams(init.body);
       log.tokenBodies.push(Object.fromEntries(body));
+      if (body.get('grant_type') === 'refresh_token') {
+        if (refreshStatus !== 200) return json({ error: 'invalid_grant' }, refreshStatus);
+        return json({ access_token: 'secret-access-token-2', expires_in: 3600 });
+      }
       return json({ access_token: 'secret-access-token', refresh_token: 'secret-refresh-token', expires_in: 3600 });
     }
     if (url === FAKE_MCP) {
@@ -87,14 +91,17 @@ function route(connector, path, { method = 'GET', cookie } = {}) {
 
 const cookieOf = (response) => String(response.headers['set-cookie']).split(';')[0];
 
-async function connected(options) {
+const SECRET = 'test-secret-that-is-at-least-32-characters-long';
+
+/** Signs in through Connect and the callback. The cookie that comes back is the whole session. */
+async function connected(options = {}) {
   const wispr = fakeWispr(options);
-  const connector = new WisprConnector({ fetch: wispr.fetch, resourceMetadataUrl: RESOURCE });
+  const clock = { t: Date.UTC(2026, 9, 22, 9) };
+  const connector = new WisprConnector({ fetch: wispr.fetch, resourceMetadataUrl: RESOURCE, secret: SECRET, now: () => clock.t });
   const start = await route(connector, '/api/wispr/connect');
-  const cookie = cookieOf(start);
   const state = new URL(start.headers.location).searchParams.get('state');
-  const done = await route(connector, `/api/wispr/callback?code=auth-code-1&state=${state}`, { cookie });
-  return { connector, cookie, wispr, start, done };
+  const done = await route(connector, `/api/wispr/callback?code=auth-code-1&state=${state}`, { cookie: cookieOf(start) });
+  return { connector, cookie: cookieOf(done), wispr, start, done, clock };
 }
 
 test('the defaults point at Wispr Flow\'s documented MCP server and resource metadata', () => {
@@ -276,8 +283,99 @@ test('if Wispr\'s sign-in service cannot be found, Connect returns to the app wi
   assert.deepEqual(unknown.body, { connected: false });
 });
 
-test('disconnect forgets the session', async () => {
+test('disconnect forgets the session and tells the browser to drop the cookie', async () => {
   const { connector, cookie } = await connected();
-  await route(connector, '/api/wispr/disconnect', { method: 'POST', cookie });
-  assert.deepEqual((await route(connector, '/api/wispr/status', { cookie })).body, { connected: false });
+  const out = await route(connector, '/api/wispr/disconnect', { method: 'POST', cookie });
+  assert.match(String(out.headers['set-cookie']), /^va_wispr=; .*Max-Age=0/);
+  assert.deepEqual((await route(connector, '/api/wispr/status', { cookie })).body, { connected: false }, 'a copy of the old cookie is refused too');
+});
+
+// ---------- sessions sealed into the cookie ----------
+
+test('the cookie is the whole session: a new server instance with the same secret keeps working', async () => {
+  const { cookie, clock } = await connected();
+  // A different process: nothing in memory, a fresh fake Wispr that logs its own calls.
+  const after = fakeWispr();
+  const restarted = new WisprConnector({ fetch: after.fetch, resourceMetadataUrl: RESOURCE, secret: SECRET, now: () => clock.t });
+  assert.deepEqual((await route(restarted, '/api/wispr/status', { cookie })).body, { connected: true });
+  const items = await route(restarted, '/api/wispr/items', { cookie });
+  assert.equal(items.status, 200);
+  assert.equal(items.body.items.length, 2);
+  assert.equal(after.log.registrations.length, 0, 'no new client registration');
+  assert.equal(after.log.tokenBodies.length, 0, 'the sealed access token is still valid, so no token request');
+  assert.ok(after.log.mcpHeaders.every((h) => h.Authorization === 'Bearer secret-access-token'));
+});
+
+test('after a restart, an expired access token is refreshed with the same client and resource', async () => {
+  const { cookie, clock } = await connected();
+  clock.t += 2 * 60 * 60 * 1000;
+  const after = fakeWispr();
+  const restarted = new WisprConnector({ fetch: after.fetch, resourceMetadataUrl: RESOURCE, secret: SECRET, now: () => clock.t });
+  const items = await route(restarted, '/api/wispr/items', { cookie });
+  assert.equal(items.status, 200);
+  assert.deepEqual(after.log.tokenBodies, [{ grant_type: 'refresh_token', refresh_token: 'secret-refresh-token', client_id: 'client-123', resource: FAKE_MCP }]);
+  assert.ok(after.log.mcpHeaders.every((h) => h.Authorization === 'Bearer secret-access-token-2'));
+
+  // The refreshed tokens come back in a new cookie; with it, the next request needs no refresh.
+  const fresh = cookieOf(items);
+  assert.notEqual(fresh, cookie);
+  assert.match(String(items.headers['set-cookie']), /HttpOnly; Secure; SameSite=Lax/);
+  const again = await route(restarted, '/api/wispr/items', { cookie: fresh });
+  assert.equal(again.status, 200);
+  assert.equal(after.log.tokenBodies.length, 1);
+  assert.doesNotMatch(JSON.stringify([items.headers, again.headers]), /secret-access-token|secret-refresh-token/);
+});
+
+test('a refresh Wispr refuses ends the sign-in with a clear message', async () => {
+  const { connector, cookie, clock } = await connected({ refreshStatus: 400 });
+  clock.t += 2 * 60 * 60 * 1000;
+  const items = await route(connector, '/api/wispr/items', { cookie });
+  assert.equal(items.status, 401);
+  assert.equal(items.body.code, 'unauthorized');
+  assert.deepEqual((await route(connector, '/api/wispr/status', { cookie: cookieOf(items) })).body, { connected: false });
+});
+
+test('a tampered, truncated, foreign, or expired cookie is refused', async () => {
+  const { connector, cookie, clock } = await connected();
+  const value = cookie.slice('va_wispr='.length);
+  const flip = (text, at) => text.slice(0, at) + (text[at] === 'A' ? 'B' : 'A') + text.slice(at + 1);
+  const forged = {
+    'one character changed': `va_wispr=${flip(value, 20)}`,
+    'the tag changed': `va_wispr=${flip(value, value.length - 2)}`,
+    'truncated': `va_wispr=${value.slice(0, 40)}`,
+    'not sealed at all': `va_wispr=${Buffer.from(JSON.stringify({ sid: 'x'.repeat(24), createdAt: 1, expiresAt: 9e15, tokens: { accessToken: 'stolen' } })).toString('base64url')}`,
+    'empty': 'va_wispr=',
+  };
+  for (const [name, bad] of Object.entries(forged)) {
+    assert.deepEqual((await route(connector, '/api/wispr/status', { cookie: bad })).body, { connected: false }, name);
+    assert.equal((await route(connector, '/api/wispr/items', { cookie: bad })).status, 401, name);
+  }
+  const other = new WisprConnector({ fetch: fakeWispr().fetch, resourceMetadataUrl: RESOURCE, secret: 'another-secret-that-is-also-32-characters', now: () => clock.t });
+  assert.deepEqual((await route(other, '/api/wispr/status', { cookie })).body, { connected: false }, 'sealed with another secret');
+
+  clock.t += 8 * 60 * 60 * 1000 + 1;
+  assert.deepEqual((await route(connector, '/api/wispr/status', { cookie })).body, { connected: false }, 'past the session lifetime');
+});
+
+test('the cookie holds only ciphertext', async () => {
+  const { cookie, done } = await connected();
+  const raw = Buffer.from(cookie.slice('va_wispr=v1.'.length), 'base64url').toString('latin1');
+  assert.doesNotMatch(raw, /secret-access-token|secret-refresh-token|client-123|localhost/);
+  assert.match(String(done.headers['set-cookie']), /^va_wispr=v1\.[A-Za-z0-9_-]+; Path=\/api\/wispr; HttpOnly; Secure; SameSite=Lax; Max-Age=28800$/);
+  assert.ok(String(done.headers['set-cookie']).length < 4096);
+});
+
+test('without WISPR_SESSION_SECRET a sign-in lasts only as long as the process', async () => {
+  const { secretStatus } = await import('../server/wisprSession.ts');
+  assert.equal(secretStatus(undefined), 'missing');
+  assert.equal(secretStatus('too-short'), 'short');
+  assert.equal(secretStatus(SECRET), 'ok');
+  const wispr = fakeWispr();
+  const first = new WisprConnector({ fetch: wispr.fetch, resourceMetadataUrl: RESOURCE, secret: '' });
+  const start = await route(first, '/api/wispr/connect');
+  const state = new URL(start.headers.location).searchParams.get('state');
+  const done = await route(first, `/api/wispr/callback?code=c&state=${state}`, { cookie: cookieOf(start) });
+  assert.deepEqual((await route(first, '/api/wispr/status', { cookie: cookieOf(done) })).body, { connected: true });
+  const second = new WisprConnector({ fetch: wispr.fetch, resourceMetadataUrl: RESOURCE, secret: '' });
+  assert.deepEqual((await route(second, '/api/wispr/status', { cookie: cookieOf(done) })).body, { connected: false });
 });

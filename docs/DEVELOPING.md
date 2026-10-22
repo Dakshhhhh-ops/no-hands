@@ -17,7 +17,7 @@ With a key, every preview is a live model call. A recorded answer is used only w
 ## Verify
 
 ```sh
-npm test             # 156 unit tests, including Wispr sign-in and MCP against a fake server, the server's headers, and hostile or oversized request bodies
+npm test             # 162 unit tests, including Wispr sign-in and MCP against a fake server, the server's headers, and hostile or oversized request bodies
 npm run test:vitest  # 62 component tests (Vitest + RTL)
 npm run typecheck    # strict TypeScript with noUncheckedIndexedAccess across src/ and server/, no any
 npm run lint         # ESLint, 0 problems
@@ -44,7 +44,7 @@ GROQ_API_KEY=gsk_... docker compose up --build
 docker compose --profile dev up --build
 ```
 
-**Render.** [render.yaml](../render.yaml) is a Render Blueprint for one Docker web service with `/api/health` as its health check, `VOICEARCHITECT_TRUST_PROXY=1`, and both keys as secrets that Render asks for when you create the service. Set `GROQ_API_KEY` and leave `ANTHROPIC_API_KEY` empty until Claude has eval numbers, since the server uses Claude whenever its key is set. Leave both empty to run on recorded answers and the offline rules. Render's free plan can run a Docker image (its own n8n Blueprint does), and each workspace gets 750 free instance hours a month. Render's free plan spins the service down after 15 minutes without traffic, and the next visit waits about a minute while it starts.
+**Render.** [render.yaml](../render.yaml) is a Render Blueprint for one Docker web service with `/api/health` as its health check, `VOICEARCHITECT_TRUST_PROXY=1`, both keys as secrets that Render asks for when you create the service, and a generated `WISPR_SESSION_SECRET` so Wispr Flow sign-ins survive the free plan's restarts. Set `GROQ_API_KEY` and leave `ANTHROPIC_API_KEY` empty until Claude has eval numbers, since the server uses Claude whenever its key is set. Leave both empty to run on recorded answers and the offline rules. Render's free plan can run a Docker image (its own n8n Blueprint does), and each workspace gets 750 free instance hours a month. Render's free plan spins the service down after 15 minutes without traffic, and the next visit waits about a minute while it starts.
 
 To avoid the cold start, [.github/workflows/keep-warm.yml](../.github/workflows/keep-warm.yml) pings `/api/health` every 10 minutes once you add a repository variable `LIVE_URL`; it does nothing until then. Check Render's free-hours allowance before leaving it on all month.
 
@@ -65,6 +65,7 @@ Any other host that runs a Node process or a Docker image works too. Set these a
 | `VOICEARCHITECT_TIMEOUT_MS` | `45000` | Longest a preview may take before it falls back. |
 | `VOICEARCHITECT_MAX_BODY_KB` | `256` | Largest accepted request body; anything larger gets a 413. |
 | `VOICEARCHITECT_TRUST_PROXY` | off | Set to `1` behind a reverse proxy so limits use the `X-Forwarded-For` client address. |
+| `WISPR_SESSION_SECRET` | random per process | Key (32+ characters) that seals the Wispr Flow sign-in into an encrypted, HttpOnly cookie (AES-256-GCM), so it survives restarts. Keep it stable: a new value signs everyone out. The Render blueprint generates one. |
 | `VOICEARCHITECT_RECORD` | off | Set to `1` to save each successful live answer to `server/recordings/` as JSON. Use it locally to record fallbacks, then commit the files. |
 | `VOICEARCHITECT_RECORDINGS_DIR` | `server/recordings` | Where recordings are read and saved. |
 | `PORT` | `8080` | Port for `npm start` and the Docker image. |
@@ -139,7 +140,8 @@ src/
 server/                      # /api/health, /api/status, /api/interpret (Claude or Groq), limits
 ├── recordings.ts            # Recorded answers, keyed by a SHA-256 of the exact request
 ├── recordings/              # Recordings that back up the guided demo
-└── wisprMcp.ts              # /api/wispr/*: Wispr Flow sign-in (OAuth 2.1, PKCE) and MCP client
+├── wisprMcp.ts              # /api/wispr/*: Wispr Flow sign-in (OAuth 2.1, PKCE) and MCP client
+└── wisprSession.ts          # Seals the sign-in into an AES-256-GCM cookie (WISPR_SESSION_SECRET)
 scripts/eval.ts              # npm run eval
 evals/cases.ts               # labelled instructions, English and Hinglish
 docs/                        # Wispr Flow research notes, submission notes, demo script
@@ -149,7 +151,7 @@ docs/                        # Wispr Flow research notes, submission notes, demo
 
 | Suite | Command | Tests |
 |-------|---------|-------|
-| Unit (Node) | `npm test` | 156 |
+| Unit (Node) | `npm test` | 162 |
 | Component (Vitest + RTL) | `npm run test:vitest` | 62 |
 | Browser (Playwright: axe, CSP, every flow) | `npx playwright test` | 40 in Chromium + the same 40 in WebKit + 1 offline (PWA) |
 
