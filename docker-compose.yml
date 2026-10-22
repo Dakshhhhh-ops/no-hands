@@ -8,7 +8,7 @@ services:
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      # Abuse limits for /api/interpret; see README "Deploy". Empty means the default.
+      # Abuse limits for /api/interpret; see docs/DEVELOPING.md "Deploy". Empty means the default.
       - VOICEARCHITECT_RATE_PER_MINUTE=${VOICEARCHITECT_RATE_PER_MINUTE:-}
       - VOICEARCHITECT_DAILY_CAP=${VOICEARCHITECT_DAILY_CAP:-}
       - VOICEARCHITECT_TIMEOUT_MS=${VOICEARCHITECT_TIMEOUT_MS:-}

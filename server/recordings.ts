@@ -9,9 +9,10 @@ import type { Interpretation } from '../src/types/schema.ts';
  * Recorded answers: a successful live interpretation saved as JSON in the repo,
  * keyed by a SHA-256 of everything that determines it: the model, the system
  * prompt, the output schema, and the exact user message (instruction, model
- * snapshot, and any imported notes). A recording is served instead of a live
- * call when one matches, and before falling back to the offline rules when a
- * live call is not possible. Changing the prompt or schema simply stops old
+ * snapshot, and any imported notes). A recording answers only when a live call
+ * is not possible (no key, a rate limit, the daily cap, a timeout, a provider
+ * error), before falling back to the offline rules. With a working key every
+ * preview is a live call. Changing the prompt or schema simply stops old
  * recordings from matching.
  *
  * Files hold the interpretation and metadata only; no keys, and no request text

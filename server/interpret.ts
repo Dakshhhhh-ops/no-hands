@@ -519,14 +519,8 @@ export function createApiMiddleware(options: ApiOptions = {}) {
 
     const provider = activeProvider();
     const model = activeModel(provider);
-    // A recording made with the active model answers before any live call.
-    if (provider && model && text) {
-      const hit = recordings.get(keyFor(model));
-      if (hit) {
-        sendRecording(hit);
-        return;
-      }
-    }
+    // With a key, every preview is a live call. A recording answers only when the live call
+    // cannot: no key, a rate limit, the daily cap, a timeout, or a provider error.
     if (!provider || !model) {
       fallBack(503, 'no_key', 'No model is configured. Set ANTHROPIC_API_KEY or GROQ_API_KEY on the server (.env.local locally) and restart.');
       return;

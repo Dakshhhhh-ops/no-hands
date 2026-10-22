@@ -75,9 +75,14 @@ test('the recording key covers model, system prompt, output schema, and the exac
   assert.notEqual(interpretationKey('m', TEXT, project), interpretationKey('m', `${TEXT}.`, project));
 });
 
-test('with recording on, a live answer is saved, and the same request is then served from it', () => withEnv({ ANTHROPIC_API_KEY: 'sk-ant-test' }, async (store, dir) => {
+test('with recording on, a live answer is saved; the same request is still answered live while the model works', () => withEnv({ ANTHROPIC_API_KEY: 'sk-ant-test' }, async (store, dir) => {
   let live = 0;
-  const api = createApiMiddleware({ recordings: store, record: true, interpret: async () => { live += 1; return interpretation; } });
+  let failing = false;
+  const api = createApiMiddleware({ recordings: store, record: true, interpret: async () => {
+    live += 1;
+    if (failing) throw new InterpretError('Rate limited.', 429);
+    return interpretation;
+  } });
   const first = await call(api);
   assert.equal(first.status, 200);
   assert.equal(first.body.recorded, undefined);
@@ -88,8 +93,15 @@ test('with recording on, a live answer is saved, and the same request is then se
   assert.doesNotMatch(JSON.stringify(saved), /sk-ant-test/);
 
   const second = await call(api);
-  assert.equal(second.body.recorded, true);
-  assert.equal(live, 1, 'the recording answered without a second live call');
+  assert.equal(second.body.recorded, undefined, 'a working model is always called live');
+  assert.equal(live, 2);
+
+  // Only when the live call fails does the recording answer, labelled with why.
+  failing = true;
+  const third = await call(api);
+  assert.equal(third.body.recorded, true);
+  assert.equal(third.body.fallback, 'provider_limit');
+  assert.equal(live, 3);
 }));
 
 test('nothing is saved unless recording is on', () => withEnv({ ANTHROPIC_API_KEY: 'sk-ant-test' }, async (store, dir) => {
