@@ -190,7 +190,7 @@ button.va-chip { cursor: pointer; }
 .va-empty-overlay { position: absolute; inset: 0; z-index: 9; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--va-bg) 72%, transparent); }
 .va-empty-dialog { height: auto; max-width: 820px; border: 1px solid var(--va-line-strong); border-radius: 20px; background: var(--va-panel); box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
 .va-empty-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
-.va-route-loading { display: grid; place-items: center; height: 100dvh; color: var(--va-muted); }
+
 
 /* ---------- Below 1024px: composer on top, canvas full width, drawer as an overlay ---------- */
 @media (max-width: 1023px) {
@@ -235,3 +235,8 @@ button.va-chip { cursor: pointer; }
 .va-shell .telemetry-health-badge { color: color-mix(in srgb, var(--tone) 65%, var(--va-ink)) !important; }
 .va-drawer .vp-pill { color: color-mix(in srgb, var(--tone) 70%, var(--va-ink)); }
 .va-drawer :is(.vp-pill, .vp-tag) { font-size: 12px; }
+
+/* Below 1440px the switcher shows only its chevron, so the project name keeps its room. */
+@media (max-width: 1439px) {
+  .va-shell-project .va-shell-label { display: none; }
+}

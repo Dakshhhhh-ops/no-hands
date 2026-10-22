@@ -495,3 +495,24 @@
 /* The illustrations' diff lines meet WCAG AA in both themes: the tone mixed toward the ink. */
 :is(.va-loop-visual, .va-proof) .va-story-diff .is-add { color: color-mix(in srgb, var(--va-teal) 70%, var(--va-ink)); }
 :is(.va-loop-visual, .va-proof) .va-story-diff .is-ask { color: color-mix(in srgb, var(--va-amber) 65%, var(--va-ink)); }
+
+/* ---------- Use it on your own stack ---------- */
+.va-app .va-own-stack .va-section-inner { max-width: 1120px; }
+.va-own-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 32px 0 0; padding: 0; list-style: none; counter-reset: own; }
+.va-own-steps li {
+  counter-increment: own; padding: 20px; border: 1px solid var(--va-line); border-radius: 18px;
+  background: var(--va-panel); color: var(--va-muted); font-size: 16px; line-height: 1.55;
+}
+.va-own-steps li::before {
+  content: counter(own); display: grid; place-items: center; width: 28px; height: 28px; margin-bottom: 12px;
+  border-radius: 50%; background: var(--va-accent-strong); color: var(--va-accent-ink); font: 650 14px/1 var(--va-font);
+}
+.va-own-steps b { display: block; margin-bottom: 4px; color: var(--va-ink); }
+.va-own-steps code { color: var(--va-ink); font: 500 14px var(--va-mono); }
+.va-own-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+@media (max-width: 760px) { .va-own-steps { grid-template-columns: minmax(0, 1fr); } }
+.va-footer-links { display: flex; flex-wrap: wrap; gap: 16px; }
+.va-footer-links a { color: var(--va-muted); text-decoration: underline; text-underline-offset: 3px; }
+.va-footer-links a:hover { color: var(--va-ink); }
+/* Shown for a moment while the workspace chunk loads. */
+.va-route-loading { display: grid; place-items: center; height: 100dvh; color: var(--va-muted); }

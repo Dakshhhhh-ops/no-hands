@@ -79,6 +79,7 @@ export default function TopBar({
           className="va-btn va-btn-ghost va-btn-sm"
           aria-expanded={showProject}
           aria-controls="va-project-menu"
+          aria-label="Switch project"
           onClick={() => setShowProject((open) => !open)}
         >
           <span className="va-shell-label">Switch project</span> <ChevronDown size={14} />
