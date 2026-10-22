@@ -167,6 +167,8 @@ test.describe('VoiceArchitect demo flow', () => {
   });
 
   test('guided demo walks an English step, a Hinglish step, and the code check', async ({ page }) => {
+    // Three reviews and a code check: about 28 seconds in WebKit alone, so it gets the slow budget.
+    test.slow();
     // From the first screen, as a judge would start it.
     await page.goto('/');
     await page.getByRole('link', { name: 'Start guided demo' }).click();
