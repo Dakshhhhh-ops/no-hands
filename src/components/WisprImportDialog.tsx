@@ -4,6 +4,7 @@ import { useDialog } from '../hooks/useDialog.ts';
 import { WISPR_CONNECT_URL, WisprClientError, wisprDisconnect, wisprItemText, wisprItems, wisprStatus } from '../data/wisprClient.ts';
 import type { WisprItem } from '../data/wisprClient.ts';
 import type { ImportedNotes } from '../data/aiClient.ts';
+import './wisprImportDialog.css';
 
 const MAX_NOTES = 20000;
 

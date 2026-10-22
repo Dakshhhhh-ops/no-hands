@@ -33,8 +33,6 @@
   .signoff-role, .branch-chip, .time-travel-btn, .timeline-item, .branch-dropdown-item
 ) { font-size: var(--va-fs-sm); line-height: 1.55; }
 
-.va-app .adr-markdown-preview { font-size: var(--va-fs-sm); }
-
 /* ---------- 2. Buttons ---------- */
 .va-app .button {
   min-height: 36px;
@@ -77,23 +75,6 @@
 .va-app .preset-name { color: var(--va-ink); font-weight: 600; }
 
 /* ---------- 4. History / branching bar ---------- */
-.va-app .scenario-branching-bar {
-  margin: 0; padding: 8px 12px; gap: 10px; flex-wrap: wrap;
-  border: 0; background: transparent;
-}
-.va-app .branch-chip, .va-app .time-travel-btn {
-  min-height: 32px; border: 1px solid var(--va-line-strong); border-radius: var(--va-r-md);
-  background: var(--va-panel-2); color: var(--va-ink); font-weight: 500;
-}
-.va-app .branch-chip:hover, .va-app .time-travel-btn:hover:not(:disabled) { border-color: var(--va-accent); background: color-mix(in srgb, var(--va-accent) 12%, var(--va-panel-2)); color: var(--va-ink); }
-.va-app .branch-label { color: var(--va-ink); }
-.va-app .branch-badge, .va-app .patch-count-badge { background: var(--va-panel-3); color: var(--va-muted); }
-.va-app .branch-dropdown-menu, .va-app .timeline-dropdown-menu {
-  background: var(--va-panel); border-color: var(--va-line-strong);
-  box-shadow: 0 14px 40px rgba(0, 0, 0, .45);
-}
-.va-app .branch-dropdown-item:hover, .va-app .timeline-item:hover { background: var(--va-panel-2); }
-.va-app .branch-dropdown-item.active { background: color-mix(in srgb, var(--va-accent) 14%, transparent); border-color: color-mix(in srgb, var(--va-accent) 40%, transparent); }
 
 /* ---------- 5. Output panels ---------- */
 /* The shell's .va-panel-body already provides padding and the card frame,
@@ -111,7 +92,8 @@
   .impact-artifact-card, .response-code-card, .task-filter-bar, .api-note) {
   background: var(--va-panel); border: 1px solid var(--va-line); border-radius: var(--va-r-md);
 }
-.va-app .eyebrow { color: var(--va-accent); letter-spacing: .04em; font-family: var(--va-font); text-transform: none; font-size: var(--va-fs-xs); }
+/* Small accent labels: the accent mixed toward the ink so they meet WCAG AA in both themes. */
+.va-app .eyebrow { color: color-mix(in srgb, var(--va-accent) 70%, var(--va-ink)); letter-spacing: .04em; font-family: var(--va-font); text-transform: none; font-size: var(--va-fs-xs); }
 .va-app :is(.risk-card h4, .task-card h4, .task-title-left h4) { font-size: var(--va-fs-md); color: var(--va-ink); }
 .va-app .diagram-view-toggle, .va-app .diagram-grid-toggle, .va-app .diagram-zoom-controls {
   background: var(--va-bg); border: 1px solid var(--va-line); border-radius: var(--va-r-md);
@@ -148,7 +130,6 @@
 .va-app .legend-direct, .va-app .legend-changed { background: var(--va-accent); }
 .va-app .legend-downstream { background: var(--va-downstream); }
 .va-app .legend-upstream { background: var(--va-warn); }
-.va-app .diagram-chaos-bar { background: var(--va-panel); border-color: var(--va-line); }
 .va-app .component-inspector-heading h3 { color: var(--va-ink); font-size: var(--va-fs-lg); }
 .va-app .component-inspector-grid ul, .va-app .component-inspector-grid p { color: var(--va-muted); }
 .va-app .diagram-cycle-banner { background: color-mix(in srgb, var(--va-danger) 12%, transparent); border-color: color-mix(in srgb, var(--va-danger) 40%, transparent); color: var(--va-danger); font-size: var(--va-fs-sm); }

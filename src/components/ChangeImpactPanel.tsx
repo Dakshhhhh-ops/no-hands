@@ -1,6 +1,7 @@
 import { deriveChangeDiff, deriveManualDecisions } from '../data/changeDiff.ts';
 import type { DiffEntry, DiffStatus } from '../data/changeDiff.ts';
 import type { Project } from '../types/schema.ts';
+import './panels.css';
 
 export interface ChangeImpactPanelProps {
   project: Project;

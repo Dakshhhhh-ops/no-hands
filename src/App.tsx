@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   Activity, ArrowRight, ClipboardCheck, ClipboardList, FileArchive, FileCode2, GitBranch, HelpCircle, Layers,
   Network, Play, RotateCcw, Server, ShieldAlert, Sun,
@@ -10,12 +10,6 @@ import { GUIDED_STEPS } from './data/guidedDemo.ts';
 import Composer from './components/Composer.tsx';
 import OutputPanel from './components/OutputPanel.tsx';
 import ReviewDialog from './components/ReviewDialog.tsx';
-import ScenarioBranchingBar from './components/ScenarioBranchingBar.tsx';
-import ScenarioComparisonModal from './components/ScenarioComparisonModal.tsx';
-import MergeConflictModal from './components/MergeConflictModal.tsx';
-import ShortcutsModal from './components/ShortcutsModal.tsx';
-import CommandPalette from './components/CommandPalette.tsx';
-import WisprImportDialog from './components/WisprImportDialog.tsx';
 import ConnectionStatus from './components/ConnectionStatus.tsx';
 import { countOpenDecisions, getProjectSyncStatus } from './data/analysis.ts';
 import { sound } from './utils/sound.ts';
@@ -36,6 +30,14 @@ import type { WisprReturn } from './components/WisprImportDialog.tsx';
 import { parseFollowUp } from './data/reviewCommands.ts';
 import { dictionaryWords } from './data/dictation.ts';
 
+// Shown on demand, so they (and their CSS) load the first time they open, not with the page.
+const ScenarioBranchingBar = lazy(() => import('./components/ScenarioBranchingBar.tsx'));
+const ScenarioComparisonModal = lazy(() => import('./components/ScenarioComparisonModal.tsx'));
+const MergeConflictModal = lazy(() => import('./components/MergeConflictModal.tsx'));
+const ShortcutsModal = lazy(() => import('./components/ShortcutsModal.tsx'));
+const CommandPalette = lazy(() => import('./components/CommandPalette.tsx'));
+const WisprImportDialog = lazy(() => import('./components/WisprImportDialog.tsx'));
+
 const NAV_SECTIONS = ['how', 'workspace'];
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -52,10 +54,12 @@ export default function App() {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   // Import notes dialog: null when closed, otherwise { returned } describing a return from Wispr Flow's sign-in.
   const [notesImport, setNotesImport] = useState<{ returned: WisprReturn | null } | null>(null);
+  const [notesLoaded, setNotesLoaded] = useState(false);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const result = params.get('wispr');
     if (!result) return;
+    setNotesLoaded(true);
     setNotesImport({ returned: result === 'connected' ? { connected: true } : { errorCode: params.get('code') || 'unavailable' } });
     // Drop the query so a reload does not reopen the dialog.
     window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
@@ -138,7 +142,7 @@ export default function App() {
   useRevealOnScroll();
   const activeSection = useScrollSpy(NAV_SECTIONS);
 
-  const proposalHooks = useProposalReview(project, sampleChoice, notify, { command, setCommand });
+  const proposalHooks = useProposalReview(project, sampleChoice, notify, { command, setCommand }, { decisionDraft, setDecisionDraft });
   const {
     proposal,
     setProposal,
@@ -499,6 +503,7 @@ export default function App() {
 
         {showHistory && (
           <div className="va-history-panel">
+            <Suspense fallback={null}>
             <ScenarioBranchingBar
               currentBranchId={currentBranchId}
               branches={branchList}
@@ -515,6 +520,7 @@ export default function App() {
               onForkBranch={() => { handleForkBranch(); notify('Forked the current model into a new branch. Changes here stay off main until you merge.'); }}
               onMergeBranch={currentBranchId !== 'main' ? handleInitiateMerge : undefined}
             />
+            </Suspense>
           </div>
         )}
 
@@ -538,7 +544,7 @@ export default function App() {
           answerSource={answerSource}
           fallbackReason={fallbackReason}
           preview={preview}
-          onImportNotes={() => setNotesImport({ returned: null })}
+          onImportNotes={() => { setNotesLoaded(true); setNotesImport({ returned: null }); }}
           onCopyDictionary={copyDictionaryWords}
           micSupported={micSupported}
           isListening={isListening}
@@ -591,21 +597,25 @@ export default function App() {
       )}
 
       {showComparisonModal && scenarioComparison && (
-        <ScenarioComparisonModal
-          comparison={scenarioComparison}
-          onClose={() => setShowComparisonModal(false)}
-          onSelectBranch={handleSwitchBranch}
-        />
+        <Suspense fallback={null}>
+          <ScenarioComparisonModal
+            comparison={scenarioComparison}
+            onClose={() => setShowComparisonModal(false)}
+            onSelectBranch={handleSwitchBranch}
+          />
+        </Suspense>
       )}
 
       {showMergeModal && (
-        <MergeConflictModal
-          sourceBranchName={(mergingBranchId && branches[mergingBranchId]?.name) || mergingBranchId || ''}
-          targetBranchName={branches.main?.name ?? 'Main Branch'}
-          conflicts={mergeConflicts}
-          onClose={() => setShowMergeModal(false)}
-          onConfirmMerge={handleConfirmMerge}
-        />
+        <Suspense fallback={null}>
+          <MergeConflictModal
+            sourceBranchName={(mergingBranchId && branches[mergingBranchId]?.name) || mergingBranchId || ''}
+            targetBranchName={branches.main?.name ?? 'Main Branch'}
+            conflicts={mergeConflicts}
+            onClose={() => setShowMergeModal(false)}
+            onConfirmMerge={handleConfirmMerge}
+          />
+        </Suspense>
       )}
 
       {toast && (
@@ -614,15 +624,27 @@ export default function App() {
           <span>{toast.message}</span>
         </div>
       )}
-      <WisprImportDialog
-        isOpen={Boolean(notesImport)}
-        returned={notesImport?.returned}
-        isImported={isImported}
-        onClose={() => setNotesImport(null)}
-        onPropose={proposeFromNotes}
-      />
-      <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
-      <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} commands={paletteCommands} />
+      {notesLoaded && (
+        <Suspense fallback={null}>
+          <WisprImportDialog
+            isOpen={Boolean(notesImport)}
+            returned={notesImport?.returned}
+            isImported={isImported}
+            onClose={() => setNotesImport(null)}
+            onPropose={proposeFromNotes}
+          />
+        </Suspense>
+      )}
+      {isShortcutsOpen && (
+        <Suspense fallback={null}>
+          <ShortcutsModal isOpen onClose={() => setIsShortcutsOpen(false)} />
+        </Suspense>
+      )}
+      {isCommandPaletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette isOpen onClose={() => setIsCommandPaletteOpen(false)} commands={paletteCommands} />
+        </Suspense>
+      )}
       <ConnectionStatus />
     </main>
   );

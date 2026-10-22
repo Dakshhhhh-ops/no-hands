@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { sound } from '../utils/sound.ts';
 import { useDialog } from '../hooks/useDialog.ts';
 import type { BranchComparisonMetrics, ScenarioComparison } from '../data/branching.ts';
+import './scenarioComparisonModal.css';
 
 /** The numeric measures of a branch: every metric except its id and name. */
 type MetricKey = Exclude<keyof BranchComparisonMetrics, 'id' | 'name'>;

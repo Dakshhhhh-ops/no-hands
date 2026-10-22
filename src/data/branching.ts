@@ -10,6 +10,8 @@ export interface ArchitectureBranch {
   createdAt: number;
   parentBranchId?: string;
   baseVersion: number;
+  /** The model as it was when the branch forked (or last merged): the common base for a merge. */
+  baseProject: Project;
   project: Project;
   history: HistoryTimeline;
 }
@@ -60,6 +62,7 @@ export function forkBranch(
     createdAt: Date.now(),
     parentBranchId: options.parentBranchId,
     baseVersion: base.version,
+    baseProject: structuredClone(base) as Project,
     project,
     history: new HistoryTimeline(project),
   };

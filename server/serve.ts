@@ -137,12 +137,14 @@ export function createAppServer({ root: rootOption = DIST, trustProxy = process.
 
   return createServer((req, res) => {
     applySecurityHeaders(req, res, trustProxy);
+    const fail = () => {
+      if (!res.headersSent) res.statusCode = 500;
+      if (!res.writableEnded) res.end();
+    };
+    // Every promise is caught: an unhandled rejection would stop the whole server.
     apiMiddleware(req, res, () => {
-      serveStatic(req, res).catch(() => {
-        if (!res.headersSent) res.statusCode = 500;
-        res.end();
-      });
-    });
+      serveStatic(req, res).catch(fail);
+    }).catch(fail);
   });
 }
 

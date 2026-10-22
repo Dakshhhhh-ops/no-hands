@@ -70,11 +70,6 @@
 .va-app .edge-label { fill: var(--va-muted); stroke: var(--va-bg-sunken); }
 
 /* ---------- Keyboard shortcuts dialog ---------- */
-.va-shortcuts-list { display: grid; margin: 14px 0 20px; }
-.va-shortcut-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--va-line); }
-.va-shortcut-row:last-child { border-bottom: 0; }
-.va-shortcut-action { color: var(--va-ink); font-size: 14px; }
-.va-shortcut-keys { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
 .va-modal-head h2 { display: flex; align-items: center; gap: 10px; }
 
 /* ---------- Outage simulator health badge, readable in both themes ---------- */

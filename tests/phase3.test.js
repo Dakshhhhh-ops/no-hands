@@ -326,3 +326,71 @@ test('Semantic 3-Way Merge: detects divergent conflicting modifications and appl
   assert.equal(mergedRedis.sub, 'DynamoDB Fast Session Table');
 });
 
+
+// ---------- merging a branch back: the base is the fork point, not main as it is now ----------
+
+test('a branch that deletes a component removes it, its connections, and its operations on merge', () => {
+  const main = makeCommerceProject();
+  const branch = forkBranch(main, { id: 'branch-1', name: 'Branch 1', parentBranchId: 'main' });
+  branch.project.components = branch.project.components.filter((c) => c.id !== 'kafka');
+  branch.project.relationships = branch.project.relationships.filter((r) => r.from !== 'kafka' && r.to !== 'kafka');
+
+  const analysis = detectMergeConflicts(branch.baseProject, main, branch.project);
+  assert.equal(analysis.canAutoMerge, true);
+  assert.equal(analysis.changesApplied.componentsRemoved, 1);
+  const merged = executeMerge(branch.baseProject, main, branch.project, {}).mergedProject;
+  assert.ok(!merged.components.some((c) => c.id === 'kafka'), 'the deleted component is gone from main');
+  assert.ok(!merged.relationships.some((r) => r.from === 'kafka' || r.to === 'kafka'), 'and so are its connections');
+
+  // Deleting a component with API operations also drops the operations, so the model stays valid.
+  const authless = forkBranch(main, { id: 'branch-2', name: 'Branch 2' });
+  authless.project.components = authless.project.components.filter((c) => c.id !== 'auth');
+  authless.project.relationships = authless.project.relationships.filter((r) => r.from !== 'auth' && r.to !== 'auth');
+  authless.project.apiOperations = [];
+  const merged2 = executeMerge(authless.baseProject, main, authless.project, {}).mergedProject;
+  assert.ok(!merged2.components.some((c) => c.id === 'auth'));
+  assert.equal(merged2.apiOperations.length, 0);
+});
+
+test('a connection deleted on the branch is removed on merge', () => {
+  const main = makeCommerceProject();
+  const branch = forkBranch(main, { id: 'branch-1', name: 'Branch 1' });
+  branch.project.relationships = branch.project.relationships.filter((r) => !(r.from === 'catalog' && r.to === 'postgres'));
+  const merged = executeMerge(branch.baseProject, main, branch.project, {}).mergedProject;
+  assert.ok(!merged.relationships.some((r) => r.from === 'catalog' && r.to === 'postgres'));
+  assert.equal(merged.relationships.length, main.relationships.length - 1);
+});
+
+test('main and the branch changing the same component after the fork is a conflict, found only against the fork point', () => {
+  const forkPoint = makeCommerceProject();
+  const branch = forkBranch(forkPoint, { id: 'branch-1', name: 'Branch 1' });
+  const main = structuredClone(forkPoint);
+  main.components.find((c) => c.id === 'redis').type = 'CACHE';
+  main.components.find((c) => c.id === 'redis').sub = 'Redis Sentinel';
+  branch.project.components.find((c) => c.id === 'redis').type = 'DATABASE';
+  branch.project.components.find((c) => c.id === 'redis').sub = 'DynamoDB sessions';
+
+  // The old mistake, main as its own base, sees only the branch's edit and would overwrite main silently.
+  assert.equal(detectMergeConflicts(main, main, branch.project).canAutoMerge, true);
+  const analysis = detectMergeConflicts(branch.baseProject, main, branch.project);
+  assert.equal(analysis.canAutoMerge, false);
+  assert.ok(analysis.conflicts.some((c) => c.entityId === 'redis'));
+});
+
+test('a component deleted on the branch but changed on main is a conflict, and the choice decides', () => {
+  const forkPoint = makeCommerceProject();
+  const branch = forkBranch(forkPoint, { id: 'branch-1', name: 'Branch 1' });
+  branch.project.components = branch.project.components.filter((c) => c.id !== 'kafka');
+  branch.project.relationships = branch.project.relationships.filter((r) => r.from !== 'kafka' && r.to !== 'kafka');
+  const main = structuredClone(forkPoint);
+  main.components.find((c) => c.id === 'kafka').sub = 'Kafka with tiered storage';
+
+  const analysis = detectMergeConflicts(branch.baseProject, main, branch.project);
+  const conflict = analysis.conflicts.find((c) => c.entityId === 'kafka');
+  assert.ok(conflict, 'deleted on one side, changed on the other');
+  const keep = executeMerge(branch.baseProject, main, branch.project, { [conflict.id]: 'target' }).mergedProject;
+  assert.equal(keep.components.find((c) => c.id === 'kafka')?.sub, 'Kafka with tiered storage');
+  const drop = executeMerge(branch.baseProject, main, branch.project, { [conflict.id]: 'source' }).mergedProject;
+  assert.ok(!drop.components.some((c) => c.id === 'kafka'));
+  assert.ok(!drop.relationships.some((r) => r.from === 'kafka' || r.to === 'kafka'));
+});

@@ -109,7 +109,7 @@ describe('ArchitectureDiagram', () => {
     expect(screen.getByRole('button', { name: /deployment/i })).toBeInTheDocument();
   });
 
-  it('labels the outage simulator as simulated and targets components from the model', () => {
+  it('labels the outage simulator as simulated and targets components from the model', async () => {
     const withData: Project = {
       ...mockProject,
       components: [
@@ -120,7 +120,8 @@ describe('ArchitectureDiagram', () => {
     };
     render(<ArchitectureDiagram project={withData} />);
     fireEvent.click(screen.getByRole('button', { name: 'More tools' }));
-    expect(screen.getByRole('button', { name: 'Kill Session Cache' })).toBeInTheDocument();
+    // The simulator bar loads on first use.
+    expect(await screen.findByRole('button', { name: 'Kill Session Cache' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Kill Main DB' })).toBeInTheDocument();
     expect(screen.getByText('Simulated')).toBeInTheDocument();
     expect(screen.getByText(/Simulated, not measured/)).toBeInTheDocument();

@@ -180,7 +180,6 @@ html, body, #root { height: auto; min-height: 100%; }
 .va-stat-warn:hover { background: color-mix(in srgb, var(--va-warn) 20%, transparent); }
 .va-branch-chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--va-line); border-radius: var(--va-r-md); color: var(--va-muted); font-size: var(--va-fs-sm); }
 .va-history-panel { padding: 8px; border: 1px solid var(--va-line); border-radius: var(--va-r-lg); background: var(--va-panel); overflow-x: auto; }
-.va-history-panel .scenario-branching-bar { padding: 6px 10px; }
 
 .va-card { border: 1px solid var(--va-line); border-radius: 14px; background: var(--va-panel); overflow: hidden; }
 .va-tabs { display: flex; align-items: center; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--va-line); overflow-x: auto; }
@@ -206,6 +205,8 @@ html, body, #root { height: auto; min-height: 100%; }
 /* ---------- Review dialog ---------- */
 .va-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(8, 10, 14, .7); backdrop-filter: blur(3px); }
 .va-modal { width: min(640px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; padding: 22px; border: 1px solid var(--va-line-strong); border-radius: var(--va-r-xl); background: var(--va-panel); box-shadow: 0 30px 80px rgba(0, 0, 0, .55); animation: va-rise .18s ease-out; }
+/* The diagram, branch, and merge dialogs: the same panel as the review dialog. Without it their text sat on the backdrop. */
+.modal-content { width: 100%; max-width: 720px; max-height: calc(100vh - 40px); overflow-y: auto; padding: 22px; border: 1px solid var(--va-line-strong); border-radius: var(--va-r-xl); background: var(--va-panel); color: var(--va-ink); box-shadow: 0 30px 80px rgba(0, 0, 0, .55); animation: va-rise .18s ease-out; }
 .va-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .va-modal h2 { margin: 0 0 4px; font-size: 20px; font-weight: 650; letter-spacing: -.015em; }
 .va-modal-sub { margin: 0 0 16px; color: var(--va-muted); }
@@ -288,73 +289,6 @@ html, body, #root { height: auto; min-height: 100%; }
 .va-toast svg { flex: none; color: var(--va-accent); }
 
 /* ---------- Command Palette ---------- */
-.va-command-palette {
-  position: fixed;
-  top: 15%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(720px, 90vw);
-  max-height: 70vh;
-  background: var(--va-panel);
-  border: 1px solid var(--va-line-strong);
-  border-radius: var(--va-r-xl);
-  box-shadow: 0 24px 48px rgba(0,0,0,.4);
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-  animation: va-rise .15s ease-out;
-}
-.va-palette-header { padding: 12px 16px; border-bottom: 1px solid var(--va-line); }
-.va-palette-search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--va-bg);
-  border: 1px solid var(--va-line);
-  border-radius: var(--va-r-md);
-  padding: 0 14px;
-  height: 44px;
-}
-.va-palette-search > svg { flex: none; color: var(--va-muted); }
-.va-palette-search input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--va-ink);
-  font: inherit;
-  font-size: var(--va-fs-md);
-}
-.va-palette-search input::placeholder { color: var(--va-faint); }
-.va-kbd-hint { flex: none; font-size: 10px; color: var(--va-faint); padding: 2px 6px; background: var(--va-panel-2); border-radius: 4px; }
-.va-palette-list { flex: 1; overflow: auto; padding: 8px; margin: 0; list-style: none; }
-.va-palette-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: var(--va-r-md);
-  cursor: pointer;
-  transition: background .1s;
-}
-.va-palette-item:hover, .va-palette-item.selected { background: var(--va-panel-2); }
-.va-palette-item-icon { flex: none; color: var(--va-muted); display: flex; align-items: center; }
-.va-palette-item-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.va-palette-item-label { color: var(--va-ink); font-weight: 500; font-size: var(--va-fs-sm); }
-.va-palette-item-desc { color: var(--va-muted); font-size: var(--va-fs-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.va-palette-item-keys { flex: none; display: flex; gap: 4px; }
-.va-palette-empty { padding: 24px; text-align: center; color: var(--va-muted); }
-.va-palette-footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-top: 1px solid var(--va-line);
-  color: var(--va-faint);
-  font-size: var(--va-fs-xs);
-  flex-wrap: wrap;
-}
 
 /* ---------- Connection Status ---------- */
 .va-connection-status {
@@ -401,19 +335,6 @@ html, body, #root { height: auto; min-height: 100%; }
 @keyframes va-rise { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes va-toast { from { transform: translate(-50%, 8px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
 
-.va-app .va-timeline-timestamp { display: block; margin-top: 4px; color: var(--va-muted); font-size: var(--va-fs-xs); }
-.va-app .va-change-log { flex: 1 0 100%; display: grid; gap: 10px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--va-line); }
-.va-app .va-change-log-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px; }
-.va-app .va-change-log-head h3 { margin: 0; font-size: var(--va-fs-sm); }
-.va-app .va-change-log-head > span, .va-app .va-change-log-empty { color: var(--va-muted); font-size: var(--va-fs-xs); }
-.va-app .va-change-log ol { display: grid; gap: 8px; max-height: 260px; overflow: auto; margin: 0; padding: 0; list-style: none; }
-.va-app .va-change-log li { padding: 10px; border: 1px solid var(--va-line); border-radius: var(--va-r-md); background: var(--va-bg); }
-.va-app .va-change-log-meta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
-.va-app .va-change-log-meta b { color: var(--va-accent-strong); font: 11px var(--va-mono); }
-.va-app .va-change-log time, .va-app .va-change-log li > small { color: var(--va-muted); font-size: var(--va-fs-xs); }
-.va-app .va-change-log li > p { margin: 6px 0 3px; color: var(--va-ink); font-size: var(--va-fs-sm); overflow-wrap: anywhere; }
-.va-app .va-change-log-empty { margin: 0; }
-
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   .va-nav { display: none; }
@@ -446,14 +367,6 @@ html, body, #root { height: auto; min-height: 100%; }
 .va-app .va-engine[data-ai='true']::before { background: var(--va-ok); }
 
 /* Outage simulator: make it obvious the numbers are modeled */
-.va-app .telemetry-simulated-tag {
-  display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px;
-  font-size: var(--va-fs-xs, 11px); font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
-  color: var(--va-warn); border: 1px dashed var(--va-warn);
-}
-.va-app .chaos-assumptions {
-  flex-basis: 100%; margin: 6px 0 0; font-size: var(--va-fs-xs, 11px); color: var(--va-muted);
-}
 
 /* Planned components (in the diagram, not in the imported code yet) */
 .va-app .legend-planned {

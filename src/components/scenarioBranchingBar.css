@@ -1,0 +1,185 @@
+/* Styles used only by ScenarioBranchingBar, loaded with that lazy component.
+   Moved from the global stylesheets in cascade order. */
+
+.va-history-panel .scenario-branching-bar { padding: 6px 10px; }
+
+.va-app .va-timeline-timestamp { display: block; margin-top: 4px; color: var(--va-muted); font-size: var(--va-fs-xs); }
+.va-app .va-change-log { flex: 1 0 100%; display: grid; gap: 10px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--va-line); }
+.va-app .va-change-log-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px; }
+.va-app .va-change-log-head h3 { margin: 0; font-size: var(--va-fs-sm); }
+.va-app .va-change-log-head > span, .va-app .va-change-log-empty { color: var(--va-muted); font-size: var(--va-fs-xs); }
+.va-app .va-change-log ol { display: grid; gap: 8px; max-height: 260px; overflow: auto; margin: 0; padding: 0; list-style: none; }
+.va-app .va-change-log li { padding: 10px; border: 1px solid var(--va-line); border-radius: var(--va-r-md); background: var(--va-bg); }
+.va-app .va-change-log-meta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.va-app .va-change-log-meta b { color: var(--va-accent-strong); font: 11px var(--va-mono); }
+.va-app .va-change-log time, .va-app .va-change-log li > small { color: var(--va-muted); font-size: var(--va-fs-xs); }
+.va-app .va-change-log li > p { margin: 6px 0 3px; color: var(--va-ink); font-size: var(--va-fs-sm); overflow-wrap: anywhere; }
+.va-app .va-change-log-empty { margin: 0; }
+
+.scenario-branching-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 16px;
+  background: var(--surface-1);
+  border: 1px solid var(--line-mid);
+  border-radius: 10px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 10;
+}
+
+.branch-selector-wrap {
+  position: relative;
+}
+
+.branch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-mid);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.branch-chip:hover {
+  border-color: var(--cyan);
+  background: rgba(78, 242, 210, 0.06);
+}
+
+.branch-label {
+  color: var(--text-pure);
+}
+
+.branch-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: var(--text-mid);
+}
+
+.branch-chevron {
+  color: var(--text-dim);
+}
+
+.branch-dropdown-menu,
+.timeline-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 300px;
+  background: #0e141f;
+  border: 1px solid var(--line-bright);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  padding: 6px;
+  z-index: 100;
+}
+
+.timeline-dropdown-menu {
+  left: auto;
+  right: 0;
+  min-width: 320px;
+}
+
+.branch-dropdown-header {
+  padding: 6px 10px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--line-dim);
+  margin-bottom: 4px;
+}
+
+.branch-dropdown-item,
+.timeline-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.branch-dropdown-item:hover,
+.timeline-item:hover {
+  background: rgba(78, 242, 210, 0.08);
+}
+
+.branch-dropdown-item.active {
+  background: rgba(78, 242, 210, 0.12);
+  border: 1px solid rgba(78, 242, 210, 0.3);
+}
+
+.patch-count-badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--cyan);
+  background: rgba(78, 242, 210, 0.1);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.scenario-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-travel-cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.time-travel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-mid);
+  border-radius: 6px;
+  color: var(--text-mid);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.time-travel-btn:hover:not(:disabled) {
+  color: var(--text-pure);
+  border-color: var(--line-bright);
+  background: var(--surface-3);
+}
+
+.time-travel-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.va-app .scenario-branching-bar {
+  margin: 0; padding: 8px 12px; gap: 10px; flex-wrap: wrap;
+  border: 0; background: transparent;
+}
+.va-app .branch-chip, .va-app .time-travel-btn {
+  min-height: 32px; border: 1px solid var(--va-line-strong); border-radius: var(--va-r-md);
+  background: var(--va-panel-2); color: var(--va-ink); font-weight: 500;
+}
+.va-app .branch-chip:hover, .va-app .time-travel-btn:hover:not(:disabled) { border-color: var(--va-accent); background: color-mix(in srgb, var(--va-accent) 12%, var(--va-panel-2)); color: var(--va-ink); }
+.va-app .branch-label { color: var(--va-ink); }
+.va-app .branch-badge, .va-app .patch-count-badge { background: var(--va-panel-3); color: var(--va-muted); }
+.va-app .branch-dropdown-menu, .va-app .timeline-dropdown-menu {
+  background: var(--va-panel); border-color: var(--va-line-strong);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .45);
+}
+.va-app .branch-dropdown-item:hover, .va-app .timeline-item:hover { background: var(--va-panel-2); }
+.va-app .branch-dropdown-item.active { background: color-mix(in srgb, var(--va-accent) 14%, transparent); border-color: color-mix(in srgb, var(--va-accent) 40%, transparent); }

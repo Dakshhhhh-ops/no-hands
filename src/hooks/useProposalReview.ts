@@ -11,16 +11,16 @@ import { cleanDictation } from '../data/dictation.ts';
 import { combineInstruction } from '../data/reviewCommands.ts';
 import type { AiStatus } from '../data/aiClient.ts';
 
-interface DecisionDraft {
+export interface DecisionDraft {
   rateLimitThreshold: string;
   redisFallback: string;
 }
 
+export type SetDecisionDraft = (_value: DecisionDraft | ((_prev: DecisionDraft) => DecisionDraft)) => void;
+
 interface UseProposalReviewReturn {
   command: string;
   setCommand: (_cmd: string) => void;
-  decisionDraft: DecisionDraft;
-  setDecisionDraft: React.Dispatch<React.SetStateAction<DecisionDraft>>;
   proposal: Proposal | null;
   setProposal: React.Dispatch<React.SetStateAction<Proposal | null>>;
   preview: Proposal | null;
@@ -29,7 +29,6 @@ interface UseProposalReviewReturn {
   proposedDiffGroups: ReturnType<typeof deriveChangeDiff>;
   modalRef: React.RefObject<HTMLElement | null>;
   showProposal: () => void;
-  confirmChange: () => void;
   playDemoDictation: () => void;
   activeDemoCommand: string;
   proposalHasRateLimit: boolean;
@@ -62,9 +61,12 @@ export function useProposalReview(
   // The instruction text is owned by the caller (App persists it), so the preview
   // always reads exactly what is in the text box.
   commandState: { command: string; setCommand: (_cmd: string) => void },
+  // The decisions are owned by the caller too: the review dialog edits that one copy, and the
+  // preview, the applied model, and the "recorded decisions" count all read the same copy.
+  decisionState: { decisionDraft: DecisionDraft; setDecisionDraft: SetDecisionDraft },
 ): UseProposalReviewReturn {
   const { command, setCommand } = commandState;
-  const [decisionDraft, setDecisionDraft] = useState<DecisionDraft>({ rateLimitThreshold: '', redisFallback: '' });
+  const { decisionDraft, setDecisionDraft } = decisionState;
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [revisions, setRevisions] = useState<Proposal[]>([]);
   const [fallbackReason, setFallbackReason] = useState<FallbackReason | null>(null);
@@ -255,15 +257,6 @@ export function useProposalReview(
     return true;
   }
 
-  function confirmChange() {
-    if (!project || !proposal) return;
-    sound.apply();
-    applyChange(project, proposal, decisionDraft);
-    // Note: The actual history push and project update is handled by the parent component
-    // This hook just provides the nextProject - the parent will handle the rest
-    onNotify('Change applied. Implementation is still proposed.');
-  }
-
   function playDemoDictation() {
     if (isDictatingSim) return;
     setIsDictatingSim(true);
@@ -287,8 +280,6 @@ export function useProposalReview(
   return {
     command,
     setCommand,
-    decisionDraft,
-    setDecisionDraft,
     proposal,
     setProposal,
     preview,
@@ -297,7 +288,6 @@ export function useProposalReview(
     proposedDiffGroups,
     modalRef,
     showProposal,
-    confirmChange,
     playDemoDictation,
     activeDemoCommand,
     proposalHasRateLimit,

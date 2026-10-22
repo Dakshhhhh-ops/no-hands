@@ -20,10 +20,14 @@ async function expectNoSeriousViolations(page: Page, label: string) {
   // Measure colors as people see them: wait for every finite animation and transition
   // (entrance fades, the dialog rising in) to finish. A fixed delay was not enough on a
   // loaded machine, and a scan mid-fade reads half-transparent text as low contrast.
+  // Capped at 3 seconds, so a paused or very long animation can never stall a test.
   await page.waitForTimeout(100);
-  await page.evaluate(() => Promise.all(document.getAnimations()
-    .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
-    .map((animation) => animation.finished.catch(() => undefined))));
+  await page.evaluate(() => Promise.race([
+    Promise.all(document.getAnimations()
+      .filter((animation) => animation.effect?.getTiming().iterations !== Infinity && animation.playState !== 'paused')
+      .map((animation) => animation.finished.catch(() => undefined))),
+    new Promise((resolve) => setTimeout(resolve, 3000)),
+  ]));
   const { violations } = await new AxeBuilder({ page }).withTags(WCAG).analyze();
   const serious = violations
     .filter((v) => v.impact === 'serious' || v.impact === 'critical')
@@ -100,3 +104,37 @@ test('pasted notes become an ordinary proposal through the import dialog, which 
   await expect(review.getByText(/From pasted notes/)).toBeVisible();
   await expectNoSeriousViolations(page, 'review from notes');
 });
+
+for (const scheme of ['light', 'dark'] as const) {
+  test(`the outage simulator with outages on, and its two dialogs, are accessible (${scheme})`, async ({ page }) => {
+    // Four full axe analyses; give it room under a parallel run.
+    test.slow();
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Load sample' }).click();
+    await page.getByRole('button', { name: /^More$/ }).click();
+    await page.getByRole('button', { name: /Outage simulator and decision records/ }).click();
+
+    // Every simulated outage and latency spike on: the active colors only appear in this state.
+    const toggles = page.locator('.chaos-btn[aria-pressed]');
+    await expect(toggles.first()).toBeVisible();
+    for (const toggle of await toggles.all()) await toggle.click();
+    await expect(toggles.first()).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: /Restore All/ })).toBeVisible();
+    await expectNoSeriousViolations(page, 'simulator with outages');
+
+    const dialogs: Array<[trigger: string, name: string]> = [
+      ['View Topological Boot and Deployment Order', 'System Boot & Deployment Sequence'],
+      ['View Architecture Decision Record & Governance Sign-Off', 'Architecture Decision Record & Sign-Off'],
+    ];
+    for (const [trigger, name] of dialogs) {
+      await page.locator(`[title="${trigger}"]`).click();
+      const dialog = page.getByRole('dialog', { name });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole('button', { name: /^Close/ })).toBeVisible();
+      await expectNoSeriousViolations(page, name);
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+    }
+  });
+}

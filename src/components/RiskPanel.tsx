@@ -6,6 +6,7 @@ import { fixFor, resolutionProposal } from '../data/riskResolution.ts';
 import { sound } from '../utils/sound.ts';
 import type { FixSelection, RiskFix } from '../data/riskResolution.ts';
 import type { Project, Proposal, RiskFinding, RiskFindingKind } from '../types/schema.ts';
+import './panels.css';
 
 export interface RiskPanelProps {
   project: Project;

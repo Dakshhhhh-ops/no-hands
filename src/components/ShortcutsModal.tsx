@@ -1,5 +1,6 @@
 import { Keyboard, X } from 'lucide-react';
 import { useDialog } from '../hooks/useDialog.ts';
+import './shortcutsModal.css';
 
 const SHORTCUTS = [
   { keys: ['Ctrl', 'Enter'], action: 'Preview change' },

@@ -87,15 +87,24 @@ interface ModelSnapshot {
   requirements?: unknown;
 }
 
-/** Only the parts of the project the model needs; provenance and history are dropped. */
+type Item = Record<string, unknown>;
+const isItem = (value: unknown): value is Item => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+/** The objects in a client-sent list; nulls, strings, and nested arrays are skipped. */
+const items = (value: unknown): Item[] => (Array.isArray(value) ? value.filter(isItem) : []);
+const str = (value: unknown) => (typeof value === 'string' ? value : undefined);
+const strings = (value: unknown) => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : undefined);
+
+/**
+ * Only the parts of the project the model needs; provenance and history are dropped.
+ * The snapshot comes from the browser, so every field is read defensively.
+ */
 function compactProject(project: ModelSnapshot) {
-  const list = (value: unknown) => (Array.isArray(value) ? value : []);
   return {
-    name: project.name,
-    components: list(project.components).map((c) => ({ id: c.id, name: c.name, type: c.type, sub: c.sub, responsibilities: c.responsibilities })),
-    relationships: list(project.relationships).map((r) => ({ from: r.from, to: r.to, label: r.label, ...(r.protocol ? { protocol: r.protocol } : {}) })),
-    apiOperations: list(project.apiOperations).map((a) => ({ id: a.id, componentId: a.componentId, method: a.method, path: a.path, summary: a.summary })),
-    requirements: list(project.requirements).map((q) => ({ id: q.id, text: q.text, status: q.status })),
+    name: str(project.name),
+    components: items(project.components).map((c) => ({ id: str(c.id), name: str(c.name), type: str(c.type), sub: str(c.sub), responsibilities: strings(c.responsibilities) })),
+    relationships: items(project.relationships).map((r) => ({ from: str(r.from), to: str(r.to), label: str(r.label), ...(str(r.protocol) ? { protocol: str(r.protocol) } : {}) })),
+    apiOperations: items(project.apiOperations).map((a) => ({ id: str(a.id), componentId: str(a.componentId), method: str(a.method), path: str(a.path), summary: str(a.summary) })),
+    requirements: items(project.requirements).map((q) => ({ id: str(q.id), text: str(q.text), status: str(q.status) })),
   };
 }
 
@@ -377,11 +386,19 @@ function readJsonBody(req: IncomingMessage, maxBytes: number): Promise<Record<st
       chunks.push(chunk);
     });
     req.on('end', () => {
+      let value: unknown;
       try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
+        value = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
       } catch {
         reject(new InterpretError('Request body is not valid JSON.', 400));
+        return;
       }
+      // null, arrays, and bare strings or numbers are valid JSON but not a request.
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        reject(new InterpretError('Request body must be a JSON object.', 400));
+        return;
+      }
+      resolve(value as Record<string, unknown>);
     });
     req.on('error', reject);
   });
@@ -428,6 +445,16 @@ export function createApiMiddleware(options: ApiOptions = {}) {
   const wispr = options.wispr || new WisprConnector({ trustProxy: limits.trustProxy });
 
   return async function apiMiddleware(req: IncomingMessage, res: ServerResponse, next: () => void) {
+    try {
+      await handle(req, res, next);
+    } catch {
+      // A bug in a handler answers 500 for that request; it must never take the server down.
+      if (!res.headersSent) sendJson(res, 500, { error: 'Internal server error.' });
+      else if (!res.writableEnded) res.end();
+    }
+  };
+
+  async function handle(req: IncomingMessage, res: ServerResponse, next: () => void) {
     const url = (req.url || '').split('?')[0] ?? '';
     if (url.startsWith('/api/wispr/')) {
       await wispr.handle(req, res, new URL(req.url || '/', 'http://localhost'));
@@ -469,7 +496,7 @@ export function createApiMiddleware(options: ApiOptions = {}) {
       return;
     }
     const text = String(body.text || '').trim();
-    const project = (body.project || {}) as ModelSnapshot;
+    const project: ModelSnapshot = isItem(body.project) ? body.project : {};
     const notes = readNotes(body.notes);
     const keyFor = (model: string) => interpretationKey(model, text, project, notes);
     const sendRecording = (hit: Recording, fallback?: FallbackReason) =>
@@ -532,7 +559,7 @@ export function createApiMiddleware(options: ApiOptions = {}) {
         fallBack(500, 'provider_error', 'Interpretation failed unexpectedly.');
       }
     }
-  };
+  }
 }
 
 /** The middleware the dev, preview, and production servers use. */

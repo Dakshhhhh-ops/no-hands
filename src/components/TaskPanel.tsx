@@ -3,6 +3,7 @@ import { Check, Copy } from 'lucide-react';
 import { deriveTasks } from '../data/analysis.ts';
 import { sound } from '../utils/sound.ts';
 import type { Project, Task, TaskPriority } from '../types/schema.ts';
+import './panels.css';
 
 export interface TaskPanelProps {
   project: Project;

@@ -6,6 +6,7 @@ import { sound } from '../utils/sound.ts';
 import type { ArchitectureBranch, ScenarioComparison } from '../data/branching.ts';
 import type { TimelineEntry } from '../data/historyManager.ts';
 import type { ChangeRecord } from '../types/schema.ts';
+import './scenarioBranchingBar.css';
 
 /** A branch as the switcher lists it: its identity plus the version of its model. */
 export type BranchSummary = Pick<ArchitectureBranch, 'id' | 'name' | 'description'> & { version: number };

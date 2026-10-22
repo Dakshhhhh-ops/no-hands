@@ -114,3 +114,48 @@ test('loading the app and opening every view logs no errors', async ({ page, bro
   await expect(page.getByRole('tab', { name: 'Topology' })).toHaveAttribute('aria-selected', 'true');
   expect(errors).toEqual([]);
 });
+
+test('decisions typed in the review dialog are recorded in the model, not only counted', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Load sample' }).click();
+  await page.getByLabel('Your instruction').fill('Move session storage to Redis, keep PostgreSQL as the source of truth, add rate limiting to the authentication endpoint, and make login resilient if Redis becomes unavailable.');
+  await page.getByRole('button', { name: /Preview my change/ }).click();
+  const review = page.getByRole('dialog', { name: 'Review this change' });
+  await review.getByLabel('Authentication rate limit').fill('5 attempts per minute per IP');
+  await review.getByLabel('Login behavior if Redis is unavailable').fill('Fall back to PostgreSQL sessions');
+  await review.getByRole('button', { name: /Apply change/ }).click();
+  await expect(review).toBeHidden();
+  await expect(page.getByText(/Change applied with 2 recorded decisions/)).toBeVisible();
+
+  // The applied model carries both answers: no open decision is left, and the risk view quotes them.
+  await expect(page.getByText(/\d+ open decisions?/)).toHaveCount(0);
+  await openView(page, 'Risks');
+  await expect(page.getByText(/5 attempts per minute per IP/).first()).toBeVisible();
+  await expect(page.getByText(/Fall back to PostgreSQL sessions/).first()).toBeVisible();
+});
+
+test('a component removed on a branch is removed from main when the branch merges', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Load sample' }).click();
+  const redisNode = page.getByRole('button', { name: /^Redis, / });
+  await expect(redisNode).toBeVisible();
+
+  await page.getByRole('button', { name: /^More$/ }).click();
+  await page.getByRole('button', { name: /Branches and history/ }).click();
+  await page.getByRole('button', { name: /Fork this version/ }).click();
+
+  await page.getByLabel('Your instruction').fill('remove the redis and use the postgres directly');
+  await page.getByRole('button', { name: /Preview my change/ }).click();
+  const review = page.getByRole('dialog', { name: 'Review this change' });
+  await review.getByRole('button', { name: /Apply change/ }).click();
+  await expect(review).toBeHidden();
+  await page.getByRole('tab', { name: 'Diagram' }).click();
+  await expect(redisNode).toHaveCount(0);
+
+  // Merged against the fork point, the branch's deletion reaches main.
+  await page.getByRole('button', { name: /Merge to Main/ }).click();
+  await expect(page.getByRole('button', { name: /Merge to Main/ })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Diagram' }).click();
+  await expect(page.getByRole('button', { name: /^PostgreSQL, / })).toBeVisible();
+  await expect(redisNode).toHaveCount(0);
+});

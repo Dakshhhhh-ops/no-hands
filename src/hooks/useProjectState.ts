@@ -10,6 +10,8 @@ export interface BranchState {
   id: string;
   name: string;
   description: string;
+  /** Where this branch forked from main (or last merged into it); main has none. */
+  baseProject?: Project;
   project: Project;
   history: HistoryTimeline;
 }
@@ -212,16 +214,19 @@ export function useProjectState(): UseProjectStateReturn {
     if (currentBranchId === 'main') return;
     const source = branches[currentBranchId];
     const target = branches.main;
-    const base = branches.main;
+    // The common base is where the branch forked, not main as it is now: against main
+    // itself no conflict could ever appear, and nothing the branch deleted would be removed.
+    const base = source?.baseProject;
     if (!source || !target || !base) return;
-    const analysis = detectMergeConflicts(base.project, target.project, source.project);
+    const analysis = detectMergeConflicts(base, target.project, source.project);
     if (analysis.canAutoMerge) {
-      const result = executeMerge(base.project, target.project, source.project, {});
+      const result = executeMerge(base, target.project, source.project, {});
       if (result.success && result.mergedProject) {
         const mergedProject = result.mergedProject;
         const history = target.history;
         history.push(mergedProject, `Merged ${source.name}`, mergedProject.changes[0]?.id);
-        setBranches((b) => ({ ...b, main: { ...(b.main ?? target), project: mergedProject, history } }));
+        // The next merge of this branch starts from what was merged now.
+        setBranches((b) => ({ ...b, main: { ...(b.main ?? target), project: mergedProject, history }, [source.id]: { ...source, baseProject: structuredClone(source.project) } }));
         setCurrentBranchId('main');
         setProject(mergedProject);
         syncHistory(history);
@@ -236,13 +241,14 @@ export function useProjectState(): UseProjectStateReturn {
   function handleConfirmMerge(resolutions: Record<string, 'target' | 'source' | 'custom'>) {
     const source = branches[mergingBranchId!];
     const target = branches.main;
-    if (!source || !target) return;
-    const result = executeMerge(target.project, target.project, source.project, resolutions);
+    const base = source?.baseProject;
+    if (!source || !target || !base) return;
+    const result = executeMerge(base, target.project, source.project, resolutions);
     if (result.success && result.mergedProject) {
       const mergedProject = result.mergedProject;
       const history = target.history;
       history.push(mergedProject, `Merged ${source.name} (resolved conflicts)`, mergedProject.changes[0]?.id);
-      setBranches((b) => ({ ...b, main: { ...(b.main ?? target), project: mergedProject, history } }));
+      setBranches((b) => ({ ...b, main: { ...(b.main ?? target), project: mergedProject, history }, [source.id]: { ...source, baseProject: structuredClone(source.project) } }));
       setCurrentBranchId('main');
       setProject(mergedProject);
       setShowMergeModal(false);

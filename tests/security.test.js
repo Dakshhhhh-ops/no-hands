@@ -172,3 +172,41 @@ test('files outside dist are never served, unknown routes get the app, missing f
   assert.match(route.headers['content-type'], /text\/html/);
   assert.equal((await get(base, '/assets/nope.js')).status, 404);
 }));
+
+// ---------- hostile request bodies never stop the server ----------
+
+async function post(base, urlPath, raw) {
+  const { request } = await import('node:http');
+  return new Promise((resolve, reject) => {
+    const req = request(`${base}${urlPath}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode, body: Buffer.concat(chunks).toString('utf8') }));
+    });
+    req.on('error', reject);
+    req.end(raw);
+  });
+}
+
+test('null, arrays, and null items in the project answer an error, and the server keeps running', () => withServer({ trustProxy: false }, async (base) => {
+  const notAnObject = ['null', '[]', '"text"', '42', 'true'];
+  for (const raw of notAnObject) {
+    const res = await post(base, '/api/interpret', raw);
+    assert.equal(res.status, 400, raw);
+    assert.match(res.body, /must be a JSON object/, raw);
+  }
+  // Valid objects with junk inside the project: the offline answer (or a recording), never a crash.
+  const junk = [
+    { text: 'add a cache', project: { components: [null] } },
+    { text: 'add a cache', project: { components: [null, 5, 'x', [], { id: 7, name: null, responsibilities: [1, null] }] } },
+    { text: 'add a cache', project: { relationships: [null, 5], apiOperations: [null], requirements: [null] } },
+    { text: 'add a cache', project: null },
+    { text: null, project: { components: 'nope' } },
+  ];
+  for (const body of junk) {
+    const res = await post(base, '/api/interpret', JSON.stringify(body));
+    assert.ok(res.status < 500 || res.status === 503, `${JSON.stringify(body)} -> ${res.status} ${res.body}`);
+  }
+  const health = await get(base, '/api/health');
+  assert.equal(health.status, 200, 'the server still answers after every hostile body');
+}));

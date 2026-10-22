@@ -92,8 +92,6 @@ export function detectMergeConflicts(
           sourceValue: s,
           description: `Component "${id}" was deleted in target branch, but modified in source branch.`,
         });
-      } else {
-        compRemoved++;
       }
     } else if (b && t && !s) {
       // Removed in source, but modified in target
@@ -108,6 +106,8 @@ export function detectMergeConflicts(
           sourceValue: null,
           description: `Component "${id}" was modified in target branch, but deleted in source branch.`,
         });
+      } else {
+        compRemoved++;
       }
     } else if (b && t && s) {
       // Modified in both
@@ -229,7 +229,21 @@ export function executeMerge(
   const baseComp = new Map(base.components.map((c) => [c.id, c]));
   const sourceComp = new Map(source.components.map((c) => [c.id, c]));
 
+  const resolvedTo = (entityId: string) => {
+    const conflict = analysis.conflicts.find((c) => c.entityId === entityId);
+    return conflict ? resolutions[conflict.id] : undefined;
+  };
+
   // 1. Merge Components
+  // Deletions first: a component the source removed goes, unless the target changed it
+  // too and the user chose to keep the target's version.
+  for (const b of base.components) {
+    if (sourceComp.has(b.id)) continue;
+    const targetIdx = merged.components.findIndex((c) => c.id === b.id);
+    if (targetIdx === -1) continue;
+    const choice = resolvedTo(b.id);
+    if (choice === undefined || choice === 'source') merged.components.splice(targetIdx, 1);
+  }
   for (const [id, s] of sourceComp.entries()) {
     const b = baseComp.get(id);
     const targetIdx = merged.components.findIndex((c) => c.id === id);
@@ -247,7 +261,10 @@ export function executeMerge(
       }
     } else {
       // Existed in base
-      if (targetIdx !== -1) {
+      if (targetIdx === -1) {
+        // The target deleted it and the source changed it: restored only if the user chose the source.
+        if (resolvedTo(id) === 'source') merged.components.push(structuredClone(s));
+      } else {
         const conflict = analysis.conflicts.find((c) => c.entityId === id);
         if (conflict) {
           if (resolutions[conflict.id] === 'source') {
@@ -264,6 +281,12 @@ export function executeMerge(
   // 2. Merge Relationships
   const relKey = (r: Relationship) => `${r.from}->${r.to}`;
   const baseRel = new Map(base.relationships.map((r) => [relKey(r), r]));
+  const sourceRelKeys = new Set(source.relationships.map(relKey));
+  // A connection the source removed goes, unless the target relabelled it.
+  merged.relationships = merged.relationships.filter((r) => {
+    const bRel = baseRel.get(relKey(r));
+    return !bRel || sourceRelKeys.has(relKey(r)) || bRel.label !== r.label;
+  });
   const targetRelMap = new Map(merged.relationships.map((r) => [relKey(r), r]));
 
   for (const sRel of source.relationships) {
@@ -293,6 +316,11 @@ export function executeMerge(
     }
   }
 
+  // Nothing may point at a component the merge removed.
+  const present = new Set(merged.components.map((c) => c.id));
+  merged.relationships = merged.relationships.filter((r) => present.has(r.from) && present.has(r.to));
+  merged.apiOperations = merged.apiOperations.filter((op) => present.has(op.componentId));
+
   // Bump version and record merge change
   merged.version += 1;
   merged.changed = true;
@@ -300,7 +328,7 @@ export function executeMerge(
     id: `CHG-MERGE-${Date.now()}`,
     version: merged.version,
     originalInstruction: `Merged scenario branch "${source.name}" into "${target.name}"`,
-    summary: `Merged ${analysis.changesApplied.componentsAdded} new components, ${analysis.changesApplied.relationshipsAdded} relationships from ${source.name}.`,
+    summary: `Merged ${analysis.changesApplied.componentsAdded} new components, ${analysis.changesApplied.componentsRemoved} removed, ${analysis.changesApplied.relationshipsAdded} relationships from ${source.name}.`,
     affectedArtifacts: ['components', 'relationships', 'requirements'],
   });
 

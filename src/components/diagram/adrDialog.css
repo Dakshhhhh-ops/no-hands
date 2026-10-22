@@ -1,0 +1,70 @@
+/* Styles used only by AdrDialog, loaded with that lazy component.
+   Moved from the global stylesheets in cascade order. */
+
+.adr-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.adr-signoff-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--va-panel-2);
+  border: 1px solid var(--va-line);
+  border-radius: 8px;
+}
+
+.signoff-role {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--va-ink);
+}
+
+.signoff-signee {
+  font-size: 11px;
+  color: var(--va-muted);
+  font-family: var(--font-mono);
+}
+
+.signoff-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.signoff-status-badge.approved {
+  background: color-mix(in srgb, var(--va-ok) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--va-ok) 45%, transparent);
+  color: color-mix(in srgb, var(--va-ok) 70%, var(--va-ink));
+}
+
+.signoff-status-badge.pending {
+  background: color-mix(in srgb, var(--va-warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--va-warn) 45%, transparent);
+  color: color-mix(in srgb, var(--va-warn) 70%, var(--va-ink));
+}
+
+.adr-markdown-preview {
+  background: var(--va-bg-sunken);
+  border: 1px solid var(--va-line-strong);
+  border-radius: 8px;
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  max-height: 280px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  color: var(--va-ink);
+}
+
+.va-app .adr-markdown-preview { font-size: var(--va-fs-sm); }

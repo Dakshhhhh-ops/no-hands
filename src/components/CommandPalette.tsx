@@ -2,6 +2,7 @@ import React from 'react';
 import { Search, ExternalLink, Zap, GitBranch, FileArchive, HelpCircle } from 'lucide-react';
 import { sound } from '../utils/sound.ts';
 import { useDialog } from '../hooks/useDialog.ts';
+import './commandPalette.css';
 
 /** One entry in the palette, as App builds them in `paletteCommands`. */
 export interface PaletteCommand {

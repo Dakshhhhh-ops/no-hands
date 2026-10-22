@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { detectCycles } from '../data/graphCycle.ts';
 import { referentialChecks } from '../data/referentialChecks.ts';
 import type { ComponentType, Project } from '../types/schema.ts';
+import './panels.css';
 
 export interface TopologyPanelProps {
   project: Project;

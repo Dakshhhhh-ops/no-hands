@@ -117,72 +117,6 @@
   to { opacity: 1; transform: translateX(-50%) scale(1); }
 }
 
-.va-palette-search {
-  transition: all 0.2s var(--va-ease-out);
-}
-
-.va-palette-search:focus-within {
-  border-color: var(--va-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--va-accent) 20%, transparent);
-}
-
-.va-palette-category {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 12px 8px;
-  font-size: var(--va-fs-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--va-faint);
-  border-bottom: 1px solid var(--va-line);
-  margin-top: 8px;
-}
-
-.va-category-icon { flex: none; font-size: 12px; }
-.va-category-label { flex: 1; font-weight: 600; }
-.va-category-count {
-  flex: none;
-  font-size: 10px;
-  padding: 2px 6px;
-  background: var(--va-panel-2);
-  border-radius: 100px;
-  color: var(--va-muted);
-}
-
-.va-palette-item {
-  position: relative;
-  overflow: hidden;
-}
-
-.va-palette-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--va-gradient-primary);
-  transform: scaleY(0);
-  transform-origin: bottom;
-  transition: transform 0.2s var(--va-ease-out);
-}
-
-.va-palette-item.selected::before,
-.va-palette-item:hover::before {
-  transform: scaleY(1);
-  transform-origin: top;
-}
-
-.va-palette-item .va-highlight {
-  background: color-mix(in srgb, var(--va-accent) 30%, transparent);
-  color: var(--va-accent);
-  padding: 1px 3px;
-  border-radius: 2px;
-  font-weight: 600;
-}
-
 .va-kbd {
   display: inline-flex;
   align-items: center;
@@ -196,14 +130,6 @@
   font-size: 11px;
   font-family: var(--va-mono);
   color: var(--va-muted);
-}
-
-.va-highlight {
-  background: color-mix(in srgb, var(--va-accent) 30%, transparent);
-  color: var(--va-accent);
-  padding: 1px 3px;
-  border-radius: 2px;
-  font-weight: 600;
 }
 
 /* ============================================================================
@@ -341,7 +267,6 @@
 @media (prefers-reduced-motion: reduce) {
   .va-modal { animation: none; }
   .va-toast { animation: none; transform: translateX(-50%) translateY(0); }
-  .va-command-palette { animation: none; transform: translateX(-50%) scale(1); }
 }
 
 /* ============================================================================

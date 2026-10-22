@@ -115,12 +115,13 @@ describe('App component', () => {
     expect(screen.getByRole('button', { name: /^DevOps bundle/ })).toBeInTheDocument();
   });
 
-  it('toggles history panel', () => {
+  it('toggles history panel', async () => {
     renderApp();
     fireEvent.click(screen.getByText('Load sample'));
     fireEvent.click(screen.getByRole('button', { name: /^More$/ }));
     fireEvent.click(screen.getByRole('button', { name: /branches and history/i }));
-    const branchChips = screen.getAllByText('Main Branch');
+    // The branches panel loads on first open.
+    const branchChips = await screen.findAllByText('Main Branch');
     expect(branchChips.length).toBeGreaterThan(0);
   });
 

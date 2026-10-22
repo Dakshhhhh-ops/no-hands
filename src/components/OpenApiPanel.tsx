@@ -9,6 +9,7 @@ import { sound } from '../utils/sound.ts';
 import type { SchemaDriftItem } from '../data/openapiSynth.ts';
 import type { ProtocolAuditFinding } from '../data/protocolAuditor.ts';
 import type { Project } from '../types/schema.ts';
+import './panels.css';
 
 export interface OpenApiPanelProps {
   project: Project;
