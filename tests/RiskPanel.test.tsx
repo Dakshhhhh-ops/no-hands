@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import RiskPanel from '../src/components/RiskPanel.jsx';
+import RiskPanel from '../src/components/RiskPanel.tsx';
+import type { Project } from '../src/types/schema.ts';
 
-const mockProject = {
+const mockProject: Project = {
   name: 'Test Architecture',
   version: 1,
   components: [],
   relationships: [],
   requirements: [],
   apiOperations: [],
-  risks: [],
-  tasks: [],
+  activity: [],
   changes: [],
   changed: false,
 };

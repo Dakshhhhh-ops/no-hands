@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { projectFromCompose } from '../src/data/composeImport.ts';
 import { detectCodeDrift, driftProposal } from '../src/data/driftCheck.ts';
-import { applyChange, makeCommerceProject } from '../src/data/commerce.js';
+import { applyChange, makeCommerceProject } from '../src/data/commerce.ts';
 import { applyOperations } from '../src/data/applyOperations.ts';
 import { validateProposal } from '../src/types/schema.ts';
 
@@ -93,8 +93,8 @@ test('the commerce sample, which was never imported, treats everything as planne
 });
 
 test('risk findings and open decisions come from the imported stack, not the sample', async () => {
-  const { deriveRiskFindings, countOpenDecisions } = await import('../src/data/analysis.js');
-  const { deriveManualDecisions } = await import('../src/data/changeDiff.js');
+  const { deriveRiskFindings, countOpenDecisions } = await import('../src/data/analysis.ts');
+  const { deriveManualDecisions } = await import('../src/data/changeDiff.ts');
   const project = projectFromCompose(v1, 'ride-share-compose.yml');
 
   const titles = deriveRiskFindings(project).map((f) => f.title);
@@ -112,8 +112,8 @@ test('risk findings and open decisions come from the imported stack, not the sam
 });
 
 test('a model without caches, gateways, or auth gets no invented decisions', async () => {
-  const { deriveRiskFindings, countOpenDecisions } = await import('../src/data/analysis.js');
-  const { deriveManualDecisions } = await import('../src/data/changeDiff.js');
+  const { deriveRiskFindings, countOpenDecisions } = await import('../src/data/analysis.ts');
+  const { deriveManualDecisions } = await import('../src/data/changeDiff.ts');
   const tiny = projectFromCompose('services:\n  worker:\n    image: busybox\n  db:\n    image: postgres:17\n    \n', 'tiny.yml');
   const titles = deriveRiskFindings(tiny).map((f) => f.title);
   assert.deepEqual(titles, ['db is the only modeled database']);

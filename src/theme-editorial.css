@@ -90,10 +90,8 @@
 ::selection { background: var(--va-accent); color: #fff; }
 
 /* ---------- Accent text: solid, never gradient ---------- */
-.va-gradient-text,
 .va-display-serif .va-split-word,
-.va-section-title em,
-.va-footer-wordmark .is-serif {
+.va-section-title em {
   background: none !important;
   -webkit-text-fill-color: currentColor !important;
   color: var(--va-accent) !important;
@@ -110,56 +108,17 @@
   filter: none !important;
 }
 .va-app .va-btn-primary:hover:not(:disabled) { background: var(--va-accent) !important; border-color: var(--va-accent) !important; color: #fff !important; }
-.va-shine::after { display: none; }
-.va-app .va-btn-glass { background: transparent; backdrop-filter: none; border-color: var(--va-line-strong); }
-.va-app .va-btn-glass:hover { border-color: var(--va-ink); }
-.va-app .va-mic { background: var(--va-cta-bg); color: var(--va-cta-ink); box-shadow: none; }
-.va-app .va-mic[data-live="true"] { background: var(--va-accent); color: #fff; box-shadow: 0 0 0 6px color-mix(in srgb, var(--va-accent) 18%, transparent); }
 
 /* ---------- Brand + chrome ---------- */
 .va-app .va-brand-mark { background: var(--va-cta-bg); color: var(--va-cta-ink); box-shadow: none; }
 .va-app .va-topbar { background: color-mix(in srgb, var(--va-bg) 90%, transparent); backdrop-filter: blur(8px); }
 .va-app .va-topbar .va-btn-primary { border-radius: 999px; }
-.va-scroll-progress { background: var(--va-accent); }
-.va-eyebrow { color: var(--va-ink) !important; background: transparent; border-color: var(--va-line-strong); }
 .va-live-dot { background: var(--va-accent); animation: none; box-shadow: none; }
-.va-label-n { color: var(--va-accent); }
-.va-select::before { border-color: var(--va-accent); }
-.va-select-h { border-color: var(--va-accent); }
-.va-select-label { background: var(--va-accent); }
-.va-code-line .t { color: var(--va-rose); }
-.va-code-line .a { color: var(--va-violet); }
-.va-code-line .s { color: var(--va-teal); }
 
 /* ---------- Remove the "glow" vocabulary ---------- */
-.va-aurora, .va-stack-glow { display: none !important; }
-.va-hero-grid-lines { opacity: .35; }
 .va-app .va-section-work { background: none; }
-.va-story-stage { background: var(--va-panel) !important; }
-.va-tilt-glow { background: radial-gradient(360px circle at var(--glow-x, 50%) var(--glow-y, 0%), color-mix(in srgb, var(--va-ink) 5%, transparent), transparent 60%) !important; }
 /* Each tier is tinted with its own tone so the planes read on paper and on charcoal */
-.va-stack-layer {
-  background: color-mix(in srgb, var(--tone) 10%, var(--va-panel)) !important;
-  border: 1.5px solid color-mix(in srgb, var(--tone) 70%, var(--va-line)) !important;
-  box-shadow: 0 30px 40px -30px rgba(0, 0, 0, .6) !important;
-  backdrop-filter: none !important;
-}
-[data-theme="light"] .va-stack-layer {
-  background: color-mix(in srgb, var(--tone) 13%, #fffdf8) !important;
-  border-color: color-mix(in srgb, var(--tone) 85%, transparent) !important;
-  box-shadow: inset 0 1px 0 #fff, 0 36px 44px -28px color-mix(in srgb, var(--tone) 40%, rgba(20, 20, 18, .55)) !important;
-}
-.va-stack-label { font-weight: 700; }
 /* Show full names: wrap instead of clipping */
-.va-stack-chips { flex-wrap: wrap; overflow: visible; }
-.va-stack-chip { max-width: none; overflow: visible; }
-[data-theme="light"] .va-stack-chip {
-  background: #fff; border-color: color-mix(in srgb, var(--tone) 40%, var(--va-line));
-  box-shadow: 0 6px 12px -8px rgba(20, 20, 18, .35);
-}
-.va-stack-chip i, .va-stack-beam::after { box-shadow: none !important; }
-.va-stack-beam { background: var(--va-line-bright) !important; opacity: .7; }
-.va-stack-beam::after { background: var(--va-accent); }
 .va-frag-avatar { background: var(--va-cta-bg); color: var(--va-cta-ink); }
 .va-frag-switch { background: var(--va-ink); }
 .va-frag-switch i { background: var(--va-bg); }
@@ -168,11 +127,7 @@
 .va-story-wave i { background: var(--va-ink); }
 .va-story-wave i:nth-child(n + 12):nth-child(-n + 17) { background: var(--va-accent); }
 .va-story-actions .is-primary { background: var(--va-cta-bg); color: var(--va-cta-ink); }
-.va-story-graph rect.is-new { filter: none; }
 .va-mini-wave i { background: var(--va-accent); }
-.va-timeline .va-step-n::before { background: var(--va-accent) !important; box-shadow: none !important; }
-.va-fact-icon, .va-cap-icon { background: transparent; }
-.va-cursor-ring.has-label { background: var(--va-accent); }
 
 /* Toned elements keep their status color but drop tinted glows */
 .va-story-chip { background: transparent; }
@@ -207,10 +162,7 @@
 /* ---------- Contrast (WCAG AA) ----------
    Small text never uses the bright vermilion on paper; it uses the stronger shade.
    Labels on bright pills in the dark theme use dark ink instead of white. */
-[data-theme="light"] .va-label-n,
 [data-theme="light"] .va-frag small,
 [data-theme="light"] .va-story-chip,
 [data-theme="light"] .preset-tag { color: var(--va-accent-strong) !important; }
-[data-theme="light"] .va-select-label { background: var(--va-accent-strong); }
-:root:not([data-theme="light"]) .va-select-label,
 :root:not([data-theme="light"]) .va-pointer b { color: #131211; }

@@ -12,8 +12,8 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { CASES } from '../evals/cases.ts';
 import type { ComponentRef, EvalCase, Expectation } from '../evals/cases.ts';
-import { makeCommerceProject, proposeChange, applyChange } from '../src/data/commerce.js';
-import { makeFoodDeliveryProject } from '../src/data/foodDelivery.js';
+import { makeCommerceProject, proposeChange, applyChange } from '../src/data/commerce.ts';
+import { makeFoodDeliveryProject } from '../src/data/foodDelivery.ts';
 import { projectFromCompose } from '../src/data/composeImport.ts';
 import { interpretPattern } from '../src/data/patternRules.ts';
 import { cleanDictation } from '../src/data/dictation.ts';

@@ -30,7 +30,14 @@ export default defineConfig({
       // App behaviour against the production build.
       name: 'chromium',
       testIgnore: /pwa\.spec\.ts/,
-      use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${PREVIEW_PORT}` },
+      // The service worker is covered by the pwa project; here it would hide requests from page.route in WebKit.
+      use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${PREVIEW_PORT}`, serviceWorkers: 'block' },
+    },
+    {
+      // The same tests in Safari's engine: catches CSS and API differences Chromium hides.
+      name: 'webkit',
+      testIgnore: /pwa.spec.ts/,
+      use: { ...devices['Desktop Safari'], baseURL: `http://localhost:${PREVIEW_PORT}`, serviceWorkers: 'block' },
     },
     {
       // The service worker is only registered by a production build, so the

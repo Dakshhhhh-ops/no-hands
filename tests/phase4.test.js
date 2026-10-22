@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeCommerceProject, proposeChange, applyChange, DEMO_COMMAND } from '../src/data/commerce.js';
+import { makeCommerceProject, proposeChange, applyChange, DEMO_COMMAND } from '../src/data/commerce.ts';
 import { generateMultiServiceOpenApi, detectContractDrift } from '../src/data/openapiSynth.ts';
 import { generateTerraform, generateKubernetes, generateAllIac } from '../src/data/iacGenerator.ts';
 import { auditProtocolsAndResilience } from '../src/data/protocolAuditor.ts';
 import { generateTypeScriptSdk } from '../src/data/sdkGenerator.ts';
-import { createVerifiedDevOpsZip } from '../src/data/export.js';
+import { createVerifiedDevOpsZip } from '../src/data/export.ts';
 import { unzipSync, strFromU8 } from 'fflate';
 
 test('OpenAPI 3.1 Multi-Service: paths come only from the model\'s API operations', () => {

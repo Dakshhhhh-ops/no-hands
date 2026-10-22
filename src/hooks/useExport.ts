@@ -1,8 +1,11 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import type { Project } from '../types/schema.ts';
-import { sound } from '../utils/sound.js';
-import { createVerifiedExportZip, createVerifiedDevOpsZip } from '../data/export.js';
-import { renderArchitecturePng, makeArchitectureSvg, makeArchitectureMermaid } from '../data/diagramExport.js';
+import { sound } from '../utils/sound.ts';
+
+// The ZIP writer (fflate), the IaC generators, and the diagram renderer load on the
+// first export, not with the page.
+const loadExport = () => import('../data/export.ts');
+const loadDiagramExport = () => import('../data/diagramExport.ts');
 
 interface ExportBundle {
   data: Uint8Array;
@@ -69,6 +72,7 @@ export function useExport(project: Project | null, notify: (_message: string) =>
   const exportAll = useCallback(async () => {
     await downloadBundle(
       async (model) => {
+        const [{ createVerifiedExportZip }, { renderArchitecturePng }] = await Promise.all([loadExport(), loadDiagramExport()]);
         const png = await renderArchitecturePng(model);
         return createVerifiedExportZip(model, undefined, png);
       },
@@ -78,7 +82,7 @@ export function useExport(project: Project | null, notify: (_message: string) =>
   }, [downloadBundle]);
 
   const exportDevOps = useCallback(async () => {
-    await downloadBundle(createVerifiedDevOpsZip, '-devops', 'DevOps bundle');
+    await downloadBundle(async (model) => (await loadExport()).createVerifiedDevOpsZip(model), '-devops', 'DevOps bundle');
   }, [downloadBundle]);
 
   const exportDiagram = useCallback(async (format: 'svg' | 'png' | 'mermaid') => {
@@ -88,6 +92,7 @@ export function useExport(project: Project | null, notify: (_message: string) =>
       setExportOpen(false);
       const slug = project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const extension = format === 'mermaid' ? 'mmd' : format;
+      const { renderArchitecturePng, makeArchitectureSvg, makeArchitectureMermaid } = await loadDiagramExport();
       const content = format === 'svg' ? makeArchitectureSvg(project)
         : format === 'mermaid' ? makeArchitectureMermaid(project)
           : await renderArchitecturePng(project);

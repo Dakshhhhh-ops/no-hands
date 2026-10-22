@@ -11,7 +11,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
 
-    /* Project mixes .js data modules with .jsx components and .ts modules */
+    /* All app code in src/ and server/ is TypeScript; the Node unit tests (tests/*.js) are plain JS */
     "allowJs": true,
     "checkJs": false,
     "jsx": "react-jsx",

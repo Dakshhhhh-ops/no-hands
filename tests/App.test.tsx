@@ -53,7 +53,7 @@ vi.mock('lucide-react', () => {
 });
 
 import { render, screen, fireEvent } from '@testing-library/react';
-import App from '../src/App.jsx';
+import App from '../src/App.tsx';
 
 const renderApp = () => render(<App />);
 

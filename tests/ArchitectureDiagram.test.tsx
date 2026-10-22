@@ -1,14 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import ArchitectureDiagram from '../src/components/ArchitectureDiagram.jsx';
+import ArchitectureDiagram from '../src/components/ArchitectureDiagram.tsx';
+import type { Project } from '../src/types/schema.ts';
 
-const mockProject = {
+// Shaped like ProjectSchema.parse output: defaulted fields (responsibilities, activity) are present.
+const mockProject: Project = {
   name: 'Test Architecture',
   version: 1,
   components: [
-    { id: 'web', name: 'Web Frontend', type: 'SERVICE', sub: 'React SPA', x: 100, y: 100 },
-    { id: 'api', name: 'API Gateway', type: 'SERVICE', sub: 'Kong', x: 300, y: 100 },
-    { id: 'auth', name: 'Auth Service', type: 'SERVICE', sub: 'JWT + Redis', x: 500, y: 100 },
+    { id: 'web', name: 'Web Frontend', type: 'SERVICE', sub: 'React SPA', responsibilities: [], x: 100, y: 100 },
+    { id: 'api', name: 'API Gateway', type: 'SERVICE', sub: 'Kong', responsibilities: [], x: 300, y: 100 },
+    { id: 'auth', name: 'Auth Service', type: 'SERVICE', sub: 'JWT + Redis', responsibilities: [], x: 500, y: 100 },
   ],
   relationships: [
     { from: 'web', to: 'api', label: 'HTTPS' },
@@ -16,8 +18,7 @@ const mockProject = {
   ],
   requirements: [],
   apiOperations: [],
-  risks: [],
-  tasks: [],
+  activity: [],
   changes: [],
   changed: false,
 };
@@ -109,12 +110,12 @@ describe('ArchitectureDiagram', () => {
   });
 
   it('labels the outage simulator as simulated and targets components from the model', () => {
-    const withData = {
+    const withData: Project = {
       ...mockProject,
       components: [
         ...mockProject.components,
-        { id: 'sessions', name: 'Session Cache', type: 'CACHE', sub: '', x: 0, y: 0 },
-        { id: 'main-db', name: 'Main DB', type: 'DATABASE', sub: '', x: 0, y: 0 },
+        { id: 'sessions', name: 'Session Cache', type: 'CACHE', sub: '', responsibilities: [], x: 0, y: 0 },
+        { id: 'main-db', name: 'Main DB', type: 'DATABASE', sub: '', responsibilities: [], x: 0, y: 0 },
       ],
     };
     render(<ArchitectureDiagram project={withData} />);
@@ -142,5 +143,19 @@ describe('ArchitectureDiagram', () => {
     expect(screen.getByRole('button', { name: /zoom in/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /zoom out/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /100%/i })).toBeInTheDocument();
+  });
+
+  it('gives data stores their own pattern, and services theirs', () => {
+    const withStore: Project = {
+      ...mockProject,
+      components: [
+        ...mockProject.components,
+        { id: 'db', name: 'Orders DB', type: 'DATABASE', sub: 'PostgreSQL', responsibilities: [], x: 700, y: 100 },
+      ],
+    };
+    const { container } = render(<ArchitectureDiagram project={withStore} />);
+    const fills = [...container.querySelectorAll<SVGRectElement>('rect[opacity="0.1"]')].map((rect) => rect.style.fill);
+    expect(fills.filter((fill) => fill.includes('pattern-datastore'))).toHaveLength(1);
+    expect(fills.filter((fill) => fill.includes('pattern-service'))).toHaveLength(3);
   });
 });

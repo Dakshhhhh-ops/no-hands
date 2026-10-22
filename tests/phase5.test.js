@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeCommerceProject, proposeChange, applyChange } from '../src/data/commerce.js';
+import { makeCommerceProject, proposeChange, applyChange } from '../src/data/commerce.ts';
 import {
   simulateChaosAndTelemetry,
 } from '../src/data/chaosSimulator.ts';

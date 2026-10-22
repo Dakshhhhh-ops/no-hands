@@ -19,24 +19,29 @@ architecture workspace.
 
 ## Project layout
 
-- `src/App.jsx` — root component. CSS is imported in `src/main.jsx` in this order:
-  `styles.css`, `responsive.css`, `theme.css` (legacy utility classes), `tokens.css`,
+- `src/App.tsx` — root component. CSS is imported in `src/main.tsx` in this order:
+  `fonts.css` (self-hosted fonts from `src/fonts/`, OFL-licensed), `styles.css`, `responsive.css`, `theme.css` (legacy utility classes), `tokens.css`,
   `bridge.css`, `app-shell.css`, `landing.css`, `landing-v3.css`, `landing-canvas.css`
   (landing sections and the workspace studio layout), `theme-editorial.css` (the
   paper/ink/vermilion palette; overrides every earlier color), `panels.css` (the
   workspace output panels, built only from theme tokens; loaded last).
-- `src/components/` — React components (`.jsx`).
-- `src/data/` — domain modules (`.ts` and `.js`). Mixed extension is intentional:
-  `.ts` modules use `.ts` extension imports (`allowImportingTsExtensions: true` in
-  `tsconfig.json`); `.js` modules import bare specifiers.
+- `src/components/` — React components (`.tsx`, each with an exported props interface).
+- `src/data/` — domain modules (`.ts`). Imports use the `.ts` extension
+  (`allowImportingTsExtensions: true` in `tsconfig.json`), so Node runs them directly.
+- All app code in `src/` and `server/` is strict TypeScript with no `any`; the Node unit
+  tests in `tests/*.js` are plain JS.
 - `src/types/schema.ts` — Zod schema (single source of truth for domain types).
-- `tests/` — `node --test` test files.
-- `index.html` — entry point; preconnects Google Fonts and loads Instrument Sans +
-  JetBrains Mono via `<link>`.
+- `tests/` — `node --test` unit tests (`*.test.js`), Vitest component tests (`*.test.tsx`),
+  and Playwright browser tests (`*.spec.ts`, Chromium and WebKit, against a production build).
+- `server/` — the production server (`serve.ts`), API routes, and `securityHeaders.ts`.
+  The CSP allows only `'self'`: no inline styles or scripts, no third-party hosts.
+- `index.html` — entry point. No inline styles or scripts, no external resources.
 
 ## Conventions
 
 - Do not commit secrets or keys.
+- Keep the CSP strict: no inline `<style>`/`style=""` markup (React `style` props are fine),
+  no `eval`, no third-party URLs. `tests/security.spec.ts` fails on any violation.
 - Keep the working tree clean; only commit when explicitly asked.
 - CSS files: `tokens.css` (design tokens), `app-shell.css` (shell layout), `bridge.css`
   (legacy utility scoping under `.va-app`).

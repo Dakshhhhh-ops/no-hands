@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import CommandPalette from '../src/components/CommandPalette.jsx';
-import ShortcutsModal from '../src/components/ShortcutsModal.jsx';
+import CommandPalette from '../src/components/CommandPalette.tsx';
+import ShortcutsModal from '../src/components/ShortcutsModal.tsx';
 
 // Render the real icons: the palette crashed when it rendered an icon component as a child.
 vi.mock('lucide-react', async (importOriginal) => importOriginal());

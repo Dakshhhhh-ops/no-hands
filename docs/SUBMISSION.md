@@ -25,7 +25,7 @@ Not integrated, because it is not documented for web pages: any Wispr API call t
 
 ## Tech stack
 
-React 19 and Vite, TypeScript, Zod (single schema for the model, operations, and the model's structured output), a small Node server for `/api/interpret`, `/api/status`, `/api/health`, and `/api/wispr/*` with per-IP rate limits, a daily cap, and recorded answers keyed by a SHA-256 of the exact request, Groq (`openai/gpt-oss-120b`, the measured interpreter that the live demo uses) or Claude (`claude-opus-5-5` through the Anthropic SDK with structured outputs and prompt caching, used when its key is set, not yet measured) for interpretation, an MCP client over Streamable HTTP with OAuth 2.1 (dynamic client registration, PKCE S256, resource indicators) for Wispr Flow, Vitest and Testing Library, Playwright with axe-core, Docker, and a PWA build.
+React 19 and Vite, strict TypeScript throughout the app and server (no `any`), Zod (single schema for the model, operations, and the model's structured output), a small Node server for `/api/interpret`, `/api/status`, `/api/health`, and `/api/wispr/*` with per-IP rate limits, a daily cap, and recorded answers keyed by a SHA-256 of the exact request, Groq (`openai/gpt-oss-120b`, the measured interpreter that the live demo uses) or Claude (`claude-opus-5-5` through the Anthropic SDK with structured outputs and prompt caching, used when its key is set, not yet measured) for interpretation, an MCP client over Streamable HTTP with OAuth 2.1 (dynamic client registration, PKCE S256, resource indicators) for Wispr Flow, Vitest and Testing Library, Playwright with axe-core, Docker, and a PWA build.
 
 ## Measured
 
@@ -37,7 +37,7 @@ On 22 labelled instructions (11 English, 11 Hinglish), scored by the structural 
 | Offline rules, no key | 13 / 22 | 6 / 11 | 7 / 11 |
 | Claude (Opus 5.5, Sonnet 5.5, Haiku 5.5) | not measured yet | | |
 
-The model was run 3 times with different seeds on 2026-10-21; 18 of 22 cases passed every run. In the app, Groq requests use a fixed seed and temperature 0.5 to keep proposals consistent, and the review step always shows the exact change. Method and full results are in the README's Evals section and `evals/results/`. Claude is the default provider but has not been measured yet; the commands are in the README's Evals section. Tests: 133 unit, 60 component, 17 browser (including axe accessibility checks in both themes). No test calls Wispr Flow or a model provider.
+The model was run 3 times with different seeds on 2026-10-21; 18 of 22 cases passed every run. In the app, Groq requests use a fixed seed and temperature 0.5 to keep proposals consistent, and the review step always shows the exact change. Method and full results are in the README's Evals section and `evals/results/`. Claude is the default provider but has not been measured yet; the commands are in the README's Evals section. Tests: 143 unit, 61 component, and 19 browser tests run in both Chromium and WebKit (axe accessibility checks in both themes, and a check that no flow triggers a Content-Security-Policy violation), all in CI. No test calls Wispr Flow or a model provider. Every response carries a strict CSP, HSTS over HTTPS, and a Permissions-Policy that allows only the microphone.
 
 ## Limitations
 

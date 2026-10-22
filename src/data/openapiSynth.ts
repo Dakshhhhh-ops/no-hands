@@ -1,5 +1,5 @@
 import type { Project } from '../types/schema.ts';
-import { cacheChoicesFor, cacheRequirement, findCaches, findPublicEntry, isAuthOperation, rateLimitApplies, rateLimitRequirement } from './modelFacts.js';
+import { cacheChoicesFor, cacheRequirement, findCaches, findPublicEntry, isAuthOperation, rateLimitApplies, rateLimitRequirement } from './modelFacts.ts';
 
 export interface SchemaDriftItem {
   id: string;

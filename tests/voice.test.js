@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { cleanDictation, dictionaryWords } from '../src/data/dictation.ts';
 import { parseFollowUp, combineInstruction } from '../src/data/reviewCommands.ts';
 import { interpretPattern, resolveComponent } from '../src/data/patternRules.ts';
-import { applyChange, makeCommerceProject } from '../src/data/commerce.js';
+import { applyChange, makeCommerceProject } from '../src/data/commerce.ts';
 import { validateProject } from '../src/types/schema.ts';
 
 /** A small shop: gateway, payment and order services, Redis, PostgreSQL, Kafka. */

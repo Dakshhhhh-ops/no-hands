@@ -1,6 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, X, Bug } from 'lucide-react';
-import { sound } from '../utils/sound.js';
+import { sound } from '../utils/sound.ts';
 
 interface Props {
   children: ReactNode;

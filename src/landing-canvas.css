@@ -65,34 +65,8 @@
 .va-hero-canvas .va-hero-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin: 0 0 30px; animation: none; }
 
 /* Selection frame with handles, like a selected text layer on a canvas */
-.va-select { position: relative; padding: 18px 34px 26px; }
-.va-select::before {
-  content: ''; position: absolute; inset: 0; border: 1px dashed color-mix(in srgb, var(--va-indigo) 55%, transparent);
-  opacity: 0; transition: opacity .6s .9s ease;
-}
-.va-select.is-revealed::before { opacity: 1; }
-.va-select-h {
-  position: absolute; width: 9px; height: 9px; margin: -4.5px; background: var(--va-panel);
-  border: 1.5px solid var(--va-indigo); border-radius: 2px; opacity: 0; scale: .4;
-  transition: opacity .4s ease, scale .4s var(--va-ease-spring); transition-delay: 1s;
-}
-.va-select.is-revealed .va-select-h { opacity: 1; scale: 1; }
-.h-tl { left: 0; top: 0; } .h-tm { left: 50%; top: 0; } .h-tr { left: 100%; top: 0; }
-.h-ml { left: 0; top: 50%; } .h-mr { left: 100%; top: 50%; }
-.h-bl { left: 0; top: 100%; } .h-bm { left: 50%; top: 100%; } .h-br { left: 100%; top: 100%; }
-.va-select-label {
-  position: absolute; left: 0; top: -30px; padding: 3px 8px; border-radius: 4px;
-  background: var(--va-indigo); color: #fff; font: 600 11px/1.4 var(--va-mono); letter-spacing: .02em;
-  opacity: 0; translate: 0 6px; transition: opacity .4s 1.1s ease, translate .4s 1.1s var(--va-ease-out);
-}
-.va-select.is-revealed .va-select-label { opacity: 1; translate: 0 0; }
-.va-select[data-reveal] { opacity: 1; translate: none; scale: none; filter: none; }
 
 /* Code-styled line (editor syntax colors) */
-.va-code-line { margin: 0; color: var(--va-muted); font: 500 13px/1.6 var(--va-mono); }
-.va-code-line .t { color: var(--va-rose); }
-.va-code-line .a { color: var(--va-violet); }
-.va-code-line .s { color: var(--va-teal); }
 
 /* ---------- Floating fragments ---------- */
 .va-frags { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
@@ -169,103 +143,25 @@
 }
 
 /* ---------- The problem, as a proofreader's redline ---------- */
-.va-redline {
-  /* 0..1 as the section crosses the viewport; strike first, then the fix is written in */
-  --s: clamp(0, (var(--va-progress, 0) - .26) * 7, 1);
-  --w: clamp(0, (var(--va-progress, 0) - .36) * 6, 1);
-  --q: clamp(0, (var(--va-progress, 0) - .46) * 6, 1);
-  position: relative; padding: 150px 24px 130px;
-  border-bottom: 1px solid var(--va-line);
-}
-.va-redline-inner {
-  display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 56px;
-  max-width: 1320px; margin: 0 auto; align-items: start;
-}
-.va-redline-meta { position: sticky; top: 110px; }
-.va-redline-meta dl { display: grid; gap: 0; margin: 6px 0 18px; font: 500 12px/1.4 var(--va-mono); }
-.va-redline-meta dl div { display: grid; gap: 4px; padding: 12px 0; border-bottom: 1px dashed var(--va-line-strong); }
-.va-redline-meta dt { color: var(--va-faint); letter-spacing: .08em; text-transform: uppercase; font-size: 10.5px; }
-.va-redline-meta dd { margin: 0; color: var(--va-ink); overflow-wrap: anywhere; }
-.va-redline-meta dd.is-bad { color: var(--va-rose); }
-.va-redline-tag {
-  display: inline-block; padding: 4px 9px; border: 1px solid var(--va-line-strong); border-radius: 999px;
-  color: var(--va-faint); font: 500 10.5px/1 var(--va-mono); letter-spacing: .12em; text-transform: uppercase;
-}
-.va-redline-text {
-  margin: 0; max-width: 20ch;
-  font-size: clamp(36px, 5.4vw, 88px); line-height: 1.08; font-weight: 600; letter-spacing: -.045em;
-  color: var(--va-ink);
-}
-.va-redline-line { display: block; }
-.va-redline-line.is-quiet {
-  margin-top: .7em; font-size: .4em; font-weight: 500; letter-spacing: -.02em; line-height: 1.2;
-  color: var(--va-muted);
-}
-.va-redline-pair { display: inline-block; white-space: nowrap; }
-.va-redline-fix { position: relative; display: inline-block; white-space: nowrap; }
-.va-redline-del { color: color-mix(in srgb, var(--va-faint) calc(var(--s) * 100%), var(--va-ink)); }
-.va-redline-fix::after {
-  content: ""; position: absolute; left: -3%; right: -3%; top: 54%; height: max(3px, .06em);
-  background: var(--va-accent); border-radius: 2px;
-  transform: rotate(-2.5deg) scaleX(var(--s)); transform-origin: left center;
-}
-.va-redline-ins {
-  display: inline-block; white-space: nowrap;
-  font-family: var(--va-serif); font-style: italic; font-weight: 400; letter-spacing: -.01em;
-  color: var(--va-accent); rotate: -3deg; translate: 0 -.04em;
-  clip-path: inset(-30% calc((1 - var(--w)) * 100%) -30% -10%);
-}
-.va-redline-lead {
-  max-width: 46ch; margin: 56px 0 0; padding-top: 22px; border-top: 1px solid var(--va-line-strong);
-  color: var(--va-muted); font-size: clamp(17px, 1.4vw, 21px); line-height: 1.55;
-}
 
 /* ---------- Numbered labels ---------- */
-.va-label {
-  display: inline-block; margin: 0 0 26px; padding-bottom: 12px;
-  border-bottom: 1px solid var(--va-line-strong);
-  color: var(--va-ink); font: 600 12px/1 var(--va-font); letter-spacing: .16em; text-transform: uppercase;
-}
-.va-label-n { color: var(--va-faint); font-family: var(--va-mono); letter-spacing: .06em; }
 
 /* ---------- 3D model section ---------- */
-.va-layers-body { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, .8fr); gap: 40px; align-items: center; margin-top: 40px; }
-.va-layers-stage .va-stack { height: 640px; }
-.va-layers-stage .va-stack-scene { left: 50%; top: 52%; }
-.va-layers-legend { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
-.va-layers-legend li {
-  display: flex; align-items: baseline; gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--va-line);
-  font-size: 20px; font-weight: 600; letter-spacing: -.01em;
-}
-.va-layers-count { color: var(--tone); font: 500 40px/1 var(--va-mono); letter-spacing: -.04em; min-width: 2.2ch; }
-.va-layers-legend .va-layers-note { display: block; border: 0; color: var(--va-faint); font-size: 14px; font-weight: 500; }
 
 /* Sections use the paper/ink rhythm */
-.va-app .va-section.va-layers { padding-top: 120px; padding-bottom: 80px; }
-.va-app .va-layers .va-section-inner { max-width: 1320px; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
-  .va-redline-inner { grid-template-columns: minmax(0, 1fr); gap: 28px; }
-  .va-redline-meta { position: static; }
-  .va-redline-meta dl { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
   .va-frag-window, .va-frag-tile.f-3, .va-frag-node.f-10, .va-frag-toggle, .va-pointer.p-3 { display: none; }
-  .va-layers-body { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 760px) {
   .va-frags { display: none; }
   .va-app .va-hero.va-hero-canvas { min-height: 0; padding: 72px 16px 88px; }
-  .va-select { padding: 14px 10px 20px; }
-  .va-redline { padding: 96px 16px 88px; }
-  .va-layers-stage .va-stack { height: 480px; }
 }
 
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .va-frag, .va-pointer { animation: none; transition: none; }
-  .va-select::before, .va-select-h, .va-select-label { transition: none; }
-  .va-select::before, .va-select-h, .va-select-label { opacity: 1; scale: 1; translate: none; }
-  .va-redline { --s: 1; --w: 1; --q: 1; }
 }
 
 /* ==========================================================================
@@ -290,7 +186,6 @@
 .va-studio-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .va-studio .va-sample-picker { gap: 4px; }
 .va-studio .va-sample-picker select { min-height: 32px; font-size: 13.5px; background: var(--va-panel); }
-.va-studio .va-history { gap: 2px; }
 
 .va-pop { position: relative; }
 .va-pop-panel {
@@ -339,13 +234,11 @@
 }
 .va-studio .va-composer-head { align-items: center; }
 .va-studio .va-composer h2 { margin: 0; font-size: 19px; }
-.va-studio .va-mic { width: 44px; height: 44px; }
 .va-studio .va-field textarea { min-height: 128px; font-size: 14.5px; background: var(--va-bg); }
 .va-studio .va-field-hint { margin-top: 8px; color: var(--va-faint); }
 .va-studio .va-field-hint kbd { font-size: 11px; }
 .va-studio .va-composer-actions { display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; gap: 10px; }
 .va-studio .va-composer-actions .va-btn-primary { width: 100%; height: 44px; justify-content: center; }
-.va-composer-links { display: flex; justify-content: space-between; gap: 8px; }
 .va-link-btn {
   display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none;
   color: var(--va-muted); font: 500 13px/1.3 var(--va-font); cursor: pointer;
@@ -391,7 +284,6 @@
 /* Composer */
 .va-app .va-wave:not([data-live="true"]) { display: none; }
 .va-app .va-composer-head p { margin-top: 6px; color: var(--va-muted); font-size: 14px; }
-.va-app .va-prompts-label { margin: 18px 0 8px; color: var(--va-faint); font: 600 11px/1 var(--va-font); letter-spacing: .14em; text-transform: uppercase; }
 .va-app .presets-container { padding: 0; border: 0; background: none; box-shadow: none; }
 .va-app .presets-grid { display: flex; flex-wrap: wrap; gap: 8px; grid-template-columns: none; }
 .va-app .preset-card {
@@ -411,46 +303,20 @@
 .va-app .diagram-help { margin: 10px 2px 0; color: var(--va-faint); font-size: 12.5px; }
 
 /* Automated browsers (tests): keep layout identical, drop decorative motion. */
-.va-automated .va-grain { display: none; }
 .va-automated .va-frag,
 .va-automated .va-pointer,
-.va-automated .va-aurora,
-.va-automated .va-stack-layer,
-.va-automated .va-stack-beam::after,
 .va-automated .va-story-wave i,
-.va-automated .va-gradient-text,
 .va-automated .va-mini-wave i,
-.va-automated .va-live-dot,
-.va-automated .va-scroll-cue i::after { animation: none !important; }
+.va-automated .va-live-dot { animation: none !important; }
 .va-automated .va-frag { backdrop-filter: none; }
 
 /* ==========================================================================
    Voice input: the hero instruction box (where Wispr Flow types), the composer
    hint, and the follow-up field in the review dialog.
    ========================================================================== */
-.va-voicebar {
-  width: min(680px, 100%); margin: 28px auto 0; padding: 14px 14px 12px;
-  border: 1px solid var(--va-line-strong); border-radius: 18px; background: var(--va-panel);
-  box-shadow: 0 24px 50px -32px rgba(0, 0, 0, .45); text-align: left;
-  transition: border-color .15s ease, box-shadow .15s ease;
-}
-.va-voicebar:focus-within { border-color: var(--va-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--va-accent) 18%, transparent), 0 24px 50px -32px rgba(0, 0, 0, .45); }
-.va-voicebar textarea {
-  display: block; width: 100%; min-height: 64px; max-height: 220px; resize: vertical; padding: 4px 6px;
-  border: 0; background: transparent; color: var(--va-ink);
-  font: 500 clamp(17px, 1.6vw, 20px)/1.45 var(--va-font); letter-spacing: -.01em; outline: none;
-}
-.va-voicebar textarea::placeholder { color: var(--va-faint); font-weight: 400; }
-.va-voicebar-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--va-line); }
-.va-voicebar-hint { display: inline-flex; align-items: center; gap: 7px; margin: 0; color: var(--va-muted); font-size: 13.5px; }
-.va-voicebar-hint svg { color: var(--va-accent-strong); }
-.va-voicebar .va-btn-primary { height: 40px; padding: 0 18px; border-radius: 999px; }
-.va-hero-secondary { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; margin: 18px 0 14px; }
-.va-hero-secondary .va-link-btn { font-size: 14px; }
 
 .va-composer-hint { display: flex; align-items: flex-start; gap: 7px; margin: -4px 0 0; color: var(--va-muted); font-size: 13px; line-height: 1.45; }
 .va-composer-hint svg { flex: none; margin-top: 2px; color: var(--va-accent-strong); }
-.va-composer-dict { align-self: flex-start; font-size: 12.5px; }
 
 .va-followup { display: grid; gap: 6px; margin: 4px 0 14px; padding: 12px 14px; border: 1px dashed var(--va-line-strong); border-radius: 12px; background: var(--va-bg); }
 .va-followup label { color: var(--va-ink); font-size: 13px; font-weight: 600; }
@@ -461,11 +327,6 @@
 }
 .va-followup input:focus-visible { outline: none; border-color: var(--va-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--va-accent) 22%, transparent); }
 .va-followup small { color: var(--va-muted); font-size: 12px; }
-
-@media (max-width: 640px) {
-  .va-voicebar { margin-top: 20px; border-radius: 14px; }
-  .va-voicebar-foot .va-btn-primary { width: 100%; justify-content: center; }
-}
 
 /* ---------- Guided demo card ---------- */
 .va-guide {

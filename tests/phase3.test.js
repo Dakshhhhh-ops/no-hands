@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeCommerceProject, DEMO_COMMAND, proposeChange, applyChange } from '../src/data/commerce.js';
+import { makeCommerceProject, DEMO_COMMAND, proposeChange, applyChange } from '../src/data/commerce.ts';
 import { generateJsonPatch, applyJsonPatch } from '../src/data/jsonPatch.ts';
 import { HistoryTimeline } from '../src/data/historyManager.ts';
-import { normalizeArchitectureCommand } from '../src/data/commandParser.js';
-import { FOOD_DELIVERY_DEMO_COMMAND, makeFoodDeliveryProject } from '../src/data/foodDelivery.js';
-import { deriveRiskFindings, deriveTasks } from '../src/data/analysis.js';
-import { makeOpenApi } from '../src/data/openapi.js';
+import { normalizeArchitectureCommand } from '../src/data/commandParser.ts';
+import { FOOD_DELIVERY_DEMO_COMMAND, makeFoodDeliveryProject } from '../src/data/foodDelivery.ts';
+import { deriveRiskFindings, deriveTasks } from '../src/data/analysis.ts';
+import { makeOpenApi } from '../src/data/openapi.ts';
 import { generateMultiServiceOpenApi } from '../src/data/openapiSynth.ts';
-import { createVerifiedExportZip, makeExportFiles } from '../src/data/export.js';
+import { createVerifiedExportZip, makeExportFiles } from '../src/data/export.ts';
 import {
   forkBranch,
   calculateBranchMetrics,

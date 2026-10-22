@@ -12,9 +12,9 @@ import {
   validateProject,
   validateProposal,
 } from '../src/types/schema.ts';
-import { makeCommerceProject, proposeChange, applyChange, DEMO_COMMAND } from '../src/data/commerce.js';
-import { deriveRiskFindings, deriveTasks } from '../src/data/analysis.js';
-import { deriveChangeDiff, deriveManualDecisions } from '../src/data/changeDiff.js';
+import { makeCommerceProject, proposeChange, applyChange, DEMO_COMMAND } from '../src/data/commerce.ts';
+import { deriveRiskFindings, deriveTasks } from '../src/data/analysis.ts';
+import { deriveChangeDiff, deriveManualDecisions } from '../src/data/changeDiff.ts';
 
 test('Zod Schema: ProjectSchema validates valid baseline project', () => {
   const project = makeCommerceProject();

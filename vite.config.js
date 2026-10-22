@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import { apiMiddleware } from './server/interpret.ts';
+import { applySecurityHeaders } from './server/securityHeaders.ts';
 
 /** Serves /api/status and /api/interpret from the dev and preview servers.
  * API keys are read server-side only and never bundled into the client. */
@@ -12,6 +13,12 @@ function voiceArchitectApi() {
       server.middlewares.use(apiMiddleware);
     },
     configurePreviewServer(server) {
+      // The preview runs the production build under the production headers, CSP included,
+      // so the browser tests catch anything the policy would block.
+      server.middlewares.use((req, res, next) => {
+        applySecurityHeaders(req, res, false);
+        next();
+      });
       server.middlewares.use(apiMiddleware);
     },
   };
@@ -57,32 +64,6 @@ export default defineConfig(({ mode }) => {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         cleanupOutdatedCaches: true,
         navigateFallbackDenylist: [/^\/api\//],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365,
-              },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'gstatic-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365,
-              },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
       },
     }),
   ],
@@ -105,19 +86,12 @@ export default defineConfig(({ mode }) => {
   build: {
     rollupOptions: {
       output: {
+        // Only React gets its own long-cached chunk. Everything else follows the import
+        // graph, so libraries used by lazy features (yaml for compose import, fflate for
+        // exports, dagre for the diagram) load with those features, not with the page.
         manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'vendor-react';
-            }
-            if (id.includes('lucide-react')) {
-              return 'vendor-lucide';
-            }
-            if (id.includes('dagre')) {
-              return 'vendor-dagre';
-            }
-            return 'vendor-other';
-          }
+          if (/node_modules[\/](react|react-dom|scheduler)[\/]/.test(id)) return 'vendor-react';
+          return undefined;
         },
       },
     },

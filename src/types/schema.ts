@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+// No code generation: the page's CSP has no 'unsafe-eval', and without this Zod probes
+// for it with `new Function`, which the browser reports as a policy violation.
+z.config({ jitless: true });
+
 /* ==========================================================================
    VoiceArchitect Domain Schema & Type Definitions
    Zod schemas, validation, and explicit foreign keys
@@ -261,14 +265,14 @@ export const ProjectSchema = z.object({
   project.relationships.forEach((rel, index) => {
     if (!componentIds.has(rel.from)) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: `Relationship references non-existent source component: "${rel.from}"`,
         path: ['relationships', index, 'from'],
       });
     }
     if (!componentIds.has(rel.to)) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: `Relationship references non-existent target component: "${rel.to}"`,
         path: ['relationships', index, 'to'],
       });
@@ -279,7 +283,7 @@ export const ProjectSchema = z.object({
   project.apiOperations.forEach((op, index) => {
     if (!componentIds.has(op.componentId)) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: `API operation references non-existent component: "${op.componentId}"`,
         path: ['apiOperations', index, 'componentId'],
       });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeCommerceProject } from '../src/data/commerce.js';
+import { makeCommerceProject } from '../src/data/commerce.ts';
 import {
   computeGraphLayout,
   getUpstreamDependencies,
@@ -9,7 +9,7 @@ import {
   detectCycles,
   getDeploymentPlan,
   getDiagramNeighborhood,
-} from '../src/data/diagram.js';
+} from '../src/data/diagram.ts';
 
 test('Graph Layout: computeGraphLayout assigns non-colliding dynamic coordinates', () => {
   const project = makeCommerceProject();

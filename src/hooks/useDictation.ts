@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { sound } from '../utils/sound.js';
+import { sound } from '../utils/sound.ts';
 
 interface UseDictationOptions {
   onResult?: (_transcript: string) => void;

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeCommerceProject, proposeChange, applyChange } from '../src/data/commerce.js';
-import { deriveRiskFindings, countOpenDecisions } from '../src/data/analysis.js';
-import { fixFor, resolutionProposal } from '../src/data/riskResolution.js';
+import { makeCommerceProject, proposeChange, applyChange } from '../src/data/commerce.ts';
+import { deriveRiskFindings, countOpenDecisions } from '../src/data/analysis.ts';
+import { fixFor, resolutionProposal } from '../src/data/riskResolution.ts';
 
 const DEMO = 'Move session storage to Redis, keep PostgreSQL as the source of truth, add login rate limiting, and keep login working if Redis is down.';
 const open = (project) => deriveRiskFindings(project).filter((f) => f.status === 'open');

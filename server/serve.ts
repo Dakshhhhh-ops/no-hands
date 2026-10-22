@@ -3,15 +3,18 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { brotliCompressSync, constants as zlib, gzipSync } from 'node:zlib';
 import { activeModel, activeProvider, apiMiddleware } from './interpret.ts';
+import { applySecurityHeaders } from './securityHeaders.ts';
 
 /**
  * Production server: serves the built app from dist/ and the interpretation API routes.
- * Run with `npm run build && npm start`. Mirrors the caching and security headers
- * of nginx.conf, which can only serve static files and so can't host the API.
+ * Run with `npm run build && npm start`. Every response carries the headers from
+ * securityHeaders.ts; text assets are sent Brotli- or gzip-compressed when the browser
+ * accepts it.
  */
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const PORT = Number(process.env.PORT) || 8080;
 
 const TYPES: Record<string, string> = {
@@ -30,72 +33,121 @@ const TYPES: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-function cacheControl(urlPath: string): string {
+/** Text formats worth compressing. Images and woff2 are already compressed. */
+const COMPRESSIBLE = new Set(['.html', '.js', '.mjs', '.css', '.json', '.webmanifest', '.svg', '.yml', '.yaml', '.txt']);
+/** Below this, compression saves less than the extra header costs. */
+const MIN_COMPRESS_BYTES = 1024;
+
+export function cacheControl(urlPath: string): string {
   if (urlPath === '/sw.js' || urlPath.endsWith('.html')) return 'no-cache, no-store, must-revalidate';
   if (urlPath.startsWith('/assets/') || /^\/workbox-.*\.js$/.test(urlPath)) return 'public, max-age=31536000, immutable';
   return 'public, max-age=3600';
 }
 
-async function sendFile(res: ServerResponse, filePath: string, urlPath: string, method: string) {
-  const body = await readFile(filePath);
-  res.statusCode = 200;
-  res.setHeader('Content-Type', TYPES[path.extname(filePath).toLowerCase()] || 'application/octet-stream');
-  res.setHeader('Cache-Control', cacheControl(urlPath));
-  res.setHeader('Content-Length', body.length);
-  res.end(method === 'HEAD' ? undefined : body);
+/** The best encoding the request accepts: br, then gzip, else none. Honors q=0. */
+export function pickEncoding(acceptEncoding: string | string[] | undefined): 'br' | 'gzip' | null {
+  const header = (Array.isArray(acceptEncoding) ? acceptEncoding.join(',') : acceptEncoding || '').toLowerCase();
+  const accepted = new Set<string>();
+  for (const part of header.split(',')) {
+    const [name, ...params] = part.trim().split(';').map((s) => s.trim());
+    const q = params.find((p) => p.startsWith('q='));
+    if (name && !(q && Number(q.slice(2)) === 0)) accepted.add(name);
+  }
+  if (accepted.has('br')) return 'br';
+  if (accepted.has('gzip')) return 'gzip';
+  return null;
 }
 
-async function serveStatic(req: IncomingMessage, res: ServerResponse) {
-  const method = req.method || 'GET';
-  if (method !== 'GET' && method !== 'HEAD') {
-    res.statusCode = 405;
-    res.end();
-    return;
+interface Cached { mtimeMs: number; raw: Buffer; br?: Buffer; gzip?: Buffer }
+
+export function createAppServer({ root: rootOption = DIST, trustProxy = process.env.VOICEARCHITECT_TRUST_PROXY === '1' } = {}) {
+  // Resolved once, so the containment check below compares like with like on every platform.
+  const root = path.resolve(rootOption);
+  // Built files never change while the server runs, so each is read and compressed once.
+  const cache = new Map<string, Cached>();
+
+  async function load(filePath: string): Promise<Cached> {
+    const { mtimeMs } = await stat(filePath);
+    const hit = cache.get(filePath);
+    if (hit && hit.mtimeMs === mtimeMs) return hit;
+    const entry: Cached = { mtimeMs, raw: await readFile(filePath) };
+    cache.set(filePath, entry);
+    return entry;
   }
-  let urlPath: string;
-  try {
-    urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
-  } catch {
-    res.statusCode = 400;
-    res.end();
-    return;
+
+  async function sendFile(req: IncomingMessage, res: ServerResponse, filePath: string, urlPath: string) {
+    const entry = await load(filePath);
+    const ext = path.extname(filePath).toLowerCase();
+    let body = entry.raw;
+    res.setHeader('Content-Type', TYPES[ext] || 'application/octet-stream');
+    res.setHeader('Cache-Control', cacheControl(urlPath));
+    if (COMPRESSIBLE.has(ext) && entry.raw.length >= MIN_COMPRESS_BYTES) {
+      res.setHeader('Vary', 'Accept-Encoding');
+      const encoding = pickEncoding(req.headers['accept-encoding']);
+      if (encoding === 'br') {
+        entry.br ??= brotliCompressSync(entry.raw, { params: { [zlib.BROTLI_PARAM_QUALITY]: 11, [zlib.BROTLI_PARAM_SIZE_HINT]: entry.raw.length } });
+        body = entry.br;
+      } else if (encoding === 'gzip') {
+        entry.gzip ??= gzipSync(entry.raw, { level: 9 });
+        body = entry.gzip;
+      }
+      if (encoding) res.setHeader('Content-Encoding', encoding);
+    }
+    res.statusCode = 200;
+    res.setHeader('Content-Length', body.length);
+    res.end(req.method === 'HEAD' ? undefined : body);
   }
-  const filePath = path.join(ROOT, path.normalize(urlPath));
-  if (!filePath.startsWith(ROOT)) {
-    res.statusCode = 403;
-    res.end();
-    return;
-  }
-  try {
-    if ((await stat(filePath)).isFile()) {
-      await sendFile(res, filePath, urlPath, method);
+
+  async function serveStatic(req: IncomingMessage, res: ServerResponse) {
+    const method = req.method || 'GET';
+    if (method !== 'GET' && method !== 'HEAD') {
+      res.statusCode = 405;
+      res.end();
       return;
     }
-  } catch {
-    // Not a file: fall through to the SPA entry point or a 404.
-  }
-  if (path.extname(urlPath)) {
-    res.statusCode = 404;
-    res.end('Not found');
-    return;
-  }
-  await sendFile(res, path.join(ROOT, 'index.html'), '/index.html', method);
-}
-
-export const server = createServer((req, res) => {
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  apiMiddleware(req, res, () => {
-    serveStatic(req, res).catch(() => {
-      if (!res.headersSent) res.statusCode = 500;
+    let urlPath: string;
+    try {
+      urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+    } catch {
+      res.statusCode = 400;
       res.end();
+      return;
+    }
+    const filePath = path.join(root, path.normalize(urlPath));
+    if (filePath !== root && !filePath.startsWith(root + path.sep)) {
+      res.statusCode = 403;
+      res.end();
+      return;
+    }
+    try {
+      if ((await stat(filePath)).isFile()) {
+        await sendFile(req, res, filePath, urlPath);
+        return;
+      }
+    } catch {
+      // Not a file: fall through to the SPA entry point or a 404.
+    }
+    if (path.extname(urlPath)) {
+      res.statusCode = 404;
+      res.end('Not found');
+      return;
+    }
+    await sendFile(req, res, path.join(root, 'index.html'), '/index.html');
+  }
+
+  return createServer((req, res) => {
+    applySecurityHeaders(req, res, trustProxy);
+    apiMiddleware(req, res, () => {
+      serveStatic(req, res).catch(() => {
+        if (!res.headersSent) res.statusCode = 500;
+        res.end();
+      });
     });
   });
-});
+}
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  server.listen(PORT, () => {
+  createAppServer().listen(PORT, () => {
     const provider = activeProvider();
     console.log(`VoiceArchitect on http://localhost:${PORT} (${provider ? `${provider}: ${activeModel(provider)}` : 'no model key: recorded answers, then offline rules'})`);
   });

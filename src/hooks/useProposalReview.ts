@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { Project, Proposal } from '../types/schema.ts';
-import { proposeChange, applyChange, DEMO_COMMAND } from '../data/commerce.js';
-import { FOOD_DELIVERY_DEMO_COMMAND } from '../data/foodDelivery.js';
-import { deriveChangeDiff } from '../data/changeDiff.js';
-import { sound } from '../utils/sound.js';
+import { proposeChange, applyChange, DEMO_COMMAND } from '../data/commerce.ts';
+import { FOOD_DELIVERY_DEMO_COMMAND } from '../data/foodDelivery.ts';
+import { deriveChangeDiff } from '../data/changeDiff.ts';
+import { sound } from '../utils/sound.ts';
 import { AiInterpretError, fetchAiStatus, interpretWithModel } from '../data/aiClient.ts';
 import type { AnswerSource, FallbackReason, ImportedNotes } from '../data/aiClient.ts';
 import { interpretPattern } from '../data/patternRules.ts';

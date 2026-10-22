@@ -4,9 +4,13 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -21,7 +25,33 @@ jobs:
         run: npm run lint
       - name: Typecheck
         run: npm run typecheck
-      - name: Run tests
+      - name: Unit tests
         run: npm test
+      - name: Component tests
+        run: npm run test:vitest
       - name: Build production app
         run: npm run build
+
+      # The production server, as Render runs it: headers, compression, and the API.
+      - name: Smoke-test the production server
+        run: |
+          PORT=8080 VOICEARCHITECT_PROVIDER=offline node server/serve.ts &
+          for i in $(seq 1 30); do curl -fs http://localhost:8080/api/health >/dev/null && break; sleep 1; done
+          curl -fs http://localhost:8080/api/health | grep -q '"status":"ok"'
+          headers=$(curl -fsSI -H 'Accept-Encoding: br, gzip' http://localhost:8080/)
+          echo "$headers"
+          echo "$headers" | grep -qi "^content-security-policy: default-src 'self'"
+          echo "$headers" | grep -qi '^permissions-policy: .*microphone=(self)'
+          echo "$headers" | grep -qi '^content-encoding: br'
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+      - name: Browser tests in Chromium and WebKit (production build, axe, CSP)
+        run: npx playwright test
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

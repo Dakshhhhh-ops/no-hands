@@ -57,18 +57,27 @@ Open the local URL printed by Vite. The app is a single-page React app under `sr
 ## Verify
 
 ```sh
-npm test             # 133 unit tests, including Wispr sign-in and MCP against a fake server
-npm run test:vitest  # 60 component tests (Vitest + RTL)
-npm run typecheck    # TypeScript strict mode
+npm test             # 143 unit tests, including Wispr sign-in and MCP against a fake server, and the server's headers
+npm run test:vitest  # 61 component tests (Vitest + RTL)
+npm run typecheck    # strict TypeScript across src/ and server/, no any
 npm run lint         # ESLint, 0 problems
 npm run build        # Production build
-npx playwright test  # 17 browser tests against the production build, including axe checks
+npx playwright test  # 19 browser tests in Chromium and WebKit, plus the offline test: production build, axe, CSP
 npm run eval         # labelled instructions; add -- --provider anthropic (or groq) to measure a model
 ```
 
 ## Deploy
 
 Production runs a small Node server (`server/serve.ts`) that serves the built app and the interpretation API. Keys are read only on the server, at run time; they are never baked into the image or the browser bundle.
+
+**Security headers.** Every response from `server/serve.ts`, and from `vite preview` so the browser tests run under the same policy, carries the headers in [server/securityHeaders.ts](server/securityHeaders.ts):
+
+- `Content-Security-Policy` allowing only this origin: no `'unsafe-inline'`, no `'unsafe-eval'`, no third-party hosts, `frame-ancestors 'none'`, `object-src 'none'`. Fonts are self-hosted, React sets styles through the DOM rather than inline markup, and Zod runs in jitless mode so it never probes for `eval`.
+- `Strict-Transport-Security` (two years) on HTTPS requests, including behind Render's proxy when `VOICEARCHITECT_TRUST_PROXY=1`.
+- `Permissions-Policy` turning off camera, geolocation, payment, USB, and motion sensors, and allowing the microphone only for this origin, for the browser-mic fallback.
+- `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy` set to `same-origin`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`.
+
+[tests/security.test.js](tests/security.test.js) checks the policy and the server; [tests/security.spec.ts](tests/security.spec.ts) walks the guided demo, every export, the generated docs, and the import dialog in Chromium and fails on any CSP violation or third-party request. Text assets are sent Brotli- or gzip-compressed (Render's edge also compresses).
 
 ```sh
 # Without Docker
@@ -158,8 +167,8 @@ To reduce variation in the app itself, Groq requests use a fixed seed and temper
 
 ```
 src/
-├── App.jsx                  # Root component: landing page and the workspace studio
-├── main.jsx                 # Entry point and CSS load order
+├── App.tsx                  # Root component: landing page and the workspace studio
+├── main.tsx                 # Entry point and CSS load order
 ├── hooks/                   # 14 hooks
 │   ├── useProjectState.ts    # Project, branches, history, merging
 │   ├── useProposalReview.ts  # Interpretation, review dialog, apply
@@ -171,7 +180,7 @@ src/
 │   └── ...                   # Theme, toast, storage, motion, scroll
 ├── components/              # Workspace panels (lazy-loaded) and dialogs
 │   └── landing/             # Landing page sections
-├── data/                    # Domain logic, pure TS/JS: compose import, drift check,
+├── data/                    # Domain logic, pure TypeScript: compose import, drift check,
 │                            # operations applier, risks and fixes, OpenAPI, exports,
 │                            # dictation cleanup, Hinglish and English patterns, follow-ups
 ├── types/schema.ts          # Zod schema (single source of truth)
@@ -189,13 +198,15 @@ docs/                        # Wispr Flow research notes, submission notes, demo
 
 | Suite | Command | Tests |
 |-------|---------|-------|
-| Unit (Node) | `npm test` | 133 |
-| Component (Vitest + RTL) | `npm run test:vitest` | 60 |
-| E2E (Playwright, with axe) | `npm run test:e2e` | 17 |
+| Unit (Node) | `npm test` | 143 |
+| Component (Vitest + RTL) | `npm run test:vitest` | 61 |
+| Browser (Playwright: axe, CSP, every flow) | `npm run test:e2e` | 19 in Chromium + the same 19 in WebKit + 1 offline (PWA) |
+
+App code in `src/` and `server/` is strict TypeScript with no `any`; the Node unit tests are plain JS. Measured on the production build (Brotli), the landing page downloads 160 KB of JS, 20 KB of CSS, and 80 KB of self-hosted fonts, and makes no third-party request.
 
 No test calls Wispr Flow, Anthropic, or Groq: the Wispr tests run against a fake sign-in and MCP server whose fetch throws on any other address.
 
-CI runs on every push: Lint → Typecheck → Tests → Build.
+CI runs on every push: lint, typecheck, unit tests, component tests, build, a smoke test of the production server (headers, Brotli, health), and the browser tests.
 
 ## Limitations
 

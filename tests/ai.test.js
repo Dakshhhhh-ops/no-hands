@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeCommerceProject, applyChange } from '../src/data/commerce.js';
+import { makeCommerceProject, applyChange } from '../src/data/commerce.ts';
 import { applyOperations, toRequirementId } from '../src/data/applyOperations.ts';
 import { InterpretationSchema, validateProposal } from '../src/types/schema.ts';
 import { interpretInstruction, InterpretError, strictJsonSchema } from '../server/interpret.ts';

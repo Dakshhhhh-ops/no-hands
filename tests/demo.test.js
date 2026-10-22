@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeCommerceProject, DEMO_COMMAND, proposeChange, applyChange } from '../src/data/commerce.js';
-import { checkOpenApiStructure, makeOpenApi, toYaml } from '../src/data/openapi.js';
-import { deriveRiskFindings, deriveTasks, getProjectSyncStatus } from '../src/data/analysis.js';
-import { deriveChangeDiff, deriveManualDecisions } from '../src/data/changeDiff.js';
-import { getDiagramNeighborhood } from '../src/data/diagram.js';
-import { createVerifiedExportZip, makeExportFiles } from '../src/data/export.js';
+import { makeCommerceProject, DEMO_COMMAND, proposeChange, applyChange } from '../src/data/commerce.ts';
+import { checkOpenApiStructure, makeOpenApi, toYaml } from '../src/data/openapi.ts';
+import { deriveRiskFindings, deriveTasks, getProjectSyncStatus } from '../src/data/analysis.ts';
+import { deriveChangeDiff, deriveManualDecisions } from '../src/data/changeDiff.ts';
+import { getDiagramNeighborhood } from '../src/data/diagram.ts';
+import { createVerifiedExportZip, makeExportFiles } from '../src/data/export.ts';
 import { strFromU8, unzipSync } from 'fflate';
 
 test('Commerce Platform fixture has the expected components and valid relationship references', () => {
@@ -163,7 +163,7 @@ test('change entries name a component once when its name is its id, and show the
 });
 
 test('component labels show the id only when it differs from the name', async () => {
-  const { componentLabel } = await import('../src/data/modelFacts.js');
+  const { componentLabel } = await import('../src/data/modelFacts.ts');
   assert.equal(componentLabel({ id: 'payment-service', name: 'payment-service' }), 'payment-service');
   assert.equal(componentLabel({ id: 'postgres', name: 'PostgreSQL' }), 'PostgreSQL (postgres)');
 });

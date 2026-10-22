@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import App from '../src/App.jsx';
+import App from '../src/App.tsx';
 
 // The shared setup mock lists only some icons; this full-app test renders the real ones.
 vi.mock('lucide-react', async (importOriginal) => importOriginal());
 // The shared setup stubs the domain modules; this test exercises the real ones end to end.
-vi.unmock('../src/data/commerce.js');
-vi.unmock('../src/data/foodDelivery.js');
-vi.unmock('../src/data/analysis.js');
-vi.unmock('../src/data/export.js');
-vi.unmock('../src/data/diagramExport.js');
+vi.unmock('../src/data/commerce.ts');
+vi.unmock('../src/data/foodDelivery.ts');
+vi.unmock('../src/data/analysis.ts');
+vi.unmock('../src/data/export.ts');
+vi.unmock('../src/data/diagramExport.ts');
 vi.unmock('../src/data/branching.ts');
 vi.unmock('../src/data/semanticMerge.ts');
 vi.unmock('../src/data/historyManager.ts');

@@ -83,7 +83,7 @@ export default tseslint.config(
     languageOptions: { globals: { ...nodeGlobals, ...browserGlobals } },
   },
   {
-    files: ['src/main.jsx'],
+    files: ['src/main.tsx'],
     languageOptions: { globals: browserGlobals },
   },
   {

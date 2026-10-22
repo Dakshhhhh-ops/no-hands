@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { HistoryTimeline } from '../data/historyManager.ts';
-import { makeCommerceProject } from '../data/commerce.js';
-import { makeFoodDeliveryProject } from '../data/foodDelivery.js';
+import { makeCommerceProject } from '../data/commerce.ts';
+import { makeFoodDeliveryProject } from '../data/foodDelivery.ts';
 import type { Project } from '../types/schema.ts';
 import { forkBranch, compareBranches } from '../data/branching.ts';
 import { detectMergeConflicts, executeMerge, type MergeConflict } from '../data/semanticMerge.ts';

@@ -91,10 +91,18 @@ test('a Hinglish instruction goes to the model as dictated, and only "apply" app
   await expect(page.getByText('v2 · updated')).toBeVisible();
 });
 
-test('loading the app and opening every view logs no errors', async ({ page }) => {
+test('loading the app and opening every view logs no errors', async ({ page, browserName }) => {
   const errors: string[] = [];
+  // WebKit logs this for every native <select> under a strict CSP, even on a bare page
+  // (its own styling of the control). The message names no element, so it is skipped
+  // here; security.spec.ts still fails on any CSP violation that comes from the app.
+  const webkitSelectNoise = /^Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline'/;
   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
-  page.on('console', (message) => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return;
+    if (browserName === 'webkit' && webkitSelectNoise.test(message.text())) return;
+    errors.push(`console: ${message.text()}`);
+  });
   await page.goto('/');
   await page.getByRole('button', { name: 'Load sample' }).click();
   for (const tab of ['API contract', 'Risks', 'Tasks', 'What changed', 'Diagram']) {

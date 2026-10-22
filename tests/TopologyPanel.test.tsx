@@ -1,17 +1,21 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import TopologyPanel from '../src/components/TopologyPanel.jsx';
-import { referentialChecks } from '../src/data/referentialChecks.js';
+import TopologyPanel from '../src/components/TopologyPanel.tsx';
+import { referentialChecks } from '../src/data/referentialChecks.ts';
+import type { Project } from '../src/types/schema.ts';
 
 vi.mock('lucide-react', async (importOriginal) => importOriginal());
 
-const base = {
+const base: Project = {
   name: 'T',
   version: 3,
+  changed: false,
+  changes: [],
+  activity: [],
   components: [
-    { id: 'web', name: 'Web', type: 'CLIENT', sub: '', responsibilities: ['UI'] },
-    { id: 'api', name: 'API', type: 'SERVICE', sub: '', responsibilities: ['Logic'] },
-    { id: 'db', name: 'DB', type: 'DATABASE', sub: '', responsibilities: ['Data'] },
+    { id: 'web', name: 'Web', type: 'CLIENT', sub: '', responsibilities: ['UI'], x: 0, y: 0 },
+    { id: 'api', name: 'API', type: 'SERVICE', sub: '', responsibilities: ['Logic'], x: 0, y: 0 },
+    { id: 'db', name: 'DB', type: 'DATABASE', sub: '', responsibilities: ['Data'], x: 0, y: 0 },
   ],
   relationships: [
     { from: 'web', to: 'api', label: 'calls', protocol: 'HTTPS' },
@@ -60,7 +64,7 @@ describe('Topology panel', () => {
 
 describe('Topology panel source column', () => {
   it('marks components as in code or planned only for imported projects', () => {
-    const imported = {
+    const imported: Project = {
       ...base,
       components: [
         { ...base.components[0], origin: 'code' },

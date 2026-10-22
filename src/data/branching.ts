@@ -1,6 +1,6 @@
 import type { Project, Component } from '../types/schema.ts';
 import { HistoryTimeline } from './historyManager.ts';
-import { deriveRiskFindings } from './analysis.js';
+import { deriveRiskFindings } from './analysis.ts';
 import { getBlastRadius } from './graphTraversal.ts';
 
 export interface ArchitectureBranch {

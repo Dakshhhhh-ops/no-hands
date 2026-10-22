@@ -119,7 +119,7 @@ vi.mock('lucide-react', () => {
   return mockComponents;
 });
 
-vi.mock('../src/utils/sound.js', () => ({
+vi.mock('../src/utils/sound.ts', () => ({
   sound: {
     click: vi.fn(),
     apply: vi.fn(),
@@ -128,7 +128,7 @@ vi.mock('../src/utils/sound.js', () => ({
   },
 }));
 
-vi.mock('../src/data/commerce.js', () => ({
+vi.mock('../src/data/commerce.ts', () => ({
   makeCommerceProject: vi.fn(() => ({
     name: 'Commerce Platform',
     version: 1,
@@ -159,7 +159,7 @@ vi.mock('../src/data/commerce.js', () => ({
   FOOD_DELIVERY_DEMO_COMMAND: 'Food demo command',
 }));
 
-vi.mock('../src/data/foodDelivery.js', () => ({
+vi.mock('../src/data/foodDelivery.ts', () => ({
   makeFoodDeliveryProject: vi.fn(() => ({
     name: 'Food Delivery Platform',
     version: 1,
@@ -175,19 +175,19 @@ vi.mock('../src/data/foodDelivery.js', () => ({
   FOOD_DELIVERY_DEMO_COMMAND: 'Food demo command',
 }));
 
-vi.mock('../src/data/analysis.js', () => ({
+vi.mock('../src/data/analysis.ts', () => ({
   getProjectSyncStatus: vi.fn(() => 'Synced'),
   countOpenDecisions: vi.fn(() => 0),
   deriveRiskFindings: vi.fn(() => []),
   deriveTasks: vi.fn(() => []),
 }));
 
-vi.mock('../src/data/export.js', () => ({
+vi.mock('../src/data/export.ts', () => ({
   createVerifiedExportZip: vi.fn(),
   createVerifiedDevOpsZip: vi.fn(),
 }));
 
-vi.mock('../src/data/diagramExport.js', () => ({
+vi.mock('../src/data/diagramExport.ts', () => ({
   renderArchitecturePng: vi.fn(),
   makeArchitectureSvg: vi.fn(),
   makeArchitectureMermaid: vi.fn(),
