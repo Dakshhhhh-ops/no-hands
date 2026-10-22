@@ -183,30 +183,30 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
         // Navigate to downstream
         if (neighborhood.downstreamIds.size > 0) {
           const downstream = Array.from(neighborhood.downstreamIds);
-          nextId = downstream[0];
+          nextId = downstream[0] ?? null;
         } else if (currentIndex < activeComponents.length - 1) {
-          nextId = activeComponents[currentIndex + 1].id;
+          nextId = activeComponents[currentIndex + 1]?.id ?? null;
         }
         break;
       case 'ArrowLeft':
         // Navigate to upstream
         if (neighborhood.upstreamIds?.size > 0) {
           const upstream = Array.from(neighborhood.upstreamIds);
-          nextId = upstream[0];
+          nextId = upstream[0] ?? null;
         } else if (currentIndex > 0) {
-          nextId = activeComponents[currentIndex - 1].id;
+          nextId = activeComponents[currentIndex - 1]?.id ?? null;
         }
         break;
       case 'ArrowDown':
         // Navigate to next component in list
         if (currentIndex < activeComponents.length - 1) {
-          nextId = activeComponents[currentIndex + 1].id;
+          nextId = activeComponents[currentIndex + 1]?.id ?? null;
         }
         break;
       case 'ArrowUp':
         // Navigate to previous component in list
         if (currentIndex > 0) {
-          nextId = activeComponents[currentIndex - 1].id;
+          nextId = activeComponents[currentIndex - 1]?.id ?? null;
         }
         break;
       case 'Escape':

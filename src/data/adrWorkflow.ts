@@ -1,4 +1,4 @@
-import type { Project } from '../types/schema.ts';
+import type { ChangeRecord, Project } from '../types/schema.ts';
 
 export type AdrStatus = 'PROPOSED' | 'ACCEPTED' | 'REJECTED' | 'SUPERSEDED';
 
@@ -38,7 +38,7 @@ export function generateAdrFromChange(
   project: Project,
   changeIndex = 0
 ): ArchitectureDecisionRecord {
-  const change = project.changes?.[changeIndex] || {
+  const change: Pick<ChangeRecord, 'id' | 'originalInstruction' | 'summary'> & Partial<ChangeRecord> = project.changes?.[changeIndex] || {
     id: 'CHG-DEFAULT',
     originalInstruction: 'Baseline Architecture Initialization',
     summary: 'Loaded baseline commerce microservices.',

@@ -78,7 +78,7 @@ function dependencyNames(service: ComposeService): string[] {
   const dependsOn = service.depends_on;
   if (Array.isArray(dependsOn)) out.push(...dependsOn.map(String));
   else if (dependsOn && typeof dependsOn === 'object') out.push(...Object.keys(dependsOn));
-  if (Array.isArray(service.links)) out.push(...service.links.map((link) => String(link).split(':')[0]));
+  if (Array.isArray(service.links)) out.push(...service.links.map((link) => String(link).split(':')[0] ?? ''));
   return out;
 }
 
@@ -103,7 +103,8 @@ export function resolveComposeDefaults(text: string): string {
 /** The published (host) port of a short-syntax mapping: "8000", "8000:80", "127.0.0.1:8000:80", "8000:80/tcp". */
 function publishedPort(mapping: string): string {
   const parts = resolveComposeDefaults(mapping).replace(/\/(tcp|udp)$/i, '').split(':');
-  return parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+  // split always returns at least one part, so the fallback is never used.
+  return (parts.length >= 2 ? parts[parts.length - 2] : parts[0]) ?? '';
 }
 
 function portSummary(service: ComposeService): string {

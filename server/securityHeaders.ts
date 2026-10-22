@@ -44,7 +44,7 @@ export function isHttps(req: IncomingMessage, trustProxy: boolean): boolean {
   if ((req.socket as { encrypted?: boolean } | undefined)?.encrypted) return true;
   if (!trustProxy) return false;
   const proto = req.headers['x-forwarded-proto'];
-  const first = (Array.isArray(proto) ? proto[0] : proto || '').split(',')[0].trim().toLowerCase();
+  const first = ((Array.isArray(proto) ? proto[0] ?? '' : proto || '').split(',')[0] ?? '').trim().toLowerCase();
   return first === 'https';
 }
 

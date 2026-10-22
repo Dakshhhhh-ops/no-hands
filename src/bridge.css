@@ -69,15 +69,10 @@
 
 /* ---------- 3. Example prompts (CommandPresets) ---------- */
 .va-app .presets-container { gap: 8px; }
-.va-app .presets-grid { grid-template-columns: 1fr; gap: 6px; }
 @media (min-width: 1101px) and (max-width: 1500px) { .va-app .presets-grid { grid-template-columns: 1fr; } }
 @media (min-width: 1501px) { .va-app .presets-grid { grid-template-columns: 1fr 1fr; } }
-.va-app .preset-card {
-  padding: 10px 12px; border: 1px solid var(--va-line); border-radius: var(--va-r-lg);
-  background: var(--va-bg); transition: border-color .15s, background-color .15s;
-}
 .va-app .preset-card:hover { transform: none; border-color: var(--va-line-bright); background: var(--va-panel-2); }
-.va-app .preset-card.active { border-color: var(--va-accent); background: color-mix(in srgb, var(--va-accent) 10%, var(--va-bg)); box-shadow: none; }
+.va-app .preset-card.active { background: color-mix(in srgb, var(--va-accent) 10%, var(--va-bg)); box-shadow: none; }
 .va-app .preset-tag { color: var(--va-accent); }
 .va-app .preset-name { color: var(--va-ink); font-weight: 600; }
 
@@ -130,8 +125,7 @@
 
 /* ---------- 6. Diagram ---------- */
 .va-app .diagram-canvas {
-  height: clamp(380px, 56vh, 560px); border: 1px solid var(--va-line); border-radius: var(--va-r-lg);
-  background-color: var(--va-bg-sunken); background-image: radial-gradient(var(--va-line) 1px, transparent 1px); background-size: 22px 22px;
+  height: clamp(380px, 56vh, 560px); border: 1px solid var(--va-line); border-radius: var(--va-r-lg); background-image: radial-gradient(var(--va-line) 1px, transparent 1px); background-size: 22px 22px;
 }
 .va-app .diagram-toolbar b { color: var(--va-ink); font-size: var(--va-fs-sm); font-family: var(--va-font); }
 .va-app .diagram-toolbar span { color: var(--va-muted); }
@@ -139,7 +133,7 @@
 .va-app .edge.changed, .va-app .diagram-relationship.direct .edge { stroke: var(--va-accent); }
 .va-app .diagram-relationship.downstream .edge { stroke: var(--va-downstream); }
 .va-app .diagram-relationship.upstream .edge { stroke: var(--va-warn); }
-.va-app .edge-label { fill: #d3d8e4; stroke: var(--va-bg-sunken); font-size: 10.5px; }
+.va-app .edge-label { font-size: 10.5px; }
 .va-app .node rect { fill: var(--va-panel-2); stroke: var(--va-line-bright); filter: none; }
 .va-app .node:hover rect { stroke: var(--va-accent); fill: #262c38; filter: none; }
 .va-app .node text { fill: var(--va-ink); }
@@ -155,7 +149,6 @@
 .va-app .legend-downstream { background: var(--va-downstream); }
 .va-app .legend-upstream { background: var(--va-warn); }
 .va-app .diagram-chaos-bar { background: var(--va-panel); border-color: var(--va-line); }
-.va-app .diagram-help { color: var(--va-muted); }
 .va-app .component-inspector-heading h3 { color: var(--va-ink); font-size: var(--va-fs-lg); }
 .va-app .component-inspector-grid ul, .va-app .component-inspector-grid p { color: var(--va-muted); }
 .va-app .diagram-cycle-banner { background: color-mix(in srgb, var(--va-danger) 12%, transparent); border-color: color-mix(in srgb, var(--va-danger) 40%, transparent); color: var(--va-danger); font-size: var(--va-fs-sm); }

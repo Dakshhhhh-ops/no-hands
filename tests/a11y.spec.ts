@@ -17,7 +17,13 @@ async function openView(page: Page, name: string) {
 }
 
 async function expectNoSeriousViolations(page: Page, label: string) {
-  await page.waitForTimeout(700);
+  // Measure colors as people see them: wait for every finite animation and transition
+  // (entrance fades, the dialog rising in) to finish. A fixed delay was not enough on a
+  // loaded machine, and a scan mid-fade reads half-transparent text as low contrast.
+  await page.waitForTimeout(100);
+  await page.evaluate(() => Promise.all(document.getAnimations()
+    .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+    .map((animation) => animation.finished.catch(() => undefined))));
   const { violations } = await new AxeBuilder({ page }).withTags(WCAG).analyze();
   const serious = violations
     .filter((v) => v.impact === 'serious' || v.impact === 'critical')
@@ -78,6 +84,8 @@ test('the voice loop works from the keyboard alone: instruction, preview, follow
 });
 
 test('pasted notes become an ordinary proposal through the import dialog, which is accessible', async ({ page }) => {
+  // Two full axe analyses; give it room under a parallel run, like the test above.
+  test.slow();
   await page.goto('/');
   await page.getByRole('button', { name: 'Load sample' }).click();
   await page.getByRole('button', { name: /Import from Wispr Flow or paste notes/ }).click();

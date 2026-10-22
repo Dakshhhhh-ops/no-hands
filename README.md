@@ -59,7 +59,7 @@ Open the local URL printed by Vite. The app is a single-page React app under `sr
 ```sh
 npm test             # 143 unit tests, including Wispr sign-in and MCP against a fake server, and the server's headers
 npm run test:vitest  # 61 component tests (Vitest + RTL)
-npm run typecheck    # strict TypeScript across src/ and server/, no any
+npm run typecheck    # strict TypeScript with noUncheckedIndexedAccess across src/ and server/, no any
 npm run lint         # ESLint, 0 problems
 npm run build        # Production build
 npx playwright test  # 19 browser tests in Chromium and WebKit, plus the offline test: production build, axe, CSP
@@ -178,7 +178,7 @@ src/
 │   ├── useJourney.ts         # Walkthrough progress
 │   ├── useChaosWorker.ts     # Outage simulation in a Web Worker
 │   └── ...                   # Theme, toast, storage, motion, scroll
-├── components/              # Workspace panels (lazy-loaded) and dialogs
+├── components/              # Studio toolbar, composer, output panel (lazy-loaded views), review dialog, other dialogs
 │   └── landing/             # Landing page sections
 ├── data/                    # Domain logic, pure TypeScript: compose import, drift check,
 │                            # operations applier, risks and fixes, OpenAPI, exports,
@@ -202,7 +202,7 @@ docs/                        # Wispr Flow research notes, submission notes, demo
 | Component (Vitest + RTL) | `npm run test:vitest` | 61 |
 | Browser (Playwright: axe, CSP, every flow) | `npm run test:e2e` | 19 in Chromium + the same 19 in WebKit + 1 offline (PWA) |
 
-App code in `src/` and `server/` is strict TypeScript with no `any`; the Node unit tests are plain JS. Measured on the production build (Brotli), the landing page downloads 160 KB of JS, 20 KB of CSS, and 80 KB of self-hosted fonts, and makes no third-party request.
+App code in `src/` and `server/` is strict TypeScript (including `noUncheckedIndexedAccess`) with no `any`; the Node unit tests are plain JS. Measured on the production build (Brotli), the landing page downloads 160 KB of JS, 20 KB of CSS, and 80 KB of self-hosted fonts, and makes no third-party request.
 
 No test calls Wispr Flow, Anthropic, or Groq: the Wispr tests run against a fake sign-in and MCP server whose fetch throws on any other address.
 

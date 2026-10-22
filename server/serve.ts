@@ -107,7 +107,7 @@ export function createAppServer({ root: rootOption = DIST, trustProxy = process.
     }
     let urlPath: string;
     try {
-      urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+      urlPath = decodeURIComponent((req.url || '/').split('?')[0] ?? '');
     } catch {
       res.statusCode = 400;
       res.end();

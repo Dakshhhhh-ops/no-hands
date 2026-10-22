@@ -1,235 +1,16 @@
 /* VoiceArchitect design tokens.
-   Loads AFTER the legacy stylesheets so the legacy variable names
-   (--cyan, --surface-1, --text-muted ...) resolve to the new palette.
-   Font faces loaded via <link> in index.html. */
+   Every root-level custom property is defined once, at the end of this file, for the
+   default (dark), light, and dark themes. The editorial palette (paper, ink, and one
+   vermilion accent) is the final value of each. Legacy names (--cyan, --surface-1, ...)
+   are aliases that resolve to it. Fonts are self-hosted in fonts.css. */
 
 :root {
   color-scheme: dark light;
-
-  /* Dark theme (default) */
-  --va-bg: #13161c;
-  --va-bg-sunken: #0f1217;
-  --va-panel: #1a1e26;
-  --va-panel-2: #212630;
-  --va-panel-3: #2a303d;
-  --va-line: #2c3240;
-  --va-line-strong: #3b4252;
-  --va-line-bright: #515a6e;
-
-  /* Text (all pass WCAG AA on --va-panel) */
-  --va-ink: #e7e9ef;
-  --va-muted: #a3aabb;
-  --va-faint: #7d8599;
-
-  /* Accent and status */
-  --va-accent: #8ca4ff;
-  --va-accent-strong: #a9bbff;
-  --va-accent-ink: #0e1430;
-  --va-rec: #ff6f61;
-  --va-warn: #e8b04b;
-  --va-ok: #5ed3a0;
-  --va-danger: #ff8a80;
-  --va-downstream: #b9a6ff;
-
-  /* Type */
-  --va-font: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --va-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  --va-fs-xs: 12px;
-  --va-fs-sm: 13px;
-  --va-fs-md: 14.5px;
-  --va-fs-lg: 17px;
-
-  /* Shape */
-  --va-r-sm: 6px;
-  --va-r-md: 8px;
-  --va-r-lg: 12px;
-  --va-r-xl: 16px;
-  --va-r-2xl: 24px;
-
-  /* 3D / Depth tokens */
-  --va-elevation-1: 0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
-  --va-elevation-2: 0 4px 6px rgba(0,0,0,.15), 0 2px 4px rgba(0,0,0,.1);
-  --va-elevation-3: 0 10px 25px rgba(0,0,0,.2), 0 4px 10px rgba(0,0,0,.12);
-  --va-elevation-4: 0 20px 50px rgba(0,0,0,.3), 0 8px 20px rgba(0,0,0,.15);
-  --va-elevation-5: 0 30px 80px rgba(0,0,0,.4), 0 12px 30px rgba(0,0,0,.2);
-
-  /* Glassmorphism */
-  --va-glass-bg: color-mix(in srgb, var(--va-panel) 85%, transparent);
-  --va-glass-border: 1px solid color-mix(in srgb, var(--va-line-bright) 30%, transparent);
-  --va-glass-shadow: 0 8px 32px rgba(0,0,0,.2);
-  --va-glass-blur: blur(20px);
-
-  /* Gradients */
-  --va-gradient-primary: linear-gradient(135deg, var(--va-accent) 0%, var(--va-downstream) 100%);
-  --va-gradient-accent: linear-gradient(135deg, var(--va-accent) 0%, color-mix(in srgb, var(--va-accent) 70%, var(--va-rec)) 100%);
-  --va-gradient-warn: linear-gradient(135deg, var(--va-warn) 0%, var(--va-rec) 100%);
-  --va-gradient-ok: linear-gradient(135deg, var(--va-ok) 0%, color-mix(in srgb, var(--va-ok) 70%, var(--va-accent)) 100%);
-  --va-gradient-surface: linear-gradient(145deg, var(--va-panel) 0%, var(--va-panel-2) 100%);
-  --va-gradient-hero: radial-gradient(ellipse 80% 50% at 50% 0%, color-mix(in srgb, var(--va-accent) 15%, transparent), transparent 70%), var(--va-panel);
-  --va-gradient-card: linear-gradient(145deg, var(--va-panel) 0%, var(--va-panel-2) 50%, var(--va-panel-3) 100%);
-  --va-gradient-glow: radial-gradient(circle at center, color-mix(in srgb, var(--va-accent) 20%, transparent) 0%, transparent 70%);
-
-  /* Animation tokens */
-  --va-duration-fast: 150ms;
-  --va-duration-normal: 250ms;
-  --va-duration-slow: 400ms;
-  --va-duration-slower: 600ms;
-  --va-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --va-ease-in: cubic-bezier(0.4, 0, 1, 1);
-  --va-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-  --va-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --va-ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-
-  /* Particle system */
-  --va-particle-count: 40;
-  --va-particle-size-min: 2px;
-  --va-particle-size-max: 6px;
-  --va-particle-opacity: 0.15;
-
-  /* Z-index layers */
-  --va-z-bg: 0;
-  --va-z-content: 1;
-  --va-z-sticky: 10;
-  --va-z-dropdown: 20;
-  --va-z-modal: 50;
-  --va-z-toast: 60;
-  --va-z-tooltip: 70;
-
-  /* Legacy aliases */
-  --bg: var(--va-bg);
-  --bg-2: var(--va-panel);
-  --bg-deep: var(--va-bg-sunken);
-  --bg-canvas: var(--va-bg-sunken);
-  --card: var(--va-panel);
-  --surface: var(--va-panel);
-  --surface2: var(--va-panel-2);
-  --surface-1: var(--va-panel);
-  --surface-2: var(--va-panel-2);
-  --surface-3: var(--va-panel-3);
-  --surface-card: #171b22;
-  --surface-hover: var(--va-panel-3);
-
-  --line: var(--va-line);
-  --line-2: var(--va-line-strong);
-  --line-3: var(--va-line-bright);
-  --line-dim: var(--va-line);
-  --line-mid: var(--va-line-strong);
-  --line-bright: var(--va-line-bright);
-  --line-high: var(--va-line-bright);
-
-  --ink: var(--va-ink);
-  --muted: var(--va-muted);
-  --soft: var(--va-muted);
-  --text-pure: #f4f6fb;
-  --text-high: var(--va-ink);
-  --text-mid: var(--va-muted);
-  --text-muted: var(--va-muted);
-  --text-dim: var(--va-muted);
-  --text-faint: var(--va-faint);
-
-  --cyan: var(--va-accent);
-  --cyan-bright: var(--va-accent-strong);
-  --cyan-glow: color-mix(in srgb, var(--va-accent) 35%, transparent);
-  --teal-architect: var(--va-accent);
-  --violet: var(--va-downstream);
-  --violet-downstream: var(--va-downstream);
-  --orange-crox: var(--va-rec);
-  --amber-warn: var(--va-warn);
-  --green-nominal: var(--va-ok);
-
-  --font-sans: var(--va-font);
-  --font-mono: var(--va-mono);
-  --mono: var(--va-mono);
 }
 
-/* Light theme */
-[data-theme="light"] {
-  --va-bg: #f8f9fb;
-  --va-bg-sunken: #eff2f7;
-  --va-panel: #ffffff;
-  --va-panel-2: #f0f3f8;
-  --va-panel-3: #e4e8ef;
-  --va-line: #d0d5de;
-  --va-line-strong: #b8becb;
-  --va-line-bright: #9aa3b2;
-
-  --va-ink: #1a1d23;
-  --va-muted: #5c6370;
-  --va-faint: #8b92a3;
-
-  --va-accent: #3b5bdb;
-  --va-accent-strong: #2a4ac7;
-  --va-accent-ink: #eef1fa;
-  --va-rec: #c94a3d;
-  --va-warn: #b87d00;
-  --va-ok: #2d8a5e;
-  --va-danger: #c94a3d;
-  --va-downstream: #7c5cff;
-
-  --va-elevation-1: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
-  --va-elevation-2: 0 4px 6px rgba(0,0,0,.1), 0 2px 4px rgba(0,0,0,.06);
-  --va-elevation-3: 0 10px 25px rgba(0,0,0,.12), 0 4px 10px rgba(0,0,0,.08);
-  --va-elevation-4: 0 20px 50px rgba(0,0,0,.15), 0 8px 20px rgba(0,0,0,.1);
-  --va-elevation-5: 0 30px 80px rgba(0,0,0,.2), 0 12px 30px rgba(0,0,0,.12);
-
-  --va-glass-bg: color-mix(in srgb, var(--va-panel) 90%, transparent);
-  --va-glass-border: 1px solid color-mix(in srgb, var(--va-line-strong) 40%, transparent);
-  --va-glass-shadow: 0 8px 32px rgba(0,0,0,.1);
-  --va-glass-blur: blur(20px);
-
-  --va-gradient-primary: linear-gradient(135deg, var(--va-accent) 0%, var(--va-downstream) 100%);
-  --va-gradient-accent: linear-gradient(135deg, var(--va-accent) 0%, color-mix(in srgb, var(--va-accent) 70%, var(--va-rec)) 100%);
-  --va-gradient-warn: linear-gradient(135deg, var(--va-warn) 0%, var(--va-rec) 100%);
-  --va-gradient-ok: linear-gradient(135deg, var(--va-ok) 0%, color-mix(in srgb, var(--va-ok) 70%, var(--va-accent)) 100%);
-  --va-gradient-surface: linear-gradient(145deg, var(--va-panel) 0%, var(--va-panel-2) 100%);
-  --va-gradient-hero: radial-gradient(ellipse 80% 50% at 50% 0%, color-mix(in srgb, var(--va-accent) 10%, transparent), transparent 70%), var(--va-panel);
-  --va-gradient-card: linear-gradient(145deg, var(--va-panel) 0%, var(--va-panel-2) 50%, var(--va-panel-3) 100%);
-  --va-gradient-glow: radial-gradient(circle at center, color-mix(in srgb, var(--va-accent) 15%, transparent) 0%, transparent 70%);
-
-  --bg: var(--va-bg);
-  --bg-2: var(--va-panel);
-  --bg-deep: var(--va-bg-sunken);
-  --bg-canvas: var(--va-bg-sunken);
-  --card: var(--va-panel);
-  --surface: var(--va-panel);
-  --surface2: var(--va-panel-2);
-  --surface-1: var(--va-panel);
-  --surface-2: var(--va-panel-2);
-  --surface-3: var(--va-panel-3);
-  --surface-card: #f0f3f8;
-  --surface-hover: var(--va-panel-3);
-
-  --line: var(--va-line);
-  --line-2: var(--va-line-strong);
-  --line-3: var(--va-line-bright);
-  --line-dim: var(--va-line);
-  --line-mid: var(--va-line-strong);
-  --line-bright: var(--va-line-bright);
-  --line-high: var(--va-line-bright);
-
-  --ink: var(--va-ink);
-  --muted: var(--va-muted);
-  --soft: var(--va-muted);
-  --text-pure: #0f1218;
-  --text-high: var(--va-ink);
-  --text-mid: var(--va-muted);
-  --text-muted: var(--va-muted);
-  --text-dim: var(--va-muted);
-  --text-faint: var(--va-faint);
-
-  --cyan: var(--va-accent);
-  --cyan-bright: var(--va-accent-strong);
-  --cyan-glow: color-mix(in srgb, var(--va-accent) 35%, transparent);
-  --teal-architect: var(--va-accent);
-  --violet: var(--va-downstream);
-  --violet-downstream: var(--va-downstream);
-  --orange-crox: var(--va-rec);
-  --amber-warn: var(--va-warn);
-  --green-nominal: var(--va-ok);
-
-  --font-sans: var(--va-font);
-  --font-mono: var(--va-mono);
-  --mono: var(--va-mono);
+/* Before the script sets data-theme, a light-mode visitor's blank page is already light. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) { --va-bg: #f1eee6; color-scheme: light; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -247,3 +28,247 @@
 ::-webkit-scrollbar-thumb { background: var(--va-line-strong); border-radius: 4px; border: 2px solid var(--va-bg); }
 ::-webkit-scrollbar-thumb:hover { background: var(--va-line-bright); }
 ::-webkit-scrollbar-corner { background: var(--va-bg); }
+/*  ==========================================================================
+   Design tokens: every root-level custom property, defined once, in cascade order.
+   Later blocks override earlier ones for the same theme selector, exactly as the
+   separate files used to. Theme values: light, dark, and the default.
+   ==========================================================================  */
+:root {
+  --green: #65d9a0;
+  --amber: #edc36f;
+  --c-coral: #ff5c3b;
+  --c-amber: #ffad2e;
+  --c-yellow: #f5dd3c;
+  --c-green: #33d67e;
+  --c-cyan: #2fcde8;
+  --c-blue: #5a86ff;
+  --c-violet: #a685ff;
+  --c-pink: #ff63b0;
+  --acc: #fff;
+  --line-glow: rgba(255, 255, 255, 0.12);
+  --gold-common: #f5dd3c;
+  --gutter: clamp(16px, 4vw, 56px);
+  --max: 1240px;
+  --r: 10px;
+  --nav: 60px;
+  --va-font: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --va-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --va-fs-xs: 12px;
+  --va-fs-sm: 13px;
+  --va-fs-md: 14.5px;
+  --va-fs-lg: 17px;
+  --va-r-sm: 6px;
+  --va-r-md: 8px;
+  --va-r-lg: 12px;
+  --va-r-xl: 16px;
+  --va-r-2xl: 24px;
+  --va-elevation-1: 0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+  --va-elevation-2: 0 4px 6px rgba(0,0,0,.15), 0 2px 4px rgba(0,0,0,.1);
+  --va-elevation-3: 0 10px 25px rgba(0,0,0,.2), 0 4px 10px rgba(0,0,0,.12);
+  --va-elevation-4: 0 20px 50px rgba(0,0,0,.3), 0 8px 20px rgba(0,0,0,.15);
+  --va-elevation-5: 0 30px 80px rgba(0,0,0,.4), 0 12px 30px rgba(0,0,0,.2);
+  --va-glass-bg: color-mix(in srgb, var(--va-panel) 85%, transparent);
+  --va-glass-border: 1px solid color-mix(in srgb, var(--va-line-bright) 30%, transparent);
+  --va-glass-shadow: 0 8px 32px rgba(0,0,0,.2);
+  --va-glass-blur: blur(20px);
+  --va-gradient-accent: linear-gradient(135deg, var(--va-accent) 0%, color-mix(in srgb, var(--va-accent) 70%, var(--va-rec)) 100%);
+  --va-gradient-warn: linear-gradient(135deg, var(--va-warn) 0%, var(--va-rec) 100%);
+  --va-gradient-ok: linear-gradient(135deg, var(--va-ok) 0%, color-mix(in srgb, var(--va-ok) 70%, var(--va-accent)) 100%);
+  --va-gradient-surface: linear-gradient(145deg, var(--va-panel) 0%, var(--va-panel-2) 100%);
+  --va-gradient-hero: radial-gradient(ellipse 80% 50% at 50% 0%, color-mix(in srgb, var(--va-accent) 15%, transparent), transparent 70%), var(--va-panel);
+  --va-gradient-card: linear-gradient(145deg, var(--va-panel) 0%, var(--va-panel-2) 50%, var(--va-panel-3) 100%);
+  --va-gradient-glow: radial-gradient(circle at center, color-mix(in srgb, var(--va-accent) 20%, transparent) 0%, transparent 70%);
+  --va-duration-fast: 150ms;
+  --va-duration-normal: 250ms;
+  --va-duration-slow: 400ms;
+  --va-duration-slower: 600ms;
+  --va-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --va-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --va-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --va-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --va-ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --va-particle-count: 40;
+  --va-particle-size-min: 2px;
+  --va-particle-size-max: 6px;
+  --va-particle-opacity: 0.15;
+  --va-z-bg: 0;
+  --va-z-content: 1;
+  --va-z-sticky: 10;
+  --va-z-dropdown: 20;
+  --va-z-modal: 50;
+  --va-z-toast: 60;
+  --va-z-tooltip: 70;
+  --bg: var(--va-bg);
+  --bg-2: var(--va-panel);
+  --bg-deep: var(--va-bg-sunken);
+  --bg-canvas: var(--va-bg-sunken);
+  --card: var(--va-panel);
+  --surface: var(--va-panel);
+  --surface2: var(--va-panel-2);
+  --surface-1: var(--va-panel);
+  --surface-2: var(--va-panel-2);
+  --surface-3: var(--va-panel-3);
+  --surface-card: #171b22;
+  --surface-hover: var(--va-panel-3);
+  --line: var(--va-line);
+  --line-2: var(--va-line-strong);
+  --line-3: var(--va-line-bright);
+  --line-dim: var(--va-line);
+  --line-mid: var(--va-line-strong);
+  --line-bright: var(--va-line-bright);
+  --line-high: var(--va-line-bright);
+  --ink: var(--va-ink);
+  --muted: var(--va-muted);
+  --soft: var(--va-muted);
+  --text-pure: #f4f6fb;
+  --text-high: var(--va-ink);
+  --text-mid: var(--va-muted);
+  --text-muted: var(--va-muted);
+  --text-dim: var(--va-muted);
+  --text-faint: var(--va-faint);
+  --cyan: var(--va-accent);
+  --cyan-bright: var(--va-accent-strong);
+  --cyan-glow: color-mix(in srgb, var(--va-accent) 35%, transparent);
+  --teal-architect: var(--va-accent);
+  --violet: var(--va-downstream);
+  --violet-downstream: var(--va-downstream);
+  --orange-crox: var(--va-rec);
+  --amber-warn: var(--va-warn);
+  --green-nominal: var(--va-ok);
+  --font-sans: var(--va-font);
+  --font-mono: var(--va-mono);
+  --mono: var(--va-mono);
+}
+[data-theme="light"] {
+  --va-elevation-1: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
+  --va-elevation-2: 0 4px 6px rgba(0,0,0,.1), 0 2px 4px rgba(0,0,0,.06);
+  --va-elevation-3: 0 10px 25px rgba(0,0,0,.12), 0 4px 10px rgba(0,0,0,.08);
+  --va-elevation-4: 0 20px 50px rgba(0,0,0,.15), 0 8px 20px rgba(0,0,0,.1);
+  --va-elevation-5: 0 30px 80px rgba(0,0,0,.2), 0 12px 30px rgba(0,0,0,.12);
+  --va-glass-bg: color-mix(in srgb, var(--va-panel) 90%, transparent);
+  --va-glass-border: 1px solid color-mix(in srgb, var(--va-line-strong) 40%, transparent);
+  --va-glass-shadow: 0 8px 32px rgba(0,0,0,.1);
+  --va-glass-blur: blur(20px);
+  --va-gradient-accent: linear-gradient(135deg, var(--va-accent) 0%, color-mix(in srgb, var(--va-accent) 70%, var(--va-rec)) 100%);
+  --va-gradient-warn: linear-gradient(135deg, var(--va-warn) 0%, var(--va-rec) 100%);
+  --va-gradient-ok: linear-gradient(135deg, var(--va-ok) 0%, color-mix(in srgb, var(--va-ok) 70%, var(--va-accent)) 100%);
+  --va-gradient-surface: linear-gradient(145deg, var(--va-panel) 0%, var(--va-panel-2) 100%);
+  --va-gradient-hero: radial-gradient(ellipse 80% 50% at 50% 0%, color-mix(in srgb, var(--va-accent) 10%, transparent), transparent 70%), var(--va-panel);
+  --va-gradient-card: linear-gradient(145deg, var(--va-panel) 0%, var(--va-panel-2) 50%, var(--va-panel-3) 100%);
+  --va-gradient-glow: radial-gradient(circle at center, color-mix(in srgb, var(--va-accent) 15%, transparent) 0%, transparent 70%);
+  --bg: var(--va-bg);
+  --bg-2: var(--va-panel);
+  --bg-deep: var(--va-bg-sunken);
+  --bg-canvas: var(--va-bg-sunken);
+  --card: var(--va-panel);
+  --surface: var(--va-panel);
+  --surface2: var(--va-panel-2);
+  --surface-1: var(--va-panel);
+  --surface-2: var(--va-panel-2);
+  --surface-3: var(--va-panel-3);
+  --surface-card: #f0f3f8;
+  --surface-hover: var(--va-panel-3);
+  --line: var(--va-line);
+  --line-2: var(--va-line-strong);
+  --line-3: var(--va-line-bright);
+  --line-dim: var(--va-line);
+  --line-mid: var(--va-line-strong);
+  --line-bright: var(--va-line-bright);
+  --line-high: var(--va-line-bright);
+  --ink: var(--va-ink);
+  --muted: var(--va-muted);
+  --soft: var(--va-muted);
+  --text-pure: #0f1218;
+  --text-high: var(--va-ink);
+  --text-mid: var(--va-muted);
+  --text-muted: var(--va-muted);
+  --text-dim: var(--va-muted);
+  --text-faint: var(--va-faint);
+  --cyan: var(--va-accent);
+  --cyan-bright: var(--va-accent-strong);
+  --cyan-glow: color-mix(in srgb, var(--va-accent) 35%, transparent);
+  --teal-architect: var(--va-accent);
+  --violet: var(--va-downstream);
+  --violet-downstream: var(--va-downstream);
+  --orange-crox: var(--va-rec);
+  --amber-warn: var(--va-warn);
+  --green-nominal: var(--va-ok);
+  --font-sans: var(--va-font);
+  --font-mono: var(--va-mono);
+  --mono: var(--va-mono);
+}
+:root, [data-theme="dark"] {
+  --va-ring: 0 0 0 1px color-mix(in srgb, var(--va-indigo) 45%, transparent);
+}
+[data-theme="light"] {
+  --va-ring: 0 0 0 1px color-mix(in srgb, var(--va-indigo) 35%, transparent);
+}
+:root {
+  --va-serif: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+}
+:root, [data-theme="dark"] {
+  --va-bg: #131211;
+  --va-bg-sunken: #0e0d0c;
+  --va-panel: #1a1917;
+  --va-panel-2: #201e1b;
+  --va-panel-3: #292723;
+  --va-line: #2d2a26;
+  --va-line-strong: #3d3933;
+  --va-line-bright: #5c564d;
+  --va-ink: #ece7dd;
+  --va-muted: #aaa397;
+  --va-faint: #8f897e;
+  --va-accent: #ff6a2b;
+  --va-accent-strong: #ff8a57;
+  --va-accent-ink: #131211;
+  --va-indigo: var(--va-accent);
+  --va-violet: #93abd4;
+  --va-teal: #5cbf8a;
+  --va-amber: #e2a43b;
+  --va-rose: #f07362;
+  --va-ok: var(--va-teal);
+  --va-warn: var(--va-amber);
+  --va-danger: var(--va-rose);
+  --va-rec: var(--va-rose);
+  --va-downstream: var(--va-violet);
+  --va-cta-bg: #ece7dd;
+  --va-cta-ink: #131211;
+  --va-brand-gradient: linear-gradient(var(--va-accent), var(--va-accent));
+  --va-gradient-primary: linear-gradient(var(--va-cta-bg), var(--va-cta-bg));
+  --va-surface: var(--va-panel);
+  --va-shadow-lg: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 18px 40px -28px rgba(0, 0, 0, .8);
+  --va-aurora-opacity: 0;
+}
+[data-theme="light"] {
+  --va-bg: #f1eee6;
+  --va-bg-sunken: #e8e4da;
+  --va-panel: #fbf9f4;
+  --va-panel-2: #f4f1ea;
+  --va-panel-3: #e9e5db;
+  --va-line: #dcd6c9;
+  --va-line-strong: #c4bcab;
+  --va-line-bright: #9b9384;
+  --va-ink: #141412;
+  --va-muted: #4e4b44;
+  --va-faint: #6b665c;
+  --va-accent: #e8480c;
+  --va-accent-strong: #c23a06;
+  --va-accent-ink: #ffffff;
+  --va-indigo: var(--va-accent);
+  --va-violet: #34507a;
+  --va-teal: #1f7a4d;
+  --va-amber: #9a6200;
+  --va-rose: #b42318;
+  --va-ok: var(--va-teal);
+  --va-warn: var(--va-amber);
+  --va-danger: var(--va-rose);
+  --va-rec: var(--va-rose);
+  --va-downstream: var(--va-violet);
+  --va-cta-bg: #141412;
+  --va-cta-ink: #f1eee6;
+  --va-brand-gradient: linear-gradient(var(--va-accent), var(--va-accent));
+  --va-gradient-primary: linear-gradient(var(--va-cta-bg), var(--va-cta-bg));
+  --va-surface: var(--va-panel);
+  --va-shadow-lg: 0 1px 2px rgba(20, 20, 18, .04), 0 18px 36px -30px rgba(20, 20, 18, .35);
+  --va-aurora-opacity: 0;
+}

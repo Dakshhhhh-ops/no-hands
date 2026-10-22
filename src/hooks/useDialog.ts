@@ -41,9 +41,9 @@ export function useDialog<T extends HTMLElement = HTMLElement>(open: boolean, on
       }
       if (event.key !== 'Tab') return;
       const items = focusables();
-      if (!items.length) return;
       const firstItem = items[0];
       const lastItem = items[items.length - 1];
+      if (!firstItem || !lastItem) return;
       if (event.shiftKey && document.activeElement === firstItem) {
         event.preventDefault();
         lastItem.focus();

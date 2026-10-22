@@ -160,18 +160,20 @@ const CONNECT_VERB = String.raw`(?:connect|jodo|jod do|link)(?:\s+(?:karo|kar do
 const REMOVE_VERB = String.raw`(?:hata do|hatao|hata|nikal do|nikalo|remove karo|remove kar do)`;
 const PUT_VERB = String.raw`(?:daalo|daal do|dal do|rakho|rakh do|chalao|chala do|karo|kar do)`;
 
+// Groups are destructured with a '' default: a required group always holds text once its
+// pattern matched, and an optional group that took no part becomes '' as before.
 const PATTERNS: Array<{ re: RegExp; run: (p: Project, m: RegExpMatchArray) => Match | null }> = [
   // Hinglish
-  { re: new RegExp(String.raw`^(.+?)\s+(?:ke\s+)?(?:aage|saamne|samne|pehle)\s+(?:(\w+)\s+)?cache\s+${CACHE_VERB}$`), run: (p, m) => addCache(p, m[1], m[2] || '') },
-  { re: new RegExp(String.raw`^(.+?)\s+ko\s+(.+?)\s+(?:se|ke saath|ke sath|with|to)\s+${CONNECT_VERB}$`), run: (p, m) => connect(p, m[1], m[2]) },
-  { re: new RegExp(String.raw`^(.+?)\s+${REMOVE_VERB}\s+(?:aur|and)\s+(.+?)\s+(?:seedha|sidha|directly)\s+(?:use|istemal|access)(?:\s+(?:karo|kar do|kardo))?$`), run: (p, m) => bypassCache(p, m[1], m[2]) },
-  { re: new RegExp(String.raw`^(.+?)\s+ko\s+(?:alag|apne|apna|khud ke)\s+(?:container|service)\s+(?:mein|me|main)\s+${PUT_VERB}$`), run: (p, m) => ownContainer(p, m[1]) },
+  { re: new RegExp(String.raw`^(.+?)\s+(?:ke\s+)?(?:aage|saamne|samne|pehle)\s+(?:(\w+)\s+)?cache\s+${CACHE_VERB}$`), run: (p, [, target = '', kind = '']) => addCache(p, target, kind) },
+  { re: new RegExp(String.raw`^(.+?)\s+ko\s+(.+?)\s+(?:se|ke saath|ke sath|with|to)\s+${CONNECT_VERB}$`), run: (p, [, from = '', to = '']) => connect(p, from, to) },
+  { re: new RegExp(String.raw`^(.+?)\s+${REMOVE_VERB}\s+(?:aur|and)\s+(.+?)\s+(?:seedha|sidha|directly)\s+(?:use|istemal|access)(?:\s+(?:karo|kar do|kardo))?$`), run: (p, [, cache = '', db = '']) => bypassCache(p, cache, db) },
+  { re: new RegExp(String.raw`^(.+?)\s+ko\s+(?:alag|apne|apna|khud ke)\s+(?:container|service)\s+(?:mein|me|main)\s+${PUT_VERB}$`), run: (p, [, phrase = '']) => ownContainer(p, phrase) },
   // English
-  { re: /^(?:please\s+)?(?:add|put|place)\s+(?:a|an)\s+(?:(\w+)\s+)?cache\s+(?:in front of|before|for)\s+(?:the\s+)?(.+)$/, run: (p, m) => addCache(p, m[2], m[1] || '') },
-  { re: /^(?:please\s+)?connect\s+(?:the\s+)?(.+?)\s+(?:to|with)\s+(?:the\s+)?(.+)$/, run: (p, m) => connect(p, m[1], m[2]) },
-  { re: /^(?:please\s+)?(?:remove|drop)\s+(?:the\s+)?(.+?)\s+and\s+(?:use|read|call)\s+(?:the\s+)?(.+?)\s+directly$/, run: (p, m) => bypassCache(p, m[1], m[2]) },
+  { re: /^(?:please\s+)?(?:add|put|place)\s+(?:a|an)\s+(?:(\w+)\s+)?cache\s+(?:in front of|before|for)\s+(?:the\s+)?(.+)$/, run: (p, [, kind = '', target = '']) => addCache(p, target, kind) },
+  { re: /^(?:please\s+)?connect\s+(?:the\s+)?(.+?)\s+(?:to|with)\s+(?:the\s+)?(.+)$/, run: (p, [, from = '', to = '']) => connect(p, from, to) },
+  { re: /^(?:please\s+)?(?:remove|drop)\s+(?:the\s+)?(.+?)\s+and\s+(?:use|read|call)\s+(?:the\s+)?(.+?)\s+directly$/, run: (p, [, cache = '', db = '']) => bypassCache(p, cache, db) },
   // "split X into a separate service" means extracting work, which the keyword rules handle; not matched here.
-  { re: /^(?:please\s+)?(?:move|put|run)\s+(?:the\s+)?(.+?)\s+(?:into|in|as)\s+(?:a\s+)?(?:separate|its own|their own|own)\s+(?:container|service)$/, run: (p, m) => ownContainer(p, m[1]) },
+  { re: /^(?:please\s+)?(?:move|put|run)\s+(?:the\s+)?(.+?)\s+(?:into|in|as)\s+(?:a\s+)?(?:separate|its own|their own|own)\s+(?:container|service)$/, run: (p, [, phrase = '']) => ownContainer(p, phrase) },
 ];
 
 /** A proposal for a recognized pattern, or null when no pattern matches. */

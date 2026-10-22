@@ -320,11 +320,11 @@ export class WisprConnector {
 
   /** The callback URL on the origin the person is using. */
   redirectUri(req: IncomingMessage): string {
-    const forwardedProto = this.trustProxy ? String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() : '';
+    const forwardedProto = this.trustProxy ? (String(req.headers['x-forwarded-proto'] || '').split(',')[0] ?? '').trim() : '';
     const proto = forwardedProto === 'https' || forwardedProto === 'http'
       ? forwardedProto
       : (req.socket as { encrypted?: boolean } | undefined)?.encrypted ? 'https' : 'http';
-    const forwardedHost = this.trustProxy ? String(req.headers['x-forwarded-host'] || '').split(',')[0].trim() : '';
+    const forwardedHost = this.trustProxy ? (String(req.headers['x-forwarded-host'] || '').split(',')[0] ?? '').trim() : '';
     const host = forwardedHost || String(req.headers.host || '');
     if (!/^[a-z0-9.-]+(:\d{1,5})?$/i.test(host)) throw new WisprError('discovery', 'The request host is not valid.', 400);
     return `${proto}://${host}/api/wispr/callback`;

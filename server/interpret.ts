@@ -428,7 +428,7 @@ export function createApiMiddleware(options: ApiOptions = {}) {
   const wispr = options.wispr || new WisprConnector({ trustProxy: limits.trustProxy });
 
   return async function apiMiddleware(req: IncomingMessage, res: ServerResponse, next: () => void) {
-    const url = (req.url || '').split('?')[0];
+    const url = (req.url || '').split('?')[0] ?? '';
     if (url.startsWith('/api/wispr/')) {
       await wispr.handle(req, res, new URL(req.url || '/', 'http://localhost'));
       return;

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Editorial palette (loaded last; overrides every earlier color layer).
+   Editorial component styles. The palette itself is defined in tokens.css.
 
    Print, not neon: warm paper and ink neutrals, one signal color (vermilion),
    and plain status colors. No gradients, no glows. The accent is used sparingly
@@ -9,83 +9,6 @@
      Dark   charcoal #131211 · paper #ECE7DD · vermilion #FF6A2B
      Status green = in sync · ochre = planned · brick = failure · slate = secondary
    ========================================================================== */
-
-:root,
-[data-theme="dark"] {
-  --va-bg: #131211;
-  --va-bg-sunken: #0e0d0c;
-  --va-panel: #1a1917;
-  --va-panel-2: #201e1b;
-  --va-panel-3: #292723;
-  --va-line: #2d2a26;
-  --va-line-strong: #3d3933;
-  --va-line-bright: #5c564d;
-
-  --va-ink: #ece7dd;
-  --va-muted: #aaa397;
-  --va-faint: #8f897e; /* 5:1 on the dark panel */
-
-  --va-accent: #ff6a2b;
-  --va-accent-strong: #ff8a57;
-  --va-accent-ink: #131211;
-  --va-indigo: var(--va-accent);
-  --va-violet: #93abd4;
-  --va-teal: #5cbf8a;
-  --va-amber: #e2a43b;
-  --va-rose: #f07362;
-  --va-ok: var(--va-teal);
-  --va-warn: var(--va-amber);
-  --va-danger: var(--va-rose);
-  --va-rec: var(--va-rose);
-  --va-downstream: var(--va-violet);
-
-  --va-cta-bg: #ece7dd;
-  --va-cta-ink: #131211;
-
-  --va-brand-gradient: linear-gradient(var(--va-accent), var(--va-accent));
-  --va-gradient-primary: linear-gradient(var(--va-cta-bg), var(--va-cta-bg));
-  --va-surface: var(--va-panel);
-  --va-shadow-lg: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 18px 40px -28px rgba(0, 0, 0, .8);
-  --va-aurora-opacity: 0;
-}
-
-[data-theme="light"] {
-  --va-bg: #f1eee6;
-  --va-bg-sunken: #e8e4da;
-  --va-panel: #fbf9f4;
-  --va-panel-2: #f4f1ea;
-  --va-panel-3: #e9e5db;
-  --va-line: #dcd6c9;
-  --va-line-strong: #c4bcab;
-  --va-line-bright: #9b9384;
-
-  --va-ink: #141412;
-  --va-muted: #4e4b44;
-  --va-faint: #6b665c; /* 4.9:1 on paper */
-
-  --va-accent: #e8480c;
-  --va-accent-strong: #c23a06;
-  --va-accent-ink: #ffffff;
-  --va-indigo: var(--va-accent);
-  --va-violet: #34507a;
-  --va-teal: #1f7a4d;
-  --va-amber: #9a6200;
-  --va-rose: #b42318;
-  --va-ok: var(--va-teal);
-  --va-warn: var(--va-amber);
-  --va-danger: var(--va-rose);
-  --va-rec: var(--va-rose);
-  --va-downstream: var(--va-violet);
-
-  --va-cta-bg: #141412;
-  --va-cta-ink: #f1eee6;
-
-  --va-brand-gradient: linear-gradient(var(--va-accent), var(--va-accent));
-  --va-gradient-primary: linear-gradient(var(--va-cta-bg), var(--va-cta-bg));
-  --va-surface: var(--va-panel);
-  --va-shadow-lg: 0 1px 2px rgba(20, 20, 18, .04), 0 18px 36px -30px rgba(20, 20, 18, .35);
-  --va-aurora-opacity: 0;
-}
 
 ::selection { background: var(--va-accent); color: #fff; }
 

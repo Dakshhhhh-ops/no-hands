@@ -25,18 +25,18 @@ export function referentialChecks(project: ReferenceModel | null | undefined): R
   const apiOperations = project?.apiOperations || [];
   const requirements = project?.requirements || [];
   const ids = new Set(components.map((c) => c.id));
-  const seen = <T>(list: T[], key: (item: T) => string): boolean[] => {
+  const seen = <T>(list: T[], key: (item: T) => string): Array<{ item: T; ok: boolean }> => {
     const counts = new Map<string, number>();
     list.forEach((item) => counts.set(key(item), (counts.get(key(item)) || 0) + 1));
-    return list.map((item) => counts.get(key(item)) === 1);
+    return list.map((item) => ({ item, ok: counts.get(key(item)) === 1 }));
   };
   const results = [
     ...relationships.map((r) => ({ ok: ids.has(r.from), problem: `Connection from unknown component "${r.from}"` })),
     ...relationships.map((r) => ({ ok: ids.has(r.to), problem: `Connection to unknown component "${r.to}"` })),
     ...apiOperations.map((a) => ({ ok: ids.has(a.componentId), problem: `API ${a.method?.toUpperCase()} ${a.path} owned by unknown component "${a.componentId}"` })),
-    ...seen(components, (c) => c.id).map((ok, i) => ({ ok, problem: `Duplicate component id "${components[i].id}"` })),
-    ...seen(relationships, (r) => `${r.from}>${r.to}`).map((ok, i) => ({ ok, problem: `Duplicate connection ${relationships[i].from} → ${relationships[i].to}` })),
-    ...seen(requirements, (q) => q.id).map((ok, i) => ({ ok, problem: `Duplicate requirement id "${requirements[i].id}"` })),
+    ...seen(components, (c) => c.id).map(({ item, ok }) => ({ ok, problem: `Duplicate component id "${item.id}"` })),
+    ...seen(relationships, (r) => `${r.from}>${r.to}`).map(({ item, ok }) => ({ ok, problem: `Duplicate connection ${item.from} → ${item.to}` })),
+    ...seen(requirements, (q) => q.id).map(({ item, ok }) => ({ ok, problem: `Duplicate requirement id "${item.id}"` })),
   ];
   const passed = results.filter((r) => r.ok).length;
   return {

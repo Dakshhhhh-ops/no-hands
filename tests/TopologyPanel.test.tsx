@@ -64,12 +64,14 @@ describe('Topology panel', () => {
 
 describe('Topology panel source column', () => {
   it('marks components as in code or planned only for imported projects', () => {
+    const [web, api, db] = base.components;
+    if (!web || !api || !db) throw new Error('The base project has three components.');
     const imported: Project = {
       ...base,
       components: [
-        { ...base.components[0], origin: 'code' },
-        { ...base.components[1], origin: 'code' },
-        base.components[2],
+        { ...web, origin: 'code' },
+        { ...api, origin: 'code' },
+        db,
       ],
     };
     const { unmount } = render(<TopologyPanel project={imported} />);

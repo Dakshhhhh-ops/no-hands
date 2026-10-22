@@ -59,8 +59,8 @@ export default function ScenarioBranchingBar({
       <div className="branch-selector-wrap">
         <div className="branch-chip" onClick={() => setShowBranchDropdown(!showBranchDropdown)}>
           <GitBranch size={13} className="text-cyan" />
-          <span className="branch-label">{activeBranch.name}</span>
-          <span className="branch-badge">v{activeBranch.version}</span>
+          <span className="branch-label">{activeBranch?.name}</span>
+          <span className="branch-badge">v{activeBranch?.version}</span>
           <ChevronDown size={12} className="branch-chevron" />
         </div>
 

@@ -213,7 +213,6 @@
 .vp-fix-input:focus-visible, .vp-fix-choices button:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 2px; }
 .vp-item .vp-fix-detail { color: var(--va-muted); font-size: 12.5px; }
 
-
 /* ---------- Diagram animations ----------
    Moved out of an inline \3c style> in ArchitectureDiagram.jsx so the CSP needs no
    'unsafe-inline'. Last in the cascade, as the inline block was. */

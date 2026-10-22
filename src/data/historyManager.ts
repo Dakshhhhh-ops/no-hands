@@ -114,11 +114,11 @@ export class HistoryTimeline {
    */
   jumpTo(targetIndex: number): Project {
     const fullTimeline = this.getFullTimeline();
-    if (targetIndex < 0 || targetIndex >= fullTimeline.length) {
+    const target = fullTimeline[targetIndex];
+    if (targetIndex < 0 || targetIndex >= fullTimeline.length || !target) {
       throw new Error(`Invalid timeline index: ${targetIndex}`);
     }
 
-    const target = fullTimeline[targetIndex];
     if (target.project.version === this.present.version) {
       return this.present;
     }

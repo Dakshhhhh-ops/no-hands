@@ -58,8 +58,10 @@ function getValueAtPath(doc: JsonValue, path: string): JsonValue | undefined {
 
 /**
  * Generates an RFC 6902 JSON Patch by comparing two JavaScript objects/documents.
+ * A value may be undefined when a property is present but explicitly set to undefined;
+ * it is then treated like any other primitive.
  */
-export function generateJsonPatch(beforeObj: JsonValue, afterObj: JsonValue, prefix = ''): JsonPatchOperation[] {
+export function generateJsonPatch(beforeObj: JsonValue | undefined, afterObj: JsonValue | undefined, prefix = ''): JsonPatchOperation[] {
   const patches: JsonPatchOperation[] = [];
 
   if (beforeObj === afterObj) return patches;
@@ -151,10 +153,10 @@ export function applyJsonPatch<T extends JsonValue>(
   // Helper to resolve parent and property/index
   function getParentAndKey(doc: JsonValue, path: string): { parent: JsonValue; key: string | number } {
     const tokens = parsePointer(path);
-    if (tokens.length === 0) throw new Error('Cannot target root document directly for add/remove');
-    let parent: JsonValue = doc;
-    for (let i = 0; i < tokens.length - 1; i++) {
-      const t = tokens[i];
+    const lastToken = tokens.pop();
+    if (lastToken === undefined) throw new Error('Cannot target root document directly for add/remove');
+    let parent: JsonValue | undefined = doc;
+    for (const t of tokens) {
       if (Array.isArray(parent)) {
         parent = parent[Number(t)];
       } else {
@@ -164,7 +166,6 @@ export function applyJsonPatch<T extends JsonValue>(
         throw new Error(`Invalid patch path token: "${t}" in path: "${path}"`);
       }
     }
-    const lastToken = tokens[tokens.length - 1];
     return {
       parent,
       key: Array.isArray(parent) ? (lastToken === '-' ? parent.length : Number(lastToken)) : lastToken,

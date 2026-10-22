@@ -87,7 +87,7 @@ export function useDictation(options: UseDictationOptions = {}): UseDictationRet
       recog.onresult = (event) => {
         let resultTranscript = '';
         for (let i = 0; i < event.results.length; i += 1) {
-          resultTranscript += event.results[i][0].transcript;
+          resultTranscript += event.results[i]?.[0]?.transcript ?? '';
         }
         if (resultTranscript.trim()) {
           setTranscript(resultTranscript);

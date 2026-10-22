@@ -1,66 +1,5 @@
 /* VoiceArchitect UI component styles (legacy layer; later files override it). */
 
-
-:root {
-  --c-coral: #ff5c3b;
-  --c-amber: #ffad2e;
-  --c-yellow: #f5dd3c;
-  --c-green: #33d67e;
-  --c-cyan: #2fcde8;
-  --c-blue: #5a86ff;
-  --c-violet: #a685ff;
-  --c-pink: #ff63b0;
-  --acc: #fff;
-  --bg: #000000;
-  --bg-2: #070707;
-  --card: #0b0b0b;
-  --line: #1c1c1c;
-  --line-2: #2c2c2c;
-  --line-3: #444444;
-  --muted: #777777;
-  --soft: #a6a6a6;
-  --ink: #ffffff;
-
-  /* Studio Workspace Mappings */
-  --bg-deep: #000000;
-  --bg-canvas: #050505;
-  --surface-1: #070707;
-  --surface-2: #0b0b0b;
-  --surface-3: #121212;
-  --surface-card: #0a0a0a;
-
-  --line-dim: #1c1c1c;
-  --line-mid: #2a2a2a;
-  --line-bright: #3f3f3f;
-  --line-glow: rgba(255, 255, 255, 0.12);
-
-  --text-pure: #ffffff;
-  --text-high: #f0f0f0;
-  --text-mid: #a6a6a6;
-  --text-muted: #777777;
-  --text-faint: #444444;
-
-  --cyan: #2fcde8;
-  --cyan-bright: #68ffdf;
-  --cyan-glow: rgba(47, 205, 232, 0.35);
-  --teal-architect: #2fcde8;
-  --orange-crox: #ff5c3b;
-  --amber-warn: #ffad2e;
-  --gold-common: #f5dd3c;
-  --violet-downstream: #a685ff;
-  --green-nominal: #33d67e;
-
-  --font-sans: 'Geist', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
-
-  --gutter: clamp(16px, 4vw, 56px);
-  --max: 1240px;
-  --r: 10px;
-  --nav: 60px;
-
-  color-scheme: dark;
-}
-
 /* Base Reset & Global Typography */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -80,26 +19,11 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: var(--bg);
   color: var(--ink);
   overflow-x: hidden;
 }
 
 /* Custom Tactical Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--surface-1);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--line-mid);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--teal-architect);
-}
 
 /* Focus styles */
 :focus-visible {

@@ -19,12 +19,14 @@ architecture workspace.
 
 ## Project layout
 
-- `src/App.tsx` — root component. CSS is imported in `src/main.tsx` in this order:
-  `fonts.css` (self-hosted fonts from `src/fonts/`, OFL-licensed), `styles.css`, `responsive.css`, `theme.css` (legacy utility classes), `tokens.css`,
-  `bridge.css`, `app-shell.css`, `landing.css`, `landing-v3.css`, `landing-canvas.css`
-  (landing sections and the workspace studio layout), `theme-editorial.css` (the
-  paper/ink/vermilion palette; overrides every earlier color), `panels.css` (the
-  workspace output panels, built only from theme tokens; loaded last).
+- `src/App.tsx` — root component; composes the landing sections, the studio toolbar,
+  guided demo, composer, output panel, and review dialog from `src/components/`.
+- CSS is imported in `src/main.tsx`, and that order is the cascade: `app-shell.css` (which
+  `@import`s `ui-effects.css`), `fonts.css` (self-hosted fonts from `src/fonts/`, OFL),
+  `styles.css`, `responsive.css`, `theme.css` (legacy component styles), `tokens.css` (every
+  design token, defined once), `bridge.css`, `landing.css`, `landing-v3.css`,
+  `landing-canvas.css`, `theme-editorial.css` (editorial component overrides), `panels.css`.
+  Add tokens to `tokens.css` only; do not redefine a token in another file.
 - `src/components/` — React components (`.tsx`, each with an exported props interface).
 - `src/data/` — domain modules (`.ts`). Imports use the `.ts` extension
   (`allowImportingTsExtensions: true` in `tsconfig.json`), so Node runs them directly.

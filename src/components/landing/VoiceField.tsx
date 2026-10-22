@@ -150,7 +150,7 @@ export default function VoiceField() {
       mouse.ty = 1 - (event.clientY - rect.top) / rect.height;
     };
     const observer = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting;
+      visible = entry?.isIntersecting ?? visible;
       setRunning(true);
     });
     const onVisibility = () => setRunning(true);

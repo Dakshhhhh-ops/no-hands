@@ -50,7 +50,9 @@ export class RateLimiter {
     const recent = (this.hits.get(key) || []).filter((stamp) => t - stamp < this.windowMs);
     if (recent.length >= this.limit) {
       this.hits.set(key, recent);
-      return { ok: false, retryAfterSeconds: Math.max(1, Math.ceil((recent[0] + this.windowMs - t) / 1000)) };
+      // recent is never empty here: the limit is positive, so at least one stamp is in the window.
+      const oldest = recent[0] ?? t;
+      return { ok: false, retryAfterSeconds: Math.max(1, Math.ceil((oldest + this.windowMs - t) / 1000)) };
     }
     recent.push(t);
     this.hits.set(key, recent);

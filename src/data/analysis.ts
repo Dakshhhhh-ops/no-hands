@@ -16,8 +16,8 @@ export function deriveRiskFindings(project: Project): RiskFinding[] {
 
   // 1. Single database: one DATABASE component and nothing modeled to take over,
   //    unless the team has recorded that it accepts running a single instance.
-  if (databases.length === 1) {
-    const db = databases[0];
+  const [db] = databases;
+  if (databases.length === 1 && db) {
     const incoming = callersOf(project, db.id).map((node) => node.name);
     const accepted = singleInstanceAcceptance(project, db);
     if (accepted) {

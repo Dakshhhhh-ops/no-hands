@@ -89,13 +89,16 @@ export default function RiskPanel({ project, onResolve }: RiskPanelProps) {
       const next = { ...prev };
       for (const finding of fixable) {
         const pick = next[finding.fixKey];
-        if (!pick || !(pick.choiceId || pick.custom?.trim())) next[finding.fixKey] = { choiceId: fixFor(project, finding.fixKey)!.choices[0].id }; // fixable: fixFor is non-null
+        if (pick && (pick.choiceId || pick.custom?.trim())) continue;
+        // fixable: fixFor is non-null, and every fix offers at least two choices.
+        const suggested = fixFor(project, finding.fixKey)?.choices[0];
+        if (suggested) next[finding.fixKey] = { choiceId: suggested.id };
       }
       return next;
     });
   };
   const review = () => {
-    const picks = Object.fromEntries(chosen.map((f): [string, FixSelection | null] => [f.fixKey, selections[f.fixKey]]));
+    const picks = Object.fromEntries(chosen.map((f): [string, FixSelection | null] => [f.fixKey, selections[f.fixKey] ?? null]));
     const proposal = resolutionProposal(project, picks);
     if (proposal && onResolve) {
       onResolve(proposal);

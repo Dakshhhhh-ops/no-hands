@@ -297,8 +297,8 @@ spec:
   }
 
   // Ingress routing if gateway exists
-  if (gateways.length > 0) {
-    const gw = gateways[0];
+  const [gw] = gateways;
+  if (gw) {
     manifests.push(`apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

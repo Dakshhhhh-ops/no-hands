@@ -137,15 +137,17 @@ export function simulateChaosAndTelemetry(
       let reason = '';
       let culprit = '';
 
+      const [firstDown] = downDeps;
       if (isRouter(c)) {
-        if (downDeps.length === myDeps.length) {
+        // myDeps is not empty, so "all down" also means firstDown exists.
+        if (downDeps.length === myDeps.length && firstDown !== undefined) {
           next = 'DOWN';
           reason = `every component ${c.name} routes to is down`;
-          culprit = downDeps[0];
-        } else if (downDeps.length) {
+          culprit = firstDown;
+        } else if (firstDown !== undefined) {
           next = 'DEGRADED';
           reason = `${downDeps.length} of ${myDeps.length} routes fail`;
-          culprit = downDeps[0];
+          culprit = firstDown;
         }
       } else {
         for (const d of downDeps) {
@@ -170,11 +172,11 @@ export function simulateChaosAndTelemetry(
       }
 
       // A slowed dependency slows its synchronous callers too.
-      const degradedDeps = myDeps.filter((d) => nodeMetrics.get(d)!.status === 'DEGRADED');
-      if (next === 'HEALTHY' && degradedDeps.length && !isRouter(c)) {
+      const [firstDegraded] = myDeps.filter((d) => nodeMetrics.get(d)!.status === 'DEGRADED');
+      if (next === 'HEALTHY' && firstDegraded !== undefined && !isRouter(c)) {
         next = 'DEGRADED';
-        reason = `${nameOf(degradedDeps[0])} is degraded`;
-        culprit = degradedDeps[0];
+        reason = `${nameOf(firstDegraded)} is degraded`;
+        culprit = firstDegraded;
       }
 
       const latency = (node.isDirectTarget ? node.activeLatencyMs : ASSUMED_HOP_LATENCY_MS) + penalty;

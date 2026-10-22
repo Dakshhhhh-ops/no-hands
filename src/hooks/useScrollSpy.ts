@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 /** Marks the nav link for the section in view with aria-current, for [ bracket ] styling. */
-export function useScrollSpy(ids: string[]): string {
+export function useScrollSpy(ids: string[]): string | undefined {
   const [active, setActive] = useState(ids[0]);
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return undefined;

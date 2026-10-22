@@ -88,14 +88,17 @@ export function auditProtocolsAndResilience(project: Project): ResilienceAuditRe
     traceSync(client.id, [client.id]);
   }
 
-  if (syncChains.length > 0) {
-    const deepest = syncChains.sort((a, b) => b.length - a.length)[0];
+  const [deepest] = syncChains.sort((a, b) => b.length - a.length);
+  // traceSync records only paths of four or more ids, so both ends exist whenever a chain does.
+  const chainStart = deepest?.[0];
+  const chainEnd = deepest?.[deepest.length - 1];
+  if (deepest && chainStart !== undefined && chainEnd !== undefined) {
     const chainNames = deepest.map((id) => compMap.get(id)?.name || id).join(' → ');
     findings.push({
       id: 'audit-deep-sync-chain',
       severity: 'WARNING',
-      sourceId: deepest[0],
-      targetId: deepest[deepest.length - 1],
+      sourceId: chainStart,
+      targetId: chainEnd,
       protocol: 'Synchronous Chain',
       title: `Deep Synchronous Request Cascade (${deepest.length} hops)`,
       description: `Execution path (${chainNames}) relies on multiple synchronous hops. Any single downstream slowdown compounds latency linearly.`,

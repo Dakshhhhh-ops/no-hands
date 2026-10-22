@@ -74,7 +74,7 @@ export function proposeChange(text: string): Proposal {
     items.push({ key: 'unresolved', title: 'Clarify this architecture request', detail: 'No supported demo rule matched, so no component or relationship will change automatically.' });
     unresolvedTerms.push(`No supported architecture change could be matched to “${String(text).trim()}”. Clarify the intended component and behavior.`);
   }
-  if (unresolvedTerms.length && items[0].key !== 'unresolved') {
+  if (unresolvedTerms.length && items[0]?.key !== 'unresolved') {
     items.push({ key: 'unresolved', title: 'Resolve an ambiguous term', detail: unresolvedTerms.join(' ') });
   }
   const assumptions: string[] = [];

@@ -157,6 +157,8 @@ async function runOnce(seed: number, label: string): Promise<CaseResult[]> {
       const actual = delta(before, after);
       const options = 'anyOf' in testCase.expect ? testCase.expect.anyOf : [testCase.expect];
       const best = options.map((e) => score(e, actual, after)).sort((x, y) => Number(y.correct) - Number(x.correct) || y.found - x.found || x.unexpected - y.unexpected)[0];
+      // Every case has at least one expectation (anyOf lists are never empty).
+      if (!best) throw new Error(`Case ${testCase.id} has no expectation.`);
       outcome = { ...best, usage: lastUsage, actual: { ...actual, addComponents: actual.addComponents.map((c) => `${c.id} (${c.type})`) } };
     } catch (error) {
       outcome = { expected: 1, found: 0, unexpected: 0, correct: false, error: error instanceof Error ? error.message : String(error) };
@@ -190,7 +192,8 @@ function across(perRun: Summary[]) {
   const correct = perRun.map((s) => s.correct);
   const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
   return {
-    cases: perRun[0].cases,
+    // There is always at least one run (runs >= 1).
+    cases: perRun[0]?.cases ?? 0,
     errors: perRun.reduce((n, s) => n + s.errors, 0),
     correctMean: mean(correct),
     correctMin: Math.min(...correct),

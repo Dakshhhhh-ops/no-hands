@@ -88,6 +88,8 @@ export function detectCycles(
         // Create canonical representation to prevent duplicate permutations
         const nodesInCycle = fullCycle.slice(0, -1);
         const minNode = [...nodesInCycle].sort()[0];
+        // path holds at least two nodes here, so there is always a smallest one.
+        if (minNode === undefined) continue;
         const minIndex = nodesInCycle.indexOf(minNode);
         const normalized = [
           ...nodesInCycle.slice(minIndex),

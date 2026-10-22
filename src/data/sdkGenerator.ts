@@ -2,10 +2,10 @@ import type { Project } from '../types/schema.ts';
 import { generateMultiServiceOpenApi } from './openapiSynth.ts';
 
 const words = (text: string) => String(text).split(/[^A-Za-z0-9]+/).filter(Boolean);
-const pascal = (text: string) => words(text).map((w) => w[0].toUpperCase() + w.slice(1)).join('') || 'Project';
+const pascal = (text: string) => words(text).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('') || 'Project';
 const camel = (text: string) => {
   const p = pascal(text);
-  return p[0].toLowerCase() + p.slice(1);
+  return p.charAt(0).toLowerCase() + p.slice(1);
 };
 
 /**
@@ -15,6 +15,8 @@ const camel = (text: string) => {
  */
 export function generateTypeScriptSdk(project: Project): string {
   const spec = generateMultiServiceOpenApi(project);
+  // The synthesized document always lists exactly one (placeholder) server.
+  const serverUrl = spec.servers[0]?.url ?? '';
   const className = `${pascal(project.name)}Client`;
   const methods: string[] = [];
   const used = new Set<string>();
@@ -65,7 +67,7 @@ export class ${className} {
   private timeoutMs: number;
 
   constructor(config: SdkConfig = {}) {
-    this.baseUrl = config.baseUrl || '${spec.servers[0].url}';
+    this.baseUrl = config.baseUrl || '${serverUrl}';
     this.authToken = config.authToken;
     this.timeoutMs = config.timeoutMs || 8000;
   }

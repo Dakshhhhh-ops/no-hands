@@ -6,20 +6,6 @@
    ========================================================================== */
 
 /* Warmer, paper-like light theme, closer to an editorial page */
-[data-theme="light"] {
-  --va-bg: #f7f6f2;
-  --va-bg-sunken: #efede6;
-  --va-panel: #ffffff;
-  --va-panel-2: #f3f2ed;
-  --va-panel-3: #e9e7df;
-  --va-line: #e2dfd6;
-  --va-line-strong: #cdc9bd;
-  --va-line-bright: #a8a397;
-  --va-ink: #1c1c1e;
-  --va-muted: #55565c;
-  --va-faint: #84858c;
-  --va-surface: linear-gradient(160deg, #ffffff, #fbfaf6);
-}
 .tone-rose { --tone: var(--va-rose); }
 
 /* ---------- Navigation: uppercase, tracked, [ bracketed ] when active ---------- */
@@ -34,7 +20,7 @@
 .va-app .va-nav a[aria-current="true"] { color: var(--va-ink); }
 .va-app .va-nav a[aria-current="true"]::before { opacity: 1; margin-right: 6px; }
 .va-app .va-nav a[aria-current="true"]::after { opacity: 1; margin-left: 6px; }
-.va-app .va-topbar .va-btn-primary { border-radius: 999px; padding: 0 18px; }
+.va-app .va-topbar .va-btn-primary { padding: 0 18px; }
 
 /* ---------- Canvas hero ---------- */
 .va-app .va-hero.va-hero-canvas {
@@ -74,9 +60,7 @@
   --z: 1; --r: 0deg;
   position: absolute; border-radius: 14px;
   border: 1px solid var(--va-line);
-  background: color-mix(in srgb, var(--va-panel) 92%, transparent);
   box-shadow: 0 24px 50px -28px rgba(0, 0, 0, .55), 0 2px 6px rgba(0, 0, 0, .06);
-  backdrop-filter: blur(8px);
   transform:
     translate3d(calc(var(--mx, 0) * var(--z) * -38px), calc(var(--my, 0) * var(--z) * -30px + var(--sy, 0) * var(--z) * -140px), 0)
     rotate(var(--r));
@@ -112,10 +96,10 @@
 .va-frag-toast b { display: block; font-size: 13px; }
 .va-frag-toast small { margin-left: 4px; color: var(--va-faint); font-weight: 500; }
 .va-frag-toast span { color: var(--va-muted); font-size: 12.5px; }
-.va-frag-avatar { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 50%; background: var(--va-gradient-primary); color: #fff; }
+.va-frag-avatar { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 50%; }
 .va-frag-toggle { display: inline-flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; right: 6%; bottom: 30%; }
-.va-frag-switch { position: relative; width: 38px; height: 22px; border-radius: 999px; background: var(--va-indigo); }
-.va-frag-switch i { position: absolute; right: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.va-frag-switch { position: relative; width: 38px; height: 22px; border-radius: 999px; }
+.va-frag-switch i { position: absolute; right: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; }
 
 /* Labeled pointers marking pipeline steps (not people) */
 .va-pointer {
@@ -130,9 +114,9 @@
 .va-pointer b {
   margin-left: 10px; padding: 4px 8px; border-radius: 5px;
   background: var(--tone); color: #fff; font: 650 11.5px/1 var(--va-font); letter-spacing: .01em;
-  box-shadow: 0 6px 14px -6px var(--tone);
 }
-.va-pointer.p-1 { left: 13%; top: 74%; animation-delay: 0s; }
+/* Anchored past the Listening pill (left 6%, about 125px wide) with room for the 30px leftward drift. */
+.va-pointer.p-1 { left: calc(6% + 175px); top: 74%; animation-delay: 0s; }
 .va-pointer.p-2 { right: 18%; top: 54%; animation-delay: -4s; }
 .va-pointer.p-3 { right: 12%; top: 34%; animation-delay: -9s; }
 @keyframes va-pointer-path {
@@ -528,3 +512,6 @@
   .va-studio-source .va-sample-picker { display: flex; align-items: center; gap: 4px; width: 100%; }
   .va-studio-source .va-sample-picker select { flex: 1 1 auto; min-width: 0; }
 }
+/* The illustration's diff lines meet WCAG AA in both themes: the tone mixed toward the ink. */
+.va-loop-visual .va-story-diff .is-add { color: color-mix(in srgb, var(--va-teal) 70%, var(--va-ink)); }
+.va-loop-visual .va-story-diff .is-ask { color: color-mix(in srgb, var(--va-amber) 65%, var(--va-ink)); }

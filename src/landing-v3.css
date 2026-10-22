@@ -6,8 +6,6 @@
    Everything degrades to static for prefers-reduced-motion.
    ========================================================================== */
 
-:root { --va-serif: 'Instrument Serif', 'Iowan Old Style', Georgia, serif; }
-
 .va-sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
@@ -21,10 +19,8 @@
 }
 .va-display-serif .va-split-word,
 .va-section-title em {
-  background: var(--va-brand-gradient);
   background-size: 180% 100%;
   -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; color: transparent;
 }
 .va-split-mask { display: inline-block; overflow: hidden; vertical-align: top; padding: 0 .04em .12em; margin: 0 -.04em -.12em; }
 .va-split-word {
@@ -60,7 +56,6 @@
 .va-story-wave { display: flex; align-items: center; gap: 4px; height: 64px; margin-bottom: 20px; }
 .va-story-wave i {
   flex: 1; height: 100%; border-radius: 3px;
-  background: linear-gradient(to top, var(--va-indigo), var(--va-violet));
   transform-origin: center; animation: va-wave 1.3s ease-in-out infinite; animation-delay: calc(var(--k) * -73ms);
 }
 .va-story-transcript { margin: 0 0 18px; font-size: 21px; line-height: 1.45; font-weight: 600; letter-spacing: -.01em; }
@@ -68,7 +63,7 @@
 @keyframes va-blink { 50% { opacity: 0; } }
 .va-story-chip {
   display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 999px;
-  color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent);
+  color: var(--tone);
   border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
   font-size: 12.5px; font-weight: 650;
 }
@@ -81,7 +76,7 @@
 .va-story-diff .is-ask { color: var(--va-amber); background: color-mix(in srgb, var(--va-amber) 9%, transparent); border-style: dashed; }
 .va-story-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .va-story-actions span { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--va-line-strong); font-size: 13px; font-weight: 600; }
-.va-story-actions .is-primary { border-color: transparent; background: var(--va-gradient-primary); color: #fff; }
+.va-story-actions .is-primary { border-color: transparent; }
 .va-story-code {
   margin: 0 0 18px; padding: 16px; border-radius: 12px; border: 1px solid var(--va-line);
   background: var(--va-bg-sunken); color: var(--va-ink); font: 500 13px/1.6 var(--va-mono); white-space: pre;
