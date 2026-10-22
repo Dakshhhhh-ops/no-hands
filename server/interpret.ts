@@ -375,17 +375,24 @@ export async function interpretInstruction(text: string, project: ModelSnapshot,
 function readJsonBody(req: IncomingMessage, maxBytes: number): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     let size = 0;
+    let tooLarge = false;
     const chunks: Buffer[] = [];
     req.on('data', (chunk: Buffer) => {
+      // Past the limit nothing more is kept. The rest is read and dropped, not left unread:
+      // destroying the request, or closing with data unread, resets the connection and the
+      // client never sees the 413. The caller answers with Connection: close, which ends it.
+      if (tooLarge) return;
       size += chunk.length;
       if (size > maxBytes) {
+        tooLarge = true;
+        chunks.length = 0;
         reject(new InterpretError('Request body is too large.', 413));
-        req.destroy();
         return;
       }
       chunks.push(chunk);
     });
     req.on('end', () => {
+      if (tooLarge) return;
       let value: unknown;
       try {
         value = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
@@ -492,6 +499,8 @@ export function createApiMiddleware(options: ApiOptions = {}) {
       body = await readJsonBody(req, limits.maxBodyBytes);
     } catch (error) {
       const status = error instanceof InterpretError ? error.status : 400;
+      // An oversized body is not read to the end; this connection is not reused.
+      if (status === 413) res.setHeader('Connection', 'close');
       sendJson(res, status, { error: error instanceof Error ? error.message : 'Bad request.' });
       return;
     }

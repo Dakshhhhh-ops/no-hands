@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
 // Browser tests never use a model provider: VOICEARCHITECT_PROVIDER=offline makes the
@@ -9,7 +11,10 @@ import { defineConfig, devices } from '@playwright/test';
 // few bundled files instead of hundreds of dev modules, so parallel runs stay fast
 // on a busy machine, and the tests exercise what users actually get.
 const PREVIEW_PORT = 5188;
-const PREVIEW_DIR = 'node_modules/.playwright-dist';
+// Built in the system temp folder, outside the project: a project folder that a sync client
+// (OneDrive, Dropbox) watches would otherwise upload a fresh build on every run, and that
+// upload competes with the browsers for CPU.
+const PREVIEW_DIR = path.join(tmpdir(), 'voicearchitect-playwright-dist');
 const offline = { VOICEARCHITECT_PROVIDER: 'offline' };
 
 export default defineConfig({
@@ -18,9 +23,11 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // Each worker is a full Chrome process; more than three starves the CPU on a typical laptop
-  // (especially with OneDrive syncing the project folder) and tests time out waiting to render.
-  workers: process.env.CI ? 1 : 3,
+  // One worker, as in CI. Each worker is a full browser; on a busy laptop two or three workers
+  // timed out WebKit tests that pass in seconds alone, and saved little time (measured: 1 worker
+  // 5.7 min, all passed; 2 workers 4.6 min, 3 failed; 3 workers 5 to 6.6 min, 5 to 12 failed).
+  // On a fast machine, pass --workers=4.
+  workers: 1,
   reporter: 'html',
   use: {
     trace: 'on-first-retry',
@@ -49,9 +56,9 @@ export default defineConfig({
   ],
   webServer: [
     {
-      // Built inside node_modules so a dev server you have running, which watches the
-      // project folder, is not reloaded by a new index.html appearing in the project.
-      command: `npx vite build --outDir ${PREVIEW_DIR} --emptyOutDir && npx vite preview --outDir ${PREVIEW_DIR} --port ${PREVIEW_PORT} --strictPort`,
+      // Built outside the project, so a dev server you have running, which watches the
+      // project folder, is not reloaded by a new index.html appearing in it.
+      command: `npx vite build --outDir "${PREVIEW_DIR}" --emptyOutDir && npx vite preview --outDir "${PREVIEW_DIR}" --port ${PREVIEW_PORT} --strictPort`,
       url: `http://localhost:${PREVIEW_PORT}`,
       reuseExistingServer: false,
       timeout: 180000,

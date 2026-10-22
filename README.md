@@ -57,7 +57,7 @@ Open the local URL printed by Vite. The app is a single-page React app under `sr
 ## Verify
 
 ```sh
-npm test             # 148 unit tests, including Wispr sign-in and MCP against a fake server, the server's headers, and hostile request bodies
+npm test             # 150 unit tests, including Wispr sign-in and MCP against a fake server, the server's headers, and hostile or oversized request bodies
 npm run test:vitest  # 61 component tests (Vitest + RTL)
 npm run typecheck    # strict TypeScript with noUncheckedIndexedAccess across src/ and server/, no any
 npm run lint         # ESLint, 0 problems

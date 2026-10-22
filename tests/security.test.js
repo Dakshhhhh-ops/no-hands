@@ -210,3 +210,31 @@ test('null, arrays, and null items in the project answer an error, and the serve
   const health = await get(base, '/api/health');
   assert.equal(health.status, 200, 'the server still answers after every hostile body');
 }));
+
+test('an oversized body gets a 413 answer, not a reset connection, and the server keeps running', () => withServer({ trustProxy: false }, async (base) => {
+  // Well over the 256 KB default, sent the way a browser would: one request, the whole body.
+  const big = JSON.stringify({ text: 'x'.repeat(1024 * 1024), project: {} });
+  for (let i = 0; i < 5; i += 1) {
+    const res = await post(base, '/api/interpret', big);
+    assert.equal(res.status, 413, `attempt ${i + 1}`);
+    assert.match(res.body, /too large/);
+  }
+  const health = await get(base, '/api/health');
+  assert.equal(health.status, 200);
+}));
+
+test('a client that never stops sending gets the 413 and is disconnected', () => withServer({ trustProxy: false }, async (base) => {
+  const { request } = await import('node:http');
+  const outcome = await new Promise((resolve) => {
+    const req = request(`${base}/api/interpret`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked' } });
+    const chunk = Buffer.alloc(64 * 1024, 120);
+    const timer = setInterval(() => { if (!req.destroyed) req.write(chunk); }, 5);
+    let status = 0;
+    req.on('response', (res) => { status = res.statusCode; res.resume(); });
+    req.on('error', () => {});
+    req.on('close', () => { clearInterval(timer); resolve({ status }); });
+    setTimeout(() => { clearInterval(timer); req.destroy(); resolve({ status, stillOpen: true }); }, 5000).unref();
+  });
+  assert.equal(outcome.status, 413);
+  assert.equal(outcome.stillOpen, undefined, 'the server closed the connection');
+}));

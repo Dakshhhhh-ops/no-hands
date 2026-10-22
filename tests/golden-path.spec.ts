@@ -135,6 +135,8 @@ test('decisions typed in the review dialog are recorded in the model, not only c
 });
 
 test('a component removed on a branch is removed from main when the branch merges', async ({ page }) => {
+  // Fork, preview, apply, and merge: a long flow for one 30-second budget on a busy machine.
+  test.slow();
   await page.goto('/');
   await page.getByRole('button', { name: 'Load sample' }).click();
   const redisNode = page.getByRole('button', { name: /^Redis, / });
