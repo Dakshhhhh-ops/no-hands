@@ -71,7 +71,8 @@ describe('Model interpretation flow', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: /Apply change/ }));
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Review this change' })).not.toBeInTheDocument());
-    expect((await screen.findAllByText(/Notification Service/)).length).toBeGreaterThan(0);
+    // After apply the app shows What changed, which loads on demand; the new service is listed there.
+    expect((await screen.findAllByText(/Notification Service/, {}, { timeout: 5000 })).length).toBeGreaterThan(0);
   });
 
   it('falls back to offline rules when the interpretation server fails', async () => {

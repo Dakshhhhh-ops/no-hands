@@ -9,3 +9,9 @@ coverage/
 # Playwright output (regenerated on every run)
 playwright-report/
 test-results/
+
+# Local before/after screenshots
+.screenshots/
+
+# UI audit notes and screenshots (local only)
+ui-audit/

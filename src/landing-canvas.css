@@ -5,8 +5,6 @@
    mono, [bracketed] navigation and numbered section labels).
    ========================================================================== */
 
-/* Warmer, paper-like light theme, closer to an editorial page */
-.tone-rose { --tone: var(--va-rose); }
 
 /* ---------- Navigation: uppercase, tracked, [ bracketed ] when active ---------- */
 .va-app .va-nav a {
@@ -22,9 +20,15 @@
 .va-app .va-nav a[aria-current="true"]::after { opacity: 1; margin-left: 6px; }
 .va-app .va-topbar .va-btn-primary { padding: 0 18px; }
 
-/* ---------- Canvas hero ---------- */
+/* ---------- Canvas hero ----------
+   Below 1280px: one centred column; the product card follows the note in flow and the
+   decorations are hidden. From 1280px: three columns (gutter, content, gutter). The
+   headline spans all three; the description, actions, and note sit in the content
+   column; the product card and the decorations are grid items in the gutters beside
+   them, placed by the content rather than the viewport, so they cannot overlap it. */
 .va-app .va-hero.va-hero-canvas {
-  position: relative; isolation: isolate; display: grid; place-items: center; grid-template-columns: minmax(0, 1fr);
+  position: relative; isolation: isolate; display: grid; place-items: center; align-content: center;
+  grid-template-columns: minmax(0, 1fr); row-gap: 40px;
   max-width: none; min-height: calc(100vh - 57px); margin: 0; padding: 72px 24px 96px;
   overflow: hidden;
 }
@@ -38,7 +42,15 @@
   mask-image: radial-gradient(ellipse 75% 70% at 50% 45%, #000 35%, transparent 85%);
   -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 45%, #000 35%, transparent 85%);
 }
-.va-hero-canvas .va-voice-field { inset: auto 0 0; width: 100%; height: 58%; opacity: .9; }
+/* The voice lines stay in the gutters: a transparent band hides them behind the text and buttons. */
+.va-hero-canvas .va-voice-field {
+  --band: min(100%, 780px);
+  --fade: linear-gradient(to right,
+    #000 calc(50% - var(--band) / 2 - 120px), transparent calc(50% - var(--band) / 2),
+    transparent calc(50% + var(--band) / 2), #000 calc(50% + var(--band) / 2 + 120px));
+  inset: auto 0 0; width: 100%; height: 58%; opacity: .9;
+  mask-image: var(--fade); -webkit-mask-image: var(--fade);
+}
 [data-theme="light"] .va-hero-canvas .va-voice-field { opacity: .45; }
 
 .va-canvas-center { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; text-align: center; }
@@ -47,22 +59,44 @@
   font-size: clamp(54px, 9vw, 150px); line-height: .9; letter-spacing: -.06em; font-weight: 700;
 }
 .va-hero-canvas .va-display-serif { padding-left: 0; }
-.va-hero-canvas .va-hero-description { margin: 40px auto 30px; max-width: 54ch; color: var(--va-muted); font-size: 18px; line-height: 1.6; text-align: center; animation: none; }
+.va-hero-canvas .va-hero-description { margin: 40px auto 30px; max-width: 60ch; color: var(--va-muted); font-size: 18px; line-height: 1.6; text-align: center; animation: none; }
 .va-hero-canvas .va-hero-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin: 0 0 30px; animation: none; }
+.va-hero-lower { display: contents; }
+.va-hero-description .va-nowrap { white-space: nowrap; }
+@media (max-width: 639px) {
+  .va-hero-eyebrow-more { display: none; }
+}
 
-/* Selection frame with handles, like a selected text layer on a canvas */
+/* ---------- Product card: dictation to a reviewed change ---------- */
+.va-proof { width: min(100%, 420px); margin: 0; padding: 16px 18px; border-radius: 18px; text-align: left; }
+.va-proof .va-story-transcript { margin: 0 0 10px; font-size: 15px; line-height: 1.4; text-wrap: pretty; }
+.va-proof .va-story-chip { margin-bottom: 12px; padding: 4px 10px; font-size: 12px; }
+.va-proof .va-story-heading { margin: 0 0 8px; }
+.va-proof .va-story-diff { gap: 6px; margin: 0 0 12px; font-size: 12.5px; }
+.va-proof .va-story-diff li { padding: 7px 10px; }
+.va-proof .va-story-actions span { padding: 6px 12px; }
+/* Not yet typed or shown: invisible, but holding its place so the card never changes size. */
+.va-proof-ghost, .va-proof [data-hidden] { visibility: hidden; }
+/* The caret is a border, so it adds no width and never moves a line break. */
+.va-proof-caret { margin-right: -2px; border-right: 2px solid var(--va-indigo); }
+@media (prefers-reduced-motion: no-preference) {
+  .va-proof-caret { animation: va-proof-blink 1s steps(1) infinite; }
+  .va-proof .va-story-diff li:not([data-hidden]) { animation: va-proof-in .45s var(--va-ease-out) both; }
+  .va-proof .va-story-actions .is-primary { animation: va-proof-pop .5s var(--va-ease-out); }
+}
+@keyframes va-proof-blink { 50% { border-right-color: transparent; } }
+@keyframes va-proof-in { from { translate: 0 6px; } }
+@keyframes va-proof-pop { 40% { scale: 1.08; } }
 
-/* Code-styled line (editor syntax colors) */
-
-/* ---------- Floating fragments ---------- */
-.va-frags { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+/* ---------- Decorations: the compose file and the Listening pill ---------- */
+.va-frags { display: none; pointer-events: none; }
 .va-frag {
   --z: 1; --r: 0deg;
-  position: absolute; border-radius: 14px;
+  position: relative; border-radius: 14px;
   border: 1px solid var(--va-line);
   box-shadow: 0 24px 50px -28px rgba(0, 0, 0, .55), 0 2px 6px rgba(0, 0, 0, .06);
   transform:
-    translate3d(calc(var(--mx, 0) * var(--z) * -38px), calc(var(--my, 0) * var(--z) * -30px + var(--sy, 0) * var(--z) * -140px), 0)
+    translate3d(calc(var(--mx, 0) * var(--z) * -24px), calc(var(--my, 0) * var(--z) * -18px + var(--sy, 0) * var(--z) * -140px), 0)
     rotate(var(--r));
   transition: transform .9s var(--va-ease-out);
   animation: va-frag-in 1s var(--va-ease-out) both, va-frag-float 9s ease-in-out infinite;
@@ -75,77 +109,47 @@
 .va-frag-dots { display: flex; align-items: center; gap: 5px; padding: 9px 12px; border-bottom: 1px solid var(--va-line); }
 .va-frag-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--va-line-strong); }
 .va-frag-dots em { margin-left: 8px; color: var(--va-faint); font: 500 11px var(--va-mono); font-style: normal; }
-.va-frag-window { left: 2%; top: 5%; width: 230px; }
-.va-frag-graph { display: block; width: 100%; padding: 14px; }
-.va-frag-graph path { fill: none; stroke: var(--va-line-bright); stroke-width: 1.4; }
-.va-frag-graph rect { fill: var(--va-panel-2); stroke: var(--va-line-strong); }
-.va-frag-node { display: grid; gap: 2px; min-width: 180px; padding: 12px 14px; border-left: 3px solid var(--tone); }
-.va-frag-node small { color: var(--tone); font: 600 10px/1.4 var(--va-mono); letter-spacing: .12em; }
-.va-frag-node b { font-size: 15px; letter-spacing: -.01em; }
-.va-frag-node span { color: var(--va-faint); font-size: 12px; }
-.va-frag-node.f-2 { left: 2.5%; top: 56%; }
-.va-frag-node.f-9 { right: 7%; bottom: 8%; }
-.va-frag-node.f-10 { left: 24%; bottom: 3%; }
-.va-frag-tile { display: grid; place-items: center; width: 58px; height: 58px; color: var(--tone); }
-.va-frag-tile.f-3 { left: 21%; top: 4%; }
-.va-frag-tile.f-4 { right: 24%; top: 3%; }
-.va-frag-pill { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; left: 6%; bottom: 20%; }
-.va-frag-code { right: 1.5%; top: 6%; width: 230px; }
+.va-frag-pill { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+.va-frag-code { width: 230px; }
 .va-frag-code pre { margin: 0; padding: 12px 14px 14px; color: var(--va-ink); font: 500 12px/1.65 var(--va-mono); white-space: pre; overflow: hidden; }
-.va-frag-toast { display: flex; gap: 10px; align-items: center; padding: 12px 16px; right: 2.5%; top: 58%; width: 280px; }
-.va-frag-toast b { display: block; font-size: 13px; }
-.va-frag-toast small { margin-left: 4px; color: var(--va-faint); font-weight: 500; }
-.va-frag-toast span { color: var(--va-muted); font-size: 12.5px; }
-.va-frag-avatar { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 50%; }
-.va-frag-toggle { display: inline-flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; right: 6%; bottom: 30%; }
-.va-frag-switch { position: relative; width: 38px; height: 22px; border-radius: 999px; }
-.va-frag-switch i { position: absolute; right: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; }
 
-/* Labeled pointers marking pipeline steps (not people) */
-.va-pointer {
-  position: absolute; z-index: 4; display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px;
-  animation: va-pointer-path 14s ease-in-out infinite;
+@media (min-width: 1280px) {
+  .va-app .va-hero.va-hero-canvas {
+    --proof-w: clamp(260px, 20vw, 340px);
+    grid-template-columns: minmax(var(--proof-w), 1fr) minmax(0, 720px) minmax(var(--proof-w), 1fr);
+    grid-template-rows: minmax(0, 1fr) repeat(3, auto) minmax(0, 1fr);
+    place-items: start center; column-gap: 40px; row-gap: 0; padding: 28px 24px 32px;
+  }
+  .va-canvas-center { display: contents; }
+  .va-canvas-center > * { position: relative; z-index: 3; grid-column: 2; }
+  .va-hero-canvas .va-hero-eyebrow { grid-row: 2; }
+  .va-app .va-hero-canvas h1.va-display { grid-column: 1 / -1; grid-row: 3; }
+  /* The description, actions, and note share one row with the gutter items. A taller card
+     only makes that row taller, below the note; the spacing between the three never changes,
+     and the flexible rows above and below centre the whole group. */
+  .va-hero-lower { display: flex; flex-direction: column; align-items: center; grid-row: 4; }
+  .va-proof { grid-column: 3; grid-row: 4; justify-self: start; width: var(--proof-w); margin-top: 40px; }
+  .va-frags {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 22px;
+    grid-column: 1; grid-row: 4; justify-self: end; margin-top: 40px;
+  }
 }
-.va-pointer i {
-  width: 0; height: 0;
-  border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 13px solid var(--tone);
-  rotate: -28deg; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .25));
-}
-.va-pointer b {
-  margin-left: 10px; padding: 4px 8px; border-radius: 5px;
-  background: var(--tone); color: #fff; font: 650 11.5px/1 var(--va-font); letter-spacing: .01em;
-}
-/* Anchored past the Listening pill (left 6%, about 125px wide) with room for the 30px leftward drift. */
-.va-pointer.p-1 { left: calc(6% + 175px); top: 74%; animation-delay: 0s; }
-.va-pointer.p-2 { right: 18%; top: 54%; animation-delay: -4s; }
-.va-pointer.p-3 { right: 12%; top: 34%; animation-delay: -9s; }
-@keyframes va-pointer-path {
-  0%, 100% { translate: 0 0; }
-  25% { translate: 40px -18px; }
-  50% { translate: 10px 26px; }
-  75% { translate: -30px 6px; }
-}
-
-/* ---------- The problem, as a proofreader's redline ---------- */
-
-/* ---------- Numbered labels ---------- */
-
-/* ---------- 3D model section ---------- */
-
-/* Sections use the paper/ink rhythm */
-
-/* ---------- Responsive ---------- */
-@media (max-width: 1100px) {
-  .va-frag-window, .va-frag-tile.f-3, .va-frag-node.f-10, .va-frag-toggle, .va-pointer.p-3 { display: none; }
-}
-@media (max-width: 760px) {
+/* Too short for the card beside the text (the headline grows with the width): the card
+   moves into the column below the note, as on smaller screens, and the decorations hide,
+   so nothing in the first screen is ever cut off by its bottom edge. */
+@media (min-width: 1280px) and (max-height: 719px), (min-width: 1440px) and (max-height: 739px), (min-width: 1600px) and (max-height: 779px) {
+  .va-app .va-hero.va-hero-canvas { row-gap: 40px; }
+  .va-proof { grid-column: 2; grid-row: 5; justify-self: center; width: min(100%, 420px); margin-top: 0; }
   .va-frags { display: none; }
+}
+
+@media (max-width: 760px) {
   .va-app .va-hero.va-hero-canvas { min-height: 0; padding: 72px 16px 88px; }
 }
 
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .va-frag, .va-pointer { animation: none; transition: none; }
+  .va-frag { animation: none; transition: none; }
 }
 
 /* ==========================================================================
@@ -288,7 +292,6 @@
 
 /* Automated browsers (tests): keep layout identical, drop decorative motion. */
 .va-automated .va-frag,
-.va-automated .va-pointer,
 .va-automated .va-story-wave i,
 .va-automated .va-mini-wave i,
 .va-automated .va-live-dot { animation: none !important; }
@@ -375,8 +378,6 @@
 }
 /* The export menu now sits in the studio toolbar, above the panels below it. */
 .va-studio .va-menu-list { z-index: 30; }
-/* Pipeline pointer labels: darken the tone so white 11px text keeps AA contrast. */
-:root[data-theme="light"] .va-pointer b { background: color-mix(in srgb, var(--tone) 72%, #000); }
 
 /* ---------- Hero eyebrow ---------- */
 .va-hero-eyebrow {
@@ -491,6 +492,6 @@
   .va-studio-source .va-sample-picker { display: flex; align-items: center; gap: 4px; width: 100%; }
   .va-studio-source .va-sample-picker select { flex: 1 1 auto; min-width: 0; }
 }
-/* The illustration's diff lines meet WCAG AA in both themes: the tone mixed toward the ink. */
-.va-loop-visual .va-story-diff .is-add { color: color-mix(in srgb, var(--va-teal) 70%, var(--va-ink)); }
-.va-loop-visual .va-story-diff .is-ask { color: color-mix(in srgb, var(--va-amber) 65%, var(--va-ink)); }
+/* The illustrations' diff lines meet WCAG AA in both themes: the tone mixed toward the ink. */
+:is(.va-loop-visual, .va-proof) .va-story-diff .is-add { color: color-mix(in srgb, var(--va-teal) 70%, var(--va-ink)); }
+:is(.va-loop-visual, .va-proof) .va-story-diff .is-ask { color: color-mix(in srgb, var(--va-amber) 65%, var(--va-ink)); }

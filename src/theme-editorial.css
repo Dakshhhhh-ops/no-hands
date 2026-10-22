@@ -42,11 +42,7 @@
 .va-app .va-section-work { background: none; }
 /* Each tier is tinted with its own tone so the planes read on paper and on charcoal */
 /* Show full names: wrap instead of clipping */
-.va-frag-avatar { background: var(--va-cta-bg); color: var(--va-cta-ink); }
-.va-frag-switch { background: var(--va-ink); }
-.va-frag-switch i { background: var(--va-bg); }
 .va-frag { backdrop-filter: none; background: var(--va-panel); }
-.va-pointer b { box-shadow: none; }
 .va-story-wave i { background: var(--va-ink); }
 .va-story-wave i:nth-child(n + 12):nth-child(-n + 17) { background: var(--va-accent); }
 .va-story-actions .is-primary { background: var(--va-cta-bg); color: var(--va-cta-ink); }
@@ -80,7 +76,5 @@
 /* ---------- Contrast (WCAG AA) ----------
    Small text never uses the bright vermilion on paper; it uses the stronger shade.
    Labels on bright pills in the dark theme use dark ink instead of white. */
-[data-theme="light"] .va-frag small,
 [data-theme="light"] .va-story-chip,
 [data-theme="light"] .preset-tag { color: var(--va-accent-strong) !important; }
-:root:not([data-theme="light"]) .va-pointer b { color: #131211; }

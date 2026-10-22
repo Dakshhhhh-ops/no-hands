@@ -2,6 +2,8 @@ import type { ComponentType } from 'react';
 import { BookA, FileText, Languages, Mic, WandSparkles } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cssVars } from '../../utils/cssVars.ts';
+import { DictationChip, StoryActions, StoryDiff } from './StoryParts.tsx';
+import type { StoryDiffLine } from './StoryParts.tsx';
 
 interface LoopStep {
   title: string;
@@ -28,20 +30,22 @@ function SayVisual() {
       <p className="va-story-transcript">
         order service ko Kafka se connect karo<span className="va-caret" />
       </p>
-      <span className="va-story-chip tone-indigo">Dictated with Wispr Flow</span>
+      <DictationChip />
     </div>
   );
 }
+
+const REVIEW_DIFF: StoryDiffLine[] = [
+  { kind: 'add', text: '+ Connect order-service → kafka' },
+  { kind: 'ask', text: '? Which topic: orders or order-events' },
+];
 
 function ReviewVisual() {
   return (
     <div className="va-story-card va-loop-visual" aria-hidden="true">
       <p className="va-story-heading">Proposed change</p>
-      <ul className="va-story-diff">
-        <li className="is-add">+ Connect order-service → kafka</li>
-        <li className="is-ask">? Which topic: orders or order-events</li>
-      </ul>
-      <div className="va-story-actions"><span>Keep editing</span><span className="is-primary">&ldquo;apply&rdquo;</span></div>
+      <StoryDiff lines={REVIEW_DIFF} />
+      <StoryActions />
     </div>
   );
 }

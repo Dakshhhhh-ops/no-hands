@@ -19,7 +19,6 @@
 .tone-indigo { --tone: var(--va-indigo); }
 .tone-teal { --tone: var(--va-teal); }
 .tone-amber { --tone: var(--va-amber); }
-.tone-violet { --tone: var(--va-violet); }
 
 body { background: var(--va-bg); }
 .va-app { background: var(--va-bg); color: var(--va-ink); overflow-x: clip; }

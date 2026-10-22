@@ -2,6 +2,7 @@ import { ArrowRight, AudioLines, Moon, Play, Sun } from 'lucide-react';
 import type { Project } from '../../types/schema.ts';
 import { cssVars } from '../../utils/cssVars.ts';
 import { HeroFragments } from './HeroCanvas.tsx';
+import HeroProof from './HeroProof.tsx';
 import { SplitWords } from './Interactions.tsx';
 import LoopSteps from './LoopSteps.tsx';
 import VoiceField from './VoiceField.tsx';
@@ -58,28 +59,33 @@ export function Hero({ project, onStartDemo }: HeroProps) {
 
       <div className="va-canvas-center">
         <p className="va-hero-eyebrow" data-reveal>
-          <span className="va-live-dot" aria-hidden="true" /> Built for Wispr Flow · English and Hinglish
+          <span className="va-live-dot" aria-hidden="true" /> Built for Wispr Flow
+          <span className="va-hero-eyebrow-more">· English and Hinglish</span>
         </p>
         <h1 id="va-hero-title" className="va-display" data-reveal>
           <SplitWords text="Say the change." />
           <SplitWords text="See what it touches." offset={3} className="va-display-serif" />
         </h1>
-        <p className="va-hero-description" data-reveal style={cssVars({ '--d': 4 })}>
-          Speak a change to your architecture with Wispr Flow, in English or Hinglish. Review the exact diff before
-          anything applies, then check the diagram against your docker-compose file.
-        </p>
-        <div className="va-hero-actions" data-reveal style={cssVars({ '--d': 5 })}>
-          <button type="button" className="va-btn va-btn-primary va-btn-lg" onClick={onStartDemo}>
-            <Play size={16} /> Start guided demo
-          </button>
-          <a className="va-btn va-btn-lg" href="#workspace">
-            Use my own stack <ArrowRight size={16} />
-          </a>
+        {/* One row from 1280px, beside the product card; a plain part of the column below that. */}
+        <div className="va-hero-lower">
+          <p className="va-hero-description" data-reveal style={cssVars({ '--d': 4 })}>
+            Architecture diagrams go stale the week they&rsquo;re drawn. Say the change with Wispr Flow, in English or
+            Hinglish, review the exact diff, then check it against your <span className="va-nowrap">docker-compose file</span>.
+          </p>
+          <div className="va-hero-actions" data-reveal style={cssVars({ '--d': 5 })}>
+            <button type="button" className="va-btn va-btn-primary va-btn-lg" onClick={onStartDemo}>
+              <Play size={16} /> Start guided demo
+            </button>
+            <a className="va-btn va-btn-lg" href="#workspace">
+              Use my own stack <ArrowRight size={16} />
+            </a>
+          </div>
+          <p className="va-hero-note" data-reveal style={cssVars({ '--d': 6 })}>
+            No sign-in. Three steps: an English change, a Hinglish change, and a check against newer code.
+          </p>
         </div>
-        <p className="va-hero-note" data-reveal style={cssVars({ '--d': 6 })}>
-          No sign-in. Three steps: an English change, a Hinglish change, and a check against newer code.
-        </p>
       </div>
+      <HeroProof />
     </section>
   );
 }
