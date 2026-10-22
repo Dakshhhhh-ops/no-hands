@@ -1,252 +1,122 @@
 /* ==========================================================================
-   The workspace at /app: one screen, no page scroll. A 56px bar on top; below it
-   the composer, a splitter, the diagram canvas, and the details drawer. Each panel
-   scrolls on its own. Loaded with the workspace chunk, after the global styles.
-   Type scale 12/14/16/18/24/32; spacing on a 4px grid.
+   The workspace at /app. The diagram fills the screen and everything else floats over it:
+   the project at the top left, the diagram controls and three icons at the top right, the
+   command bar at the bottom, and the docs in a slide-over on the right. Nothing scrolls but
+   the canvas and the slide-over. Loaded with the workspace chunk, after the global styles.
+   Type scale 12/14/16/18/24; spacing on a 4px grid.
    ========================================================================== */
-.va-shell {
-  display: grid; grid-template-rows: 56px minmax(0, 1fr);
-  height: 100dvh; overflow: hidden; background: var(--va-bg); color: var(--va-ink);
-}
+.va-shell { position: relative; height: 100dvh; overflow: hidden; background: var(--va-bg); color: var(--va-ink); }
+.va-shell-body { position: absolute; inset: 0; }
 
-/* ---------- Top bar ---------- */
+/* ---------- Top row: floats over the canvas; only its controls take clicks ---------- */
 .va-shell-bar {
-  position: relative; z-index: 40;
-  display: flex; align-items: center; gap: 12px; min-width: 0; height: 56px; padding: 0 12px;
-  border-bottom: 1px solid var(--va-line); background: var(--va-panel);
+  position: absolute; top: 0; left: 0; right: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  height: 64px; padding: 0 16px; pointer-events: none;
 }
-.va-shell-logo { display: grid; flex: none; place-items: center; width: 40px; height: 40px; border-radius: 12px; }
+.va-shell-bar > * { pointer-events: auto; }
+.va-bar-start { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.va-shell-logo { display: grid; flex: none; place-items: center; width: 36px; height: 36px; border-radius: 10px; }
 .va-shell-logo:focus-visible { outline: 2px solid var(--va-accent); outline-offset: 2px; }
-.va-shell-project { display: flex; flex: 0 1 auto; align-items: center; gap: 8px; min-width: 0; }
+.va-shell .va-brand-mark { width: 28px; height: 28px; border-radius: 8px; }
+.va-shell-project { display: flex; flex: 0 1 auto; align-items: center; gap: 2px; min-width: 0; }
 .va-app .va-shell-title {
   overflow: hidden; max-width: 26ch; margin: 0; white-space: nowrap; text-overflow: ellipsis;
-  font-size: 18px; font-weight: 650; letter-spacing: -.01em;
+  font: 600 16px/1.2 var(--va-font); letter-spacing: -.01em;
 }
-.va-shell .va-version { flex: none; font-size: 12px; }
-.va-project-menu { left: 0; right: auto; width: 320px; }
-.va-project-menu .va-sample-picker { display: flex; gap: 8px; padding: 4px; }
-.va-project-menu .va-sample-picker select { flex: 1 1 auto; min-width: 0; max-width: none; min-height: 36px; font-size: 14px; }
-.va-shell-chips { display: flex; flex: 1 1 auto; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+.va-bar-chevron {
+  display: grid; flex: none; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px;
+  background: none; color: var(--va-muted); cursor: pointer;
+}
+.va-bar-chevron:hover, .va-bar-chevron[aria-expanded="true"] { background: var(--va-panel-2); color: var(--va-ink); }
+.va-shell-meta { display: flex; flex: none; align-items: center; gap: 8px; margin: 0; color: var(--va-muted); font: 500 12px/1 var(--va-mono); white-space: nowrap; }
+.va-shell-meta > * + *::before { content: '·'; margin-right: 8px; color: var(--va-faint); }
+.va-shell .va-version { padding: 0; border: 0; background: none; color: var(--va-muted); font: inherit; }
+.va-shell .va-version[data-changed="true"] { color: color-mix(in srgb, var(--va-ok) 70%, var(--va-ink)); }
 .va-chip {
-  display: inline-flex; flex: none; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
-  border: 1px solid var(--va-line-strong); border-radius: 999px; background: transparent;
-  color: var(--va-muted); font: 500 14px/1 var(--va-font); white-space: nowrap;
+  display: inline-flex; flex: none; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
+  border: 1px solid var(--va-line-strong); border-radius: 999px; background: var(--va-panel);
+  color: var(--va-muted); font: 500 12px/1 var(--va-font); white-space: nowrap;
 }
 button.va-chip { cursor: pointer; }
 .va-chip-warn {
   border-color: color-mix(in srgb, var(--va-warn) 50%, var(--va-line)); color: color-mix(in srgb, var(--va-warn) 60%, var(--va-ink));
-  background: color-mix(in srgb, var(--va-warn) 10%, transparent);
+  background: color-mix(in srgb, var(--va-warn) 10%, var(--va-panel));
 }
-.va-chip-warn:hover { background: color-mix(in srgb, var(--va-warn) 18%, transparent); }
-.va-chip-accent { border-color: color-mix(in srgb, var(--va-accent) 50%, var(--va-line)); color: var(--va-ink); background: color-mix(in srgb, var(--va-accent) 12%, transparent); }
-.va-shell-actions { display: flex; flex: none; align-items: center; gap: 4px; margin-left: auto; }
-.va-shell .va-btn { min-height: 40px; font-size: 14px; }
-.va-shell .va-btn-icon { width: 40px; height: 40px; }
+.va-chip-warn:hover { background: color-mix(in srgb, var(--va-warn) 18%, var(--va-panel)); }
 
-/* ---------- Body: composer | splitter | canvas | drawer ---------- */
-.va-shell-body {
-  display: grid; grid-template-columns: var(--va-composer-w, 380px) 8px minmax(0, 1fr) auto;
-  min-height: 0; overflow: hidden;
+/* The three icons share one quiet capsule. */
+.va-bar-end {
+  display: flex; flex: none; align-items: center; gap: 2px; padding: 4px;
+  border: 1px solid var(--va-line); border-radius: 999px;
+  background: color-mix(in srgb, var(--va-panel) 90%, transparent); box-shadow: 0 12px 32px -20px rgba(0, 0, 0, .5);
 }
-.va-shell-body[data-collapsed="true"] { grid-template-columns: 56px 0 minmax(0, 1fr) auto; }
+.va-bar-icon {
+  display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 999px;
+  background: none; color: var(--va-muted); cursor: pointer; transition: background-color .15s ease, color .15s ease;
+}
+.va-bar-icon:hover, .va-bar-icon[aria-expanded="true"] { background: var(--va-panel-3); color: var(--va-ink); }
+.va-bar-end .va-menu-list { top: calc(100% + 10px); right: -4px; }
 
-.va-composer-panel {
-  display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; padding: 20px;
-  overflow-y: auto; border-right: 1px solid var(--va-line); background: var(--va-panel);
-}
-.va-composer-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.va-app .va-composer-panel h2 { margin: 0; font-size: 18px; font-weight: 650; }
-.va-composer-rail { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 0; border-right: 1px solid var(--va-line); background: var(--va-panel); }
-
-.va-splitter { position: relative; cursor: col-resize; touch-action: none; }
-.va-splitter::after { content: ''; position: absolute; inset: 0 3px; border-radius: 2px; background: transparent; transition: background-color .15s ease; }
-.va-splitter:hover::after, .va-splitter:focus-visible::after { background: var(--va-accent); }
-.va-splitter:focus-visible { outline: none; }
-
-.va-canvas-area { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
-
-/* ---------- Drawer ---------- */
-.va-drawer {
-  display: flex; flex-direction: column; width: 400px; min-height: 0; overflow: hidden;
-  border-left: 1px solid var(--va-line); background: var(--va-panel);
-}
-.va-drawer[hidden] { display: none; }
-.va-drawer-head { display: flex; align-items: flex-start; gap: 4px; padding: 8px 8px 0 12px; border-bottom: 1px solid var(--va-line); }
-.va-drawer-tabs { display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: 4px; min-width: 0; }
-.va-drawer-tabs button {
-  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px;
-  border: 0; border-bottom: 2px solid transparent; background: none; color: var(--va-muted);
-  font: 500 14px/1 var(--va-font); cursor: pointer; white-space: nowrap;
-}
-.va-drawer-tabs button:hover { color: var(--va-ink); }
-.va-drawer-tabs button[aria-selected="true"] { color: var(--va-ink); border-bottom-color: var(--va-accent); }
-.va-drawer-tools { display: flex; flex: none; gap: 2px; }
-.va-drawer-body { flex: 1 1 auto; min-height: 0; padding: 16px; overflow-y: auto; }
-.va-drawer-hint { margin: 8px 0; color: var(--va-muted); font-size: 16px; line-height: 1.5; }
-.va-tab-count {
-  margin-left: 4px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
-  background: color-mix(in srgb, var(--va-warn) 16%, transparent); color: color-mix(in srgb, var(--va-warn) 60%, var(--va-ink));
-}
-/* Panels were built for a wide tab frame; in the drawer they stack in one column. */
-.va-drawer :is(.risk-panel, .api-panel, .task-panel, .impact-panel, .telemetry-panel) { min-height: 0; }
-.va-drawer :is(.risk-kpi-row, .telemetry-kpi-grid, .impact-artifacts-grid, .impact-artifacts, .telemetry-split-layout, .endpoint-subsections, .task-sections, .component-inspector-grid) {
-  grid-template-columns: minmax(0, 1fr);
+/* Popovers from the top row */
+.va-project-menu { left: 0; right: auto; top: calc(100% + 8px); width: 320px; }
+.va-project-menu .va-sample-picker { display: flex; gap: 8px; padding: 4px; }
+.va-project-menu .va-sample-picker select { flex: 1 1 auto; min-width: 0; max-width: none; min-height: 36px; font-size: 14px; }
+.va-more-menu { top: calc(100% + 10px); right: -4px; width: 320px; }
+.va-more-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.va-app .va-more-row button { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.va-more-row kbd {
+  padding: 2px 6px; border: 1px solid var(--va-line-strong); border-radius: 4px; background: var(--va-panel-2);
+  color: var(--va-muted); font: 500 12px/1 var(--va-mono);
 }
 
-/* ---------- Composer ---------- */
-.va-composer-panel .va-composer-hint { margin: 0; color: var(--va-muted); font-size: 14px; line-height: 1.5; }
-.va-composer-panel .va-field textarea { min-height: 168px; font-size: 16px; line-height: 1.5; background: var(--va-bg); }
-.va-composer-panel .va-field-hint { flex-wrap: wrap; gap: 8px 12px; margin-top: 8px; color: var(--va-muted); font-size: 14px; }
-.va-composer-panel .va-field-hint kbd { font-size: 12px; }
-.va-composer-panel .va-composer-actions { display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; gap: 8px; }
-.va-composer-panel .va-composer-actions .va-composer-preview { width: 100%; height: 48px; justify-content: center; gap: 8px; font-size: 16px; }
-/* Disabled, Preview still reads as the primary action, with the reason under it. */
-.va-app .va-composer-panel .va-composer-preview:disabled { opacity: .55; cursor: not-allowed; }
-.va-composer-panel .va-composer-note { margin: 0; color: var(--va-muted); font-size: 14px; text-align: center; }
-.va-composer-panel .va-detected h3, .va-recent h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; color: var(--va-muted); font-size: 14px; font-weight: 600; }
-.va-recent ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.va-recent button {
-  width: 100%; padding: 8px 10px; border: 1px solid var(--va-line); border-radius: 10px; background: var(--va-bg);
-  color: var(--va-ink); font: 14px/1.4 var(--va-font); text-align: left; cursor: pointer;
-}
-.va-recent button:hover { border-color: var(--va-line-strong); }
-.va-flow-tools { border-top: 1px solid var(--va-line); padding-top: 12px; }
-.va-flow-tools summary, .va-composer-panel .va-examples summary {
-  display: flex; align-items: center; justify-content: space-between; min-height: 40px; cursor: pointer; list-style: none;
-  color: var(--va-ink); font: 600 14px/1 var(--va-font); letter-spacing: 0; text-transform: none;
-}
-.va-flow-tools summary::-webkit-details-marker { display: none; }
-.va-flow-tools[open] summary svg, .va-composer-panel .va-examples[open] summary svg { transform: rotate(180deg); }
-.va-flow-tool-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 8px; margin-top: 8px; }
-.va-flow-tool-row button {
-  display: grid; justify-items: center; gap: 6px; min-height: 72px; padding: 10px 8px;
-  border: 1px solid var(--va-line); border-radius: 12px; background: var(--va-bg); color: var(--va-ink);
-  font: 600 14px/1.2 var(--va-font); cursor: pointer;
-}
-.va-flow-tool-row button svg { color: var(--va-accent-strong); }
-.va-flow-tool-row button:hover:not(:disabled) { border-color: var(--va-line-strong); background: var(--va-panel-2); }
-.va-flow-tool-row button:disabled { opacity: .5; cursor: not-allowed; }
-.va-flow-tool-row button[aria-pressed="true"] { border-color: var(--va-accent); }
-.va-composer-panel .va-examples { border-top: 1px solid var(--va-line); padding-top: 4px; }
-
-/* ---------- Canvas ---------- */
-.va-canvas-area > .architecture-view { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; padding: 0; }
-.va-canvas-area .diagram-canvas {
-  flex: 1 1 auto; height: auto; min-height: 0; margin: 0; overflow: auto;
-  border: 0; border-radius: 0; background-color: var(--va-bg-sunken);
-}
-.va-canvas-area .diagram-svg-wrapper { display: flex; align-items: center; justify-content: center; width: max-content; min-width: 100%; min-height: 100%; padding: 16px; }
-.va-canvas-area .blueprint-crosshair { display: none; }
-/* Zoom, Fit, Legend, and Baseline/Current float over the canvas. */
-.va-canvas-area .architecture-view > .diagram-toolbar {
-  position: absolute; top: 12px; right: 12px; z-index: 6; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin: 0;
-}
-.va-canvas-area .architecture-view > .diagram-toolbar .diagram-toolbar-title-wrap { display: none; }
-.va-canvas-area :is(.diagram-zoom-controls, .diagram-view-toggle) {
-  border: 1px solid var(--va-line-strong); border-radius: 12px; background: color-mix(in srgb, var(--va-panel) 94%, transparent);
-  box-shadow: 0 8px 24px -16px rgba(0, 0, 0, .6);
-}
-.va-app .va-canvas-area :is(.diagram-zoom-controls, .diagram-view-toggle) button { min-height: 36px; min-width: 36px; padding: 0 10px; font-size: 14px; }
-.va-canvas-area .architecture-view > .legend {
-  position: absolute; top: 60px; right: 12px; z-index: 6; display: grid; gap: 6px; padding: 12px 14px;
-  border: 1px solid var(--va-line-strong); border-radius: 12px; background: var(--va-panel); font-size: 14px;
-}
-.va-canvas-area .diagram-chaos-bar { margin: 0; }
-.va-canvas-area .architecture-view:has(.diagram-chaos-bar) > .diagram-toolbar { position: static; padding: 8px 12px; }
-/* Text sizes in diagram units; at the fitted scale names are about 14px and nothing is under 12px. */
-.va-app .va-canvas-area .node .node-type { font-size: 15.5px; letter-spacing: .04em; }
-.va-app .va-canvas-area .node text.node-title { font-size: 18px; font-weight: 650; }
-.va-app .va-canvas-area .node .node-sub { font-size: 15.5px; }
-.va-app .va-canvas-area .edge-label { fill: var(--va-ink); stroke: none; font: 500 15.5px var(--va-font); }
-.va-canvas-area .edge-chip rect { fill: var(--va-panel); stroke: var(--va-line-strong); stroke-width: 1; }
-.va-canvas-area .edge-chip.severed rect { stroke: var(--va-danger); }
-.va-canvas-area .va-history-panel { margin: 0; border-width: 0 0 1px; border-radius: 0; }
-
-/* The guided demo coaches from the canvas's bottom-left corner. */
-.va-coach {
-  position: absolute; left: 16px; bottom: 16px; z-index: 8; width: min(440px, calc(100% - 32px));
-  border: 1px solid var(--va-line-strong); border-radius: 16px; overflow: hidden; box-shadow: 0 24px 48px -24px rgba(0, 0, 0, .6);
-}
-.va-coach .va-guide { border: 0; }
-.va-coach .va-guide-step { font-size: 12px; }
-.va-coach .va-guide-say { font-size: 16px; }
-.va-coach .va-guide-changes, .va-coach .va-guide-note { font-size: 14px; }
-
-/* ---------- Empty state and the import panel ---------- */
-.va-empty-state { display: grid; align-content: center; justify-items: center; gap: 24px; height: 100%; padding: 32px; overflow: auto; }
-.va-app .va-empty-state h2 { margin: 0; font-size: 24px; }
-.va-empty-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 240px)); gap: 16px; }
-.va-empty-choice {
-  display: grid; align-content: start; gap: 8px; min-height: 180px; padding: 20px; text-align: left;
-  border: 1px solid var(--va-line-strong); border-radius: 16px; background: var(--va-panel); color: var(--va-ink);
-  font: 16px/1.4 var(--va-font); cursor: pointer;
-}
-.va-empty-choice svg { color: var(--va-accent-strong); }
-.va-empty-choice b { font-size: 18px; }
-.va-empty-choice span { color: var(--va-muted); font-size: 14px; }
-.va-empty-choice:hover, .va-empty-choice:focus-visible { border-color: var(--va-accent); outline: none; }
-.va-empty-drop { border-style: dashed; }
-.va-empty-drop[data-dragging="true"] { border-color: var(--va-accent); background: color-mix(in srgb, var(--va-accent) 8%, var(--va-panel)); }
-.va-empty-overlay { position: absolute; inset: 0; z-index: 9; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--va-bg) 72%, transparent); }
-.va-empty-dialog { height: auto; max-width: 820px; border: 1px solid var(--va-line-strong); border-radius: 20px; background: var(--va-panel); box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
-.va-empty-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
-
-
-/* ---------- Below 1024px: composer on top, canvas full width, drawer as an overlay ---------- */
-@media (max-width: 1023px) {
-  .va-shell-body, .va-shell-body[data-collapsed="true"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
-  .va-composer-panel { max-height: 46dvh; border-right: 0; border-bottom: 1px solid var(--va-line); }
-  .va-composer-panel .va-field textarea { min-height: 120px; }
-  .va-drawer {
-    position: fixed; top: 56px; right: 0; bottom: 0; z-index: 30; width: min(400px, 100%);
-    box-shadow: -24px 0 48px -24px rgba(0, 0, 0, .6);
-  }
-  .va-shell-chips .va-chip:not(.va-chip-warn):not(.va-chip-accent) { display: none; }
-}
-
-/* ---------- Below 768px: one panel at a time, a bottom tab bar, the drawer as a bottom sheet ---------- */
-@media (max-width: 767px) {
-  .va-shell { grid-template-rows: 56px minmax(0, 1fr) 64px; }
-  .va-shell-bar { gap: 4px; padding: 0 8px; }
-  .va-shell-label, .va-shell-shortcuts, .va-shell .va-version { display: none; }
-  .va-app .va-shell-title { max-width: 11ch; font-size: 16px; }
-  .va-shell .va-btn, .va-shell .va-btn-icon { min-width: 44px; min-height: 44px; }
-  .va-shell-actions { gap: 0; }
-  .va-shell-body, .va-shell-body[data-collapsed="true"] { grid-template-rows: minmax(0, 1fr); }
-  .va-shell-body[data-view="say"] .va-canvas-area, .va-shell-body[data-view="diagram"] .va-composer-panel { display: none; }
-  .va-composer-panel { max-height: none; border-bottom: 0; }
-  .va-canvas-area { min-height: 60dvh; }
-  .va-drawer { top: auto; left: 0; width: 100%; height: 78dvh; border-left: 0; border-top: 1px solid var(--va-line-strong); border-radius: 18px 18px 0 0; }
-  .va-bottom-tabs {
-    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--va-line); background: var(--va-panel);
-  }
-  .va-bottom-tabs button {
-    display: grid; justify-items: center; align-content: center; gap: 4px; min-height: 44px; border: 0; background: none;
-    color: var(--va-muted); font: 600 12px/1 var(--va-font); cursor: pointer;
-  }
-  .va-bottom-tabs button[aria-pressed="true"] { color: var(--va-ink); box-shadow: inset 0 2px 0 var(--va-accent); }
-  .va-empty-choices { grid-template-columns: minmax(0, 1fr); }
-  .va-coach { left: 8px; right: 8px; bottom: 8px; width: auto; }
-  .va-project-menu { position: fixed; left: 8px; right: 8px; top: 56px; width: auto; }
-}
-
-/* ---------- Contrast and size on the workspace's surfaces (WCAG AA, nothing under 12px) ---------- */
-.va-shell .button.primary { background: var(--va-accent-strong); border-color: var(--va-accent-strong); color: var(--va-accent-ink); }
-.va-shell .telemetry-health-badge { color: color-mix(in srgb, var(--tone) 65%, var(--va-ink)) !important; }
-.va-drawer .vp-pill { color: color-mix(in srgb, var(--tone) 70%, var(--va-ink)); }
-.va-drawer :is(.vp-pill, .vp-tag) { font-size: 12px; }
-
-/* Below 1440px the switcher shows only its chevron, so the project name keeps its room. */
-@media (max-width: 1439px) {
-  .va-shell-project .va-shell-label { display: none; }
-}
-
-/* ---------- A calmer, professional diagram: cards, one border per state, quiet connectors ---------- */
+/* ---------- Canvas: the whole screen. Its padding keeps the fitted diagram clear of the floating parts. ---------- */
+.va-canvas-area { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
+.va-canvas-area > .architecture-view { position: static; display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; padding: 0; }
 .va-app .va-canvas-area .diagram-canvas {
+  flex: 1 1 auto; height: auto; min-height: 0; margin: 0; overflow: auto;
+  padding: 64px 24px calc(124px + var(--va-coach-h, 0px));
+  border: 0; border-radius: 0;
   background-color: var(--va-bg);
-  background-image: radial-gradient(color-mix(in srgb, var(--va-line-strong) 60%, transparent) 1px, transparent 1px);
+  background-image: radial-gradient(color-mix(in srgb, var(--va-line-strong) 55%, transparent) 1px, transparent 1px);
   background-size: 24px 24px;
 }
+.va-app .va-canvas-area .diagram-canvas svg { min-width: 0; }
+.va-canvas-area .diagram-svg-wrapper { display: flex; align-items: center; justify-content: center; width: max-content; min-width: 100%; min-height: 100%; padding: 16px; }
+.va-canvas-area .blueprint-crosshair { display: none; }
+
+/* Baseline/Current and zoom sit in the top row, left of the three icons. */
+.va-app .va-canvas-area .diagram-toolbar .diagram-toolbar-title-wrap { display: none; }
+.va-canvas-area .diagram-toolbar:not(:has(.diagram-grid-toggle)) {
+  position: absolute; top: 14px; right: 148px; z-index: 41; margin: 0; padding: 0;
+}
+.va-canvas-area .diagram-toolbar:not(:has(.diagram-grid-toggle)) .diagram-actions-cluster { display: flex; flex-wrap: nowrap; gap: 8px; }
+.va-canvas-area :is(.diagram-zoom-controls, .diagram-view-toggle) {
+  height: 36px; border: 1px solid var(--va-line); border-radius: 999px; overflow: hidden;
+  background: color-mix(in srgb, var(--va-panel) 90%, transparent); box-shadow: 0 12px 32px -20px rgba(0, 0, 0, .5);
+}
+.va-app .va-canvas-area :is(.diagram-zoom-controls, .diagram-view-toggle) button {
+  min-height: 34px; min-width: 34px; padding: 0 10px; border: 0; border-radius: 999px; font: 500 14px/1 var(--va-font);
+}
+/* The outage simulator brings more controls: they form a strip under the top row instead. */
+.va-canvas-area .architecture-view:has(.diagram-grid-toggle) { padding-top: 64px; }
+.va-canvas-area .architecture-view:has(.diagram-grid-toggle) > .diagram-toolbar { position: static; margin: 0; padding: 0 16px 8px; }
+.va-app .va-canvas-area .architecture-view:has(.diagram-grid-toggle) .diagram-canvas { padding-top: 8px; }
+.va-canvas-area .diagram-chaos-bar { margin: 0 16px 8px; }
+.va-canvas-area .architecture-view > .diagram-cycle-banner { margin: 64px 16px 0; }
+
+.va-canvas-area .architecture-view > .legend {
+  position: absolute; top: 60px; right: 148px; z-index: 41; display: grid; gap: 6px; margin: 0; padding: 12px 14px;
+  border: 1px solid var(--va-line-strong); border-radius: 14px; background: var(--va-panel); font-size: 14px;
+  box-shadow: 0 24px 48px -24px rgba(0, 0, 0, .5);
+}
+.va-canvas-area .va-history-panel {
+  position: absolute; top: 64px; left: 16px; right: 16px; z-index: 35; max-width: 1080px; max-height: calc(100% - 220px);
+  margin: 0 auto; overflow: auto; border: 1px solid var(--va-line-strong); border-radius: 16px; background: var(--va-panel);
+  box-shadow: 0 32px 64px -32px rgba(0, 0, 0, .55);
+}
+
+/* ---------- The diagram: cards, one border per state, quiet connectors ---------- */
 .va-app .va-canvas-area .node { cursor: pointer; }
 .va-app .va-canvas-area .node .node-box { fill: var(--va-panel); stroke: var(--va-line-strong); stroke-width: 1; filter: none; transition: stroke .15s ease; }
 .va-app .va-canvas-area .node:hover .node-box { stroke: var(--va-line-bright); }
@@ -273,17 +143,259 @@ button.va-chip { cursor: pointer; }
 .va-app .va-canvas-area .edge { stroke: var(--va-line-bright); stroke-width: 1.5; }
 .va-app .va-canvas-area .edge.changed, .va-app .va-canvas-area .diagram-relationship.direct .edge { stroke: var(--va-accent); }
 .va-canvas-area .edge-chip rect { fill: var(--va-bg); stroke: var(--va-line); stroke-width: 1; }
-.va-app .va-canvas-area .edge-label { fill: var(--va-muted); font: 500 15px var(--va-font); }
+.va-canvas-area .edge-chip.severed rect { stroke: var(--va-danger); }
+.va-app .va-canvas-area .edge-label { fill: var(--va-muted); stroke: none; font: 500 15px var(--va-font); }
 
-/* ---------- A calmer composer ---------- */
-.va-app .va-composer-panel .va-field textarea:focus-visible {
-  border-color: color-mix(in srgb, var(--va-accent) 65%, var(--va-line-strong));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--va-accent) 14%, transparent);
+/* ---------- The dock: the command bar, with the guided demo's card above it ---------- */
+.va-dock {
+  position: absolute; left: 0; right: 0; bottom: 16px; z-index: 20;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 0 16px; pointer-events: none;
 }
-.va-app .va-composer-panel .va-composer-actions > .va-composer-preview { display: flex; width: 100%; max-width: none; }
-.va-flow-tool-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.va-flow-tool-row button { display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 44px; padding: 0 8px; border-radius: 10px; }
-.va-flow-tool-row button svg { width: 16px; height: 16px; }
+.va-dock > * { width: min(680px, 100%); pointer-events: auto; }
 
-/* The component count reads as a fact, not a button. */
-.va-shell-chips span.va-chip:not(.va-chip-accent) { border-color: transparent; padding: 0 4px; }
+.va-command { position: relative; display: grid; gap: 8px; min-width: 0; }
+.va-command > * { min-width: 0; }
+.va-command-bar {
+  position: relative; display: flex; align-items: flex-end; gap: 6px; min-height: 60px; padding: 7px;
+  border: 1px solid var(--va-line-strong); border-radius: 24px;
+  background: color-mix(in srgb, var(--va-panel) 94%, transparent);
+  box-shadow: 0 28px 64px -28px rgba(0, 0, 0, .65), inset 0 1px 0 color-mix(in srgb, var(--va-ink) 5%, transparent);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+/* The focus ring is the bar's, so the box itself stays borderless. */
+.va-command-bar:focus-within {
+  border-color: color-mix(in srgb, var(--va-accent) 65%, var(--va-line-strong));
+  box-shadow: 0 28px 64px -28px rgba(0, 0, 0, .65), 0 0 0 4px color-mix(in srgb, var(--va-accent) 16%, transparent);
+}
+.va-command-bar[data-live="true"] { border-color: var(--va-rec); }
+.va-app .va-command-input {
+  flex: 1 1 auto; min-width: 0; height: 44px; min-height: 44px; max-height: 168px; margin: 0; padding: 11px 6px;
+  border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--va-ink);
+  font: 400 17px/1.35 var(--va-font); resize: none;
+}
+.va-app .va-command-input:focus, .va-app .va-command-input:focus-visible { outline: none; border: 0; box-shadow: none; }
+.va-app .va-command-input::placeholder { color: var(--va-muted); opacity: 1; font-family: var(--va-serif); font-style: italic; font-size: 19px; }
+
+.va-command-tools { position: relative; flex: none; }
+.va-command-plus {
+  display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--va-line-strong); border-radius: 999px;
+  background: transparent; color: var(--va-ink); cursor: pointer; transition: transform .2s ease, background-color .15s ease;
+}
+.va-command-plus:hover { background: var(--va-panel-3); }
+.va-command-plus[aria-expanded="true"] { background: var(--va-panel-3); transform: rotate(45deg); }
+.va-command-clear {
+  display: grid; flex: none; place-items: center; align-self: center; width: 32px; height: 32px; border: 0; border-radius: 999px;
+  background: none; color: var(--va-muted); cursor: pointer;
+}
+.va-command-clear:hover { background: var(--va-panel-3); color: var(--va-ink); }
+.va-command-go {
+  display: inline-flex; flex: none; align-items: center; gap: 8px; height: 44px; padding: 0 18px 0 14px;
+  border: 0; border-radius: 999px; background: var(--va-accent-strong); color: var(--va-accent-ink);
+  font: 600 15px/1 var(--va-font); cursor: pointer; transition: filter .15s ease, opacity .15s ease;
+}
+.va-command-go:hover:not(:disabled) { filter: brightness(1.08); }
+.va-command-go:disabled { opacity: .45; cursor: not-allowed; }
+.va-command-spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: va-spin .8s linear infinite; }
+
+/* While the browser mic listens, a wave rises above the bar. */
+.va-command-bar .va-wave { position: absolute; left: 50%; bottom: calc(100% + 10px); width: 200px; height: 24px; transform: translateX(-50%); }
+
+.va-command-meta { display: flex; align-items: center; gap: 12px; min-height: 20px; padding: 0 18px; overflow: hidden; color: var(--va-muted); font-size: 12px; white-space: nowrap; }
+.va-command-meta .va-engine { flex: none; }
+.va-command-detected { display: flex; flex: 1 1 auto; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
+.va-command-detected:empty { display: none; }
+.va-command-detected-count { flex: none; color: var(--va-ink); font-weight: 600; }
+.va-command-chip {
+  flex: none; padding: 3px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--va-ok) 14%, transparent); color: color-mix(in srgb, var(--va-ok) 55%, var(--va-ink));
+}
+.va-command-hint { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.va-command-meta:has(.va-recorded-badge, .va-fallback-badge) .va-command-hint { display: none; }
+.va-command-keys { flex: none; margin-left: auto; }
+.va-command-keys kbd {
+  padding: 2px 6px; border: 1px solid var(--va-line-strong); border-radius: 4px; background: var(--va-panel-2);
+  color: var(--va-muted); font: 500 12px/1 var(--va-mono);
+}
+
+/* The plus menu opens upward: Wispr Flow tools, recent instructions, and examples. */
+.va-command-menu {
+  position: absolute; left: -8px; bottom: calc(100% + 16px); z-index: 25;
+  display: grid; gap: 10px; width: min(460px, calc(100vw - 32px)); max-height: min(62dvh, 540px); overflow-y: auto;
+  padding: 14px; border: 1px solid var(--va-line-strong); border-radius: 20px; background: var(--va-panel);
+  box-shadow: 0 40px 80px -32px rgba(0, 0, 0, .65);
+  animation: va-command-menu-in .18s ease-out;
+}
+@keyframes va-command-menu-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.va-command-menu-label {
+  display: flex; align-items: center; gap: 6px; margin: 4px 4px 0; color: var(--va-muted);
+  font: 600 12px/1 var(--va-mono); letter-spacing: .08em; text-transform: uppercase;
+}
+.va-flow-tool-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.va-flow-tool-row button {
+  display: grid; justify-items: start; gap: 4px; padding: 12px; border: 1px solid var(--va-line); border-radius: 14px;
+  background: var(--va-bg); color: var(--va-ink); text-align: left; font: 600 14px/1.2 var(--va-font); cursor: pointer;
+}
+.va-flow-tool-row button svg { color: var(--va-accent-strong); }
+.va-flow-tool-row button small { color: var(--va-muted); font-size: 12px; font-weight: 500; }
+.va-flow-tool-row button:hover:not(:disabled) { border-color: var(--va-line-strong); background: var(--va-panel-2); }
+.va-flow-tool-row button:disabled { opacity: .5; cursor: not-allowed; }
+.va-flow-tool-row button[aria-pressed="true"] { border-color: var(--va-rec); }
+.va-command-recent { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.va-command-recent button {
+  width: 100%; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent;
+  color: var(--va-ink); font: 14px/1.4 var(--va-font); text-align: left; cursor: pointer;
+}
+.va-command-recent button:hover { background: var(--va-panel-2); }
+.va-app .va-command-menu .presets-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; margin: 0; }
+.va-app .va-command-menu .preset-card {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 0; padding: 10px 12px;
+  border: 0; border-radius: 10px; background: transparent; box-shadow: none; text-align: left;
+}
+.va-app .va-command-menu .preset-card:hover, .va-app .va-command-menu .preset-card.active { background: var(--va-panel-2); }
+.va-app .va-command-menu .preset-tag { flex: none; min-width: 84px; color: var(--va-accent-strong); font: 600 12px/1 var(--va-mono); letter-spacing: .04em; text-transform: uppercase; }
+.va-app .va-command-menu .preset-name { color: var(--va-ink); font: 500 14px/1.35 var(--va-font); }
+
+/* The guided demo's card */
+.va-coach {
+  border: 1px solid var(--va-line-strong); border-radius: 20px; overflow: hidden;
+  box-shadow: 0 28px 64px -28px rgba(0, 0, 0, .65);
+}
+.va-coach .va-guide { padding: 14px 18px; border: 0; background: color-mix(in srgb, var(--va-accent) 7%, var(--va-panel)); }
+.va-coach .va-guide-step { font-size: 12px; }
+.va-coach .va-guide-say { font-size: 16px; }
+.va-coach .va-guide-say span, .va-coach .va-guide-changes, .va-coach .va-guide-note { font-size: 14px; }
+.va-coach .va-guide-note { color: var(--va-muted); }
+
+/* ---------- Slide-over: the selected component and the generated docs ---------- */
+.va-drawer {
+  position: absolute; top: 64px; right: 12px; bottom: 12px; z-index: 30;
+  display: flex; flex-direction: column; width: 460px; max-width: calc(100% - 24px); min-height: 0; overflow: hidden;
+  border: 1px solid var(--va-line-strong); border-radius: 18px; background: var(--va-panel);
+  box-shadow: 0 40px 80px -36px rgba(0, 0, 0, .6);
+  animation: va-drawer-in .22s cubic-bezier(.2, .8, .2, 1);
+}
+.va-drawer[hidden] { display: none; }
+@keyframes va-drawer-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes va-sheet-in { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: none; } }
+.va-drawer-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 10px 0 18px; }
+.va-app .va-drawer-title h2 { margin: 0; color: var(--va-muted); font: 600 12px/1 var(--va-mono); letter-spacing: .08em; text-transform: uppercase; }
+.va-shell .va-drawer-title .va-btn-icon { width: 36px; height: 36px; min-height: 36px; border-radius: 999px; }
+.va-drawer-head { display: flex; align-items: center; padding: 0 10px; border-bottom: 1px solid var(--va-line); }
+.va-drawer-tabs {
+  display: flex; flex: 1 1 auto; flex-wrap: nowrap; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none;
+}
+.va-drawer-tabs::-webkit-scrollbar { display: none; }
+.va-drawer-tabs { mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent); }
+.va-drawer-tabs button {
+  display: inline-flex; flex: none; align-items: center; gap: 6px; min-height: 44px; padding: 0 8px;
+  border: 0; border-bottom: 2px solid transparent; background: none; color: var(--va-muted);
+  font: 500 14px/1 var(--va-font); cursor: pointer; white-space: nowrap;
+}
+.va-drawer-tabs button:hover { color: var(--va-ink); }
+.va-drawer-tabs button[aria-selected="true"] { color: var(--va-ink); border-bottom-color: var(--va-accent); }
+.va-drawer-body { flex: 1 1 auto; min-height: 0; padding: 16px; overflow-y: auto; }
+.va-drawer-hint { margin: 8px 0; color: var(--va-muted); font-size: 16px; line-height: 1.5; }
+.va-tab-count {
+  padding: 2px 7px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: color-mix(in srgb, var(--va-warn) 16%, transparent); color: color-mix(in srgb, var(--va-warn) 60%, var(--va-ink));
+}
+/* The selected component: its name large, then quiet sections divided by rules. */
+.va-app .va-drawer .component-inspector { display: grid; gap: 4px; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.va-app .va-drawer .component-inspector-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 12px; }
+.va-app .va-drawer .component-inspector-heading .eyebrow { color: var(--va-muted); font: 600 12px/1.2 var(--va-mono); letter-spacing: .06em; text-transform: uppercase; }
+.va-app .va-drawer .component-inspector-heading h3 { margin: 6px 0 0; color: var(--va-ink); font: italic 400 30px/1.1 var(--va-serif); letter-spacing: -.01em; }
+.va-app .va-drawer .component-inspector-grid { gap: 0; margin: 0; }
+.va-app .va-drawer .inspector-box { padding: 14px 0; border: 0; border-top: 1px solid var(--va-line); border-radius: 0; background: none; }
+.va-app .va-drawer .component-inspector-grid b { color: var(--va-ink); font: 600 14px/1.3 var(--va-font); letter-spacing: 0; text-transform: none; }
+.va-app .va-drawer .component-inspector-grid :is(ul, p) { color: var(--va-muted); font-size: 14px; line-height: 1.5; }
+.va-app .va-drawer .component-inspector-grid ul { margin: 8px 0 0; padding-left: 18px; }
+
+/* Panels were built for a wide tab frame; in the slide-over they stack in one column. */
+.va-drawer :is(.risk-panel, .api-panel, .task-panel, .impact-panel, .telemetry-panel) { min-height: 0; }
+.va-drawer :is(.risk-kpi-row, .telemetry-kpi-grid, .impact-artifacts-grid, .impact-artifacts, .telemetry-split-layout, .endpoint-subsections, .task-sections, .component-inspector-grid) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* With the slide-over open on a wide screen, the diagram and the dock make room for it. */
+@media (min-width: 1024px) {
+  .va-shell[data-drawer="open"] .va-canvas-area .diagram-canvas { padding-right: 496px; }
+  .va-shell[data-drawer="open"] .va-dock { right: 472px; }
+  .va-shell[data-drawer="open"] .va-canvas-area .va-history-panel { right: 488px; }
+  .va-shell[data-drawer="open"] .va-toast { left: calc((100% - 472px) / 2); }
+}
+
+/* ---------- Toast, connection status, and the import dialog, placed for this layout ---------- */
+/* Under the top row; below an open dialog's backdrop, so it never covers a dialog's heading. */
+.va-shell .va-toast { position: fixed; top: 72px; bottom: auto; left: 50%; z-index: 46; width: max-content; transform: translateX(-50%); }
+
+/* The review sheet keeps its actions in view while its diff scrolls. */
+.va-shell .va-modal { width: min(680px, 100%); border-radius: 22px; }
+.va-shell .va-modal-actions {
+  position: sticky; bottom: -22px; z-index: 1; margin: 16px -22px -22px; padding: 14px 22px 22px;
+  border-top: 1px solid var(--va-line); background: var(--va-panel);
+}
+.va-shell .va-connection-status { top: 72px; right: 16px; bottom: auto; }
+
+/* ---------- Empty state and the import panel ---------- */
+.va-empty-state { display: grid; align-content: center; justify-items: center; gap: 28px; height: 100%; padding: 96px 24px 160px; overflow: auto; }
+.va-app .va-empty-state h2 { margin: 0; font: italic 400 clamp(32px, 4vw, 48px)/1.05 var(--va-serif); letter-spacing: -.02em; text-align: center; }
+.va-empty-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 240px)); gap: 16px; }
+.va-empty-choice {
+  display: grid; align-content: start; gap: 8px; min-height: 180px; padding: 20px; text-align: left;
+  border: 1px solid var(--va-line-strong); border-radius: 18px; background: var(--va-panel); color: var(--va-ink);
+  font: 16px/1.4 var(--va-font); cursor: pointer; transition: border-color .15s ease, transform .2s ease;
+}
+.va-empty-choice svg { color: var(--va-accent-strong); }
+.va-empty-choice b { font-size: 18px; }
+.va-empty-choice span { color: var(--va-muted); font-size: 14px; }
+.va-empty-choice:hover, .va-empty-choice:focus-visible { border-color: var(--va-accent); outline: none; transform: translateY(-2px); }
+.va-empty-drop { border-style: dashed; }
+.va-empty-drop[data-dragging="true"] { border-color: var(--va-accent); background: color-mix(in srgb, var(--va-accent) 8%, var(--va-panel)); }
+.va-empty-overlay { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--va-bg) 72%, transparent); }
+.va-empty-dialog { height: auto; max-width: 820px; padding: 32px; border: 1px solid var(--va-line-strong); border-radius: 24px; background: var(--va-panel); box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
+.va-empty-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
+.va-app .va-empty-dialog h2 { font-size: 32px; text-align: left; }
+
+/* ---------- Contrast and size on the workspace's surfaces (WCAG AA, nothing under 12px) ---------- */
+.va-shell .button.primary { background: var(--va-accent-strong); border-color: var(--va-accent-strong); color: var(--va-accent-ink); }
+.va-shell .telemetry-health-badge { color: color-mix(in srgb, var(--tone) 65%, var(--va-ink)) !important; }
+.va-drawer .vp-pill { color: color-mix(in srgb, var(--tone) 70%, var(--va-ink)); }
+.va-drawer :is(.vp-pill, .vp-tag) { font-size: 12px; }
+
+/* ---------- Below 1280px: the zoom controls give their room to the project name ---------- */
+@media (max-width: 1279px) {
+  .va-canvas-area .diagram-toolbar:not(:has(.diagram-grid-toggle)) .diagram-zoom-controls { display: none; }
+  .va-canvas-area .architecture-view > .legend { right: 16px; }
+}
+
+/* ---------- Below 1024px: Baseline/Current moves under the project, and the slide-over is modal ---------- */
+@media (max-width: 1023px) {
+  .va-canvas-area .diagram-toolbar:not(:has(.diagram-grid-toggle)) { top: 60px; left: 16px; right: auto; }
+  .va-app .va-canvas-area .diagram-canvas { padding-top: 104px; }
+  .va-shell-meta { display: none; }
+  .va-drawer[data-overlay="true"] { top: 12px; z-index: 45; box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--va-bg) 60%, transparent), 0 40px 80px -36px rgba(0, 0, 0, .6); }
+  .va-empty-choices { grid-template-columns: minmax(0, 1fr); width: min(420px, 100%); }
+  .va-empty-choice { min-height: 0; }
+}
+
+/* ---------- Below 768px: a phone. The slide-over becomes a bottom sheet. ---------- */
+@media (max-width: 767px) {
+  .va-shell-bar { gap: 8px; height: 56px; padding: 0 10px; }
+  .va-app .va-shell-title { max-width: 13ch; font-size: 15px; }
+  .va-shell-bar .va-chip { display: none; }
+  .va-bar-icon, .va-bar-chevron, .va-shell-logo { width: 44px; height: 44px; }
+  .va-bar-end { gap: 0; padding: 2px; }
+  .va-more-menu, .va-project-menu { position: fixed; top: 56px; left: 8px; right: 8px; width: auto; }
+  .va-canvas-area .diagram-toolbar:not(:has(.diagram-grid-toggle)) { top: 56px; left: 12px; }
+  .va-app .va-canvas-area .diagram-canvas { padding: 100px 12px calc(132px + var(--va-coach-h, 0px)); }
+  .va-dock { bottom: 10px; padding: 0 10px; }
+  .va-command-bar { border-radius: 22px; }
+  .va-command-go { width: 44px; padding: 0; justify-content: center; }
+  .va-command-go-label, .va-command-hint, .va-command-keys, .va-command-detected, .va-coach .va-guide-changes { display: none; }
+  .va-command-menu { left: -6px; width: calc(100vw - 20px); }
+  .va-drawer, .va-drawer[data-overlay="true"] {
+    top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-width: none; height: 82dvh;
+    border-width: 1px 0 0; border-radius: 20px 20px 0 0; animation-name: va-sheet-in;
+  }
+  .va-shell .va-toast { top: 64px; }
+}

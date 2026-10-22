@@ -3,7 +3,10 @@ import { useDialog } from '../hooks/useDialog.ts';
 import './shortcutsModal.css';
 
 const SHORTCUTS = [
-  { keys: ['Ctrl', 'Enter'], action: 'Preview change' },
+  { keys: ['/'], action: 'Go to the command bar' },
+  { keys: ['Enter'], action: 'Preview change' },
+  { keys: ['Shift', 'Enter'], action: 'New line in the command bar' },
+  { keys: ['Ctrl', 'K'], action: 'Command palette' },
   { keys: ['Ctrl', 'Z'], action: 'Undo' },
   { keys: ['Ctrl', 'Shift', 'Z'], action: 'Redo' },
   { keys: ['Ctrl', 'Y'], action: 'Redo' },

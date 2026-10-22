@@ -148,7 +148,7 @@ describe('Voice follow-ups with a mocked model', () => {
     fireEvent.submit(followUp.closest('form')!);
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Review this change' })).not.toBeInTheDocument());
     expect(calls).toHaveLength(2);
-    expect((await screen.findAllByText(/v2 · updated/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('v2')).length).toBeGreaterThan(0);
   });
 });
 
@@ -231,6 +231,7 @@ describe('Import notes', () => {
     render(<App />);
     await screen.findByText('Interpreted by Claude');
     loadSample();
+    fireEvent.click(screen.getByRole('button', { name: 'Wispr Flow tools and examples' }));
     fireEvent.click(screen.getByRole('button', { name: /Import from Wispr Flow or paste notes/ }));
 
     const importDialog = await screen.findByRole('dialog', { name: 'Import notes' });
@@ -257,6 +258,7 @@ describe('Import notes', () => {
     render(<App />);
     await screen.findByText('Interpreted by Claude');
     loadSample();
+    fireEvent.click(screen.getByRole('button', { name: 'Wispr Flow tools and examples' }));
     fireEvent.click(screen.getByRole('button', { name: /Import from Wispr Flow or paste notes/ }));
 
     const importDialog = await screen.findByRole('dialog', { name: 'Import notes' });

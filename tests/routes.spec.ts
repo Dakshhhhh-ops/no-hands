@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // The landing page at "/" and the workspace at /app: deep links, the route split, and the
-// workspace's size, edge labels, splitter, and narrow layout.
+// workspace's size, edge labels, command bar, slide-over, and narrow layout.
 
 test('deep links to /app and /app?demo=guided work, including after a refresh', async ({ page }) => {
   await page.goto('/app');
@@ -45,7 +45,7 @@ test('/app?import=compose offers the import, and /app?sample=food loads that sam
 test.describe('at 1366x768', () => {
   test.use({ viewport: { width: 1366, height: 768 } });
 
-  test('the canvas fills the space beside the composer, and no edge label overflows its chip or the canvas', async ({ page }) => {
+  test('the canvas fills the screen, and no edge label overflows its chip or the canvas', async ({ page }) => {
     await page.goto('/app');
     const canvas = page.locator('.diagram-canvas');
     await expect(canvas).toBeVisible();
@@ -74,23 +74,48 @@ test.describe('at 1366x768', () => {
     for (const { shown, full } of shortened) expect(full.startsWith(shown.slice(0, -1))).toBe(true);
   });
 
-  test('the composer splitter resizes from the keyboard, and the panel collapses to a rail', async ({ page }) => {
+  test('the command bar: Enter previews, Shift+Enter is a new line, and the plus menu holds the Wispr Flow tools', async ({ page }) => {
     await page.goto('/app');
-    const splitter = page.getByRole('separator', { name: 'Resize the instruction panel' });
-    const panel = page.locator('#va-composer');
-    const before = (await panel.boundingBox())!.width;
-    await splitter.focus();
-    await page.keyboard.press('ArrowRight');
-    await page.keyboard.press('ArrowRight');
-    await expect(splitter).toHaveAttribute('aria-valuenow', String(Math.round(before) + 32));
-    expect((await panel.boundingBox())!.width).toBeGreaterThan(before + 24);
-    await page.keyboard.press('Home');
-    await expect(splitter).toHaveAttribute('aria-valuenow', '320');
+    const box = page.getByLabel('Your instruction');
+    await expect(box).toBeFocused();
+    // The bar floats over the bottom of the canvas, clear of the fitted diagram.
+    const bar = (await page.locator('.va-command-bar').boundingBox())!;
+    const svg = (await page.locator('.diagram-canvas svg').boundingBox())!;
+    expect(bar.y).toBeGreaterThan(svg.y + svg.height - 1);
 
-    await page.getByRole('button', { name: 'Collapse the instruction panel' }).click();
-    await expect(panel).toHaveCount(0);
-    await page.getByRole('button', { name: 'Show the instruction panel' }).click();
-    await expect(page.getByLabel('Your instruction')).toBeVisible();
+    await box.fill('Split payments into a separate service');
+    await box.press('Shift+Enter');
+    await expect(box).toHaveValue('Split payments into a separate service\n');
+    await box.press('Enter');
+    const review = page.getByRole('dialog', { name: 'Review this change' });
+    await expect(review).toBeVisible();
+    await review.getByRole('button', { name: 'Close review' }).click();
+    await expect(review).toBeHidden();
+
+    const plus = page.getByRole('button', { name: 'Wispr Flow tools and examples' });
+    await plus.click();
+    await expect(plus).toHaveAttribute('aria-expanded', 'true');
+    for (const name of ['Import from Wispr Flow or paste notes', 'Copy names for your Flow dictionary']) {
+      await expect(page.getByRole('button', { name })).toBeVisible();
+    }
+    await page.getByRole('button', { name: /Redis Session Store/ }).click();
+    await expect(plus).toHaveAttribute('aria-expanded', 'false');
+    await expect(box).toBeFocused();
+    await expect(box).toHaveValue(/Redis/);
+  });
+
+  test('docs open in a slide-over beside the diagram, and Escape closes it', async ({ page }) => {
+    await page.goto('/app');
+    await page.getByRole('button', { name: 'Generated docs' }).click();
+    const drawer = page.locator('#va-drawer');
+    await expect(page.getByRole('tab', { name: 'What changed', selected: true })).toBeVisible();
+    // The diagram and the command bar make room: neither sits under the slide-over.
+    const left = (await drawer.boundingBox())!.x;
+    await expect.poll(async () => { const svg = (await page.locator('.diagram-canvas svg').boundingBox())!; return svg.x + svg.width; }).toBeLessThanOrEqual(left);
+    const bar = (await page.locator('.va-command-bar').boundingBox())!;
+    expect(bar.x + bar.width).toBeLessThanOrEqual(left);
+    await page.getByRole('tab', { name: 'What changed' }).press('Escape');
+    await expect(drawer).toBeHidden();
   });
 });
 
@@ -105,15 +130,13 @@ test.describe('at 390px', () => {
     });
   }
 
-  test('the bottom tabs switch between saying a change, the diagram, and the docs', async ({ page }) => {
+  test('the diagram and the command bar share the screen, and the docs open as a sheet', async ({ page }) => {
     await page.goto('/app');
-    const tabs = page.getByRole('navigation', { name: 'Workspace views' });
     await expect(page.getByLabel('Your instruction')).toBeVisible();
-    await tabs.getByRole('button', { name: 'Diagram' }).click();
     const canvas = page.locator('.diagram-canvas');
     await expect(canvas).toBeVisible();
-    expect((await canvas.boundingBox())!.height).toBeGreaterThanOrEqual(844 * 0.6 - 56);
-    await tabs.getByRole('button', { name: 'Docs' }).click();
+    expect((await canvas.boundingBox())!.height).toBeGreaterThanOrEqual(844 * 0.9);
+    await page.getByRole('button', { name: 'Generated docs' }).click();
     await expect(page.getByRole('tab', { name: 'What changed', selected: true })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('tab', { name: 'What changed' })).toBeHidden();

@@ -23,10 +23,12 @@ architecture workspace.
   - `/` is the landing page, `src/Landing.tsx` (hero with the product card, the loop, your own stack).
   - `/app` is the workspace, `src/App.tsx`, lazy-loaded so the landing page downloads none of it.
     Deep links: `/app?demo=guided`, `/app?sample=commerce|food|ride-share`, `/app?import=compose`.
-- `src/App.tsx` — the full-screen workspace (100dvh, panels scroll on their own): the top bar
-  (`components/workspace/TopBar.tsx`), the composer with a keyboard-accessible splitter
-  (`Splitter.tsx`), the diagram canvas, the details drawer (`Drawer.tsx`: the selected component,
-  What changed, API contract, Risks, Tasks), the guided demo as a coach card, and the review dialog.
+- `src/App.tsx` — the full-screen workspace (100dvh): the diagram canvas fills the screen and the
+  rest floats over it. Top left, the project and its switcher; top right, three icons for docs, export,
+  and More (`components/workspace/TopBar.tsx`). At the bottom, the command bar
+  (`components/Composer.tsx`: Enter previews, a plus menu holds the Wispr Flow tools and examples),
+  with the guided demo's card above it. The docs open in a slide-over (`Drawer.tsx`: the selected
+  component, What changed, API contract, Risks, Tasks), and the review dialog is a centred sheet.
   Its styles are `src/workspace.css`, loaded with the workspace chunk.
 - CSS is imported in `src/main.tsx`, and that order is the cascade: `app-shell.css` (which
   `@import`s `ui-effects.css`), `fonts.css` (self-hosted fonts from `src/fonts/`, OFL),

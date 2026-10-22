@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent, RefObject, SetStateAction } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -26,6 +26,7 @@ import type { FlowDirection, GridStyle, LayoutEngine, SignoffRole, ViewMode } fr
 // Fit the model to the canvas, but never below this scale, where node names are about 14px;
 // a model too large for that scrolls inside the canvas instead of shrinking further.
 const MIN_SCALE = 0.75;
+const MAX_FIT = 1.2;
 
 // The dialogs load on first open, so their markup stays out of the diagram's chunk.
 // The simulator bar and the two dialogs load on first use, with their CSS.
@@ -107,7 +108,8 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
     return () => observer.disconnect();
   }, []);
   const fit = fitFor(width, height);
-  const scale = Math.max(MIN_SCALE, fit) * zoom;
+  // Fitted, but never under MIN_SCALE (text stays readable) or over MAX_FIT (cards stay card-sized).
+  const scale = Math.max(MIN_SCALE, Math.min(fit, MAX_FIT)) * zoom;
 
   const byId = useMemo(
     () => new Map<string, Component>(activeComponents.map((item) => [item.id, item])),
@@ -154,6 +156,11 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
 
   useEffect(() => { onSelect?.(selectedId); }, [selectedId, onSelect]);
   useEffect(() => { setZoom(1); }, [project.name, project.version]);
+  // A model wider than a narrow screen opens centred instead of cut off on one side.
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas && canvas.scrollWidth > canvas.clientWidth) canvas.scrollLeft = (canvas.scrollWidth - canvas.clientWidth) / 2;
+  }, [project.name, project.version, direction, canvasSize.w]);
 
   function selectNode(event: MouseEvent<SVGGElement> | KeyboardEvent<SVGGElement>, nodeId: string) {
     if (event.type === 'keydown' && 'key' in event && !['Enter', ' '].includes(event.key)) return;

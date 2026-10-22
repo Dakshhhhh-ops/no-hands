@@ -92,13 +92,15 @@ test('a Hinglish instruction goes to the model as dictated, and only "apply" app
   await review.getByLabel('Follow up by voice or text').fill('cancel karo');
   await review.getByLabel('Follow up by voice or text').press('Enter');
   await expect(review).toBeHidden();
-  await expect(page.getByText('v1 · baseline')).toBeVisible();
+  await expect(page.locator('.va-version')).toHaveText('v1');
+  await expect(page.locator('.va-version')).toHaveAttribute('data-changed', 'false');
 
   await page.getByRole('button', { name: /Preview my change/ }).click();
   await review.getByLabel('Follow up by voice or text').fill('haan apply karo');
   await review.getByLabel('Follow up by voice or text').press('Enter');
   await expect(review).toBeHidden();
-  await expect(page.getByText('v2 · updated')).toBeVisible();
+  await expect(page.locator('.va-version')).toHaveText('v2');
+  await expect(page.locator('.va-version')).toHaveAttribute('data-changed', 'true');
 });
 
 test('loading the app and opening every view logs no errors', async ({ page, browserName }) => {

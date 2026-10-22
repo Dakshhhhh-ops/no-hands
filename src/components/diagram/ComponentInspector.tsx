@@ -29,7 +29,7 @@ export default function ComponentInspector({
     <section className="component-inspector" aria-live="polite">
       <div className="component-inspector-heading">
         <div>
-          <span className="eyebrow">[INSPECTION // {selected.type} · ID: {selected.id}]</span>
+          <span className="eyebrow">{selected.type}</span>
           <h3>{selected.name}</h3>
         </div>
         <button

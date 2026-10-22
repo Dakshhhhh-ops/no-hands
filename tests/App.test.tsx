@@ -58,6 +58,9 @@ vi.mock('lucide-react', () => {
     FileCheck2: 'FileCheck2',
     Bug: 'Bug',
     GitMerge: 'GitMerge',
+    ArrowUp: 'ArrowUp',
+    Plus: 'Plus',
+    Ellipsis: 'Ellipsis',
     CheckCircle2: 'CheckCircle2',
     MousePointerClick: 'MousePointerClick',
     Pin: 'Pin',
@@ -120,7 +123,8 @@ describe('App component', () => {
     fireEvent.click(screen.getByRole('button', { name: /^More$/ }));
     fireEvent.click(screen.getByRole('button', { name: /^Topology/ }));
     const tabs = within(screen.getByRole('tablist', { name: 'Details' })).getAllByRole('tab').map((tab) => tab.textContent?.trim());
-    expect(tabs).toEqual(['Component', 'What changed', 'API contract', 'Risks', 'Tasks', 'Topology']);
+    // Component appears only while something is selected.
+    expect(tabs).toEqual(['What changed', 'API contract', 'Risks', 'Tasks', 'Topology']);
     expect(screen.getByRole('tab', { name: 'Topology', selected: true })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Risks' }));
     expect(screen.getByRole('tab', { name: 'Risks', selected: true })).toBeInTheDocument();
@@ -154,14 +158,12 @@ describe('App component', () => {
     expect(screen.getByRole('tab', { name: 'Tasks', selected: true })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('resizes the instruction panel from the keyboard', () => {
+  it('slash moves focus to the command bar from anywhere outside a text box', () => {
     renderApp();
-    const splitter = screen.getByRole('separator', { name: 'Resize the instruction panel' });
-    const before = Number(splitter.getAttribute('aria-valuenow'));
-    fireEvent.keyDown(splitter, { key: 'ArrowRight' });
-    expect(Number(splitter.getAttribute('aria-valuenow'))).toBe(before + 16);
-    fireEvent.keyDown(splitter, { key: 'End' });
-    expect(splitter).toHaveAttribute('aria-valuenow', '520');
+    const box = screen.getByLabelText('Your instruction');
+    box.blur();
+    fireEvent.keyDown(document.body, { key: '/' });
+    expect(box).toHaveFocus();
   });
 });
 

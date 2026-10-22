@@ -88,6 +88,7 @@ test('the guided demo, every export, the docs, and the import dialog run with no
   await page.getByRole('button', { name: 'Close details' }).click();
   await page.getByRole('button', { name: /^More$/ }).click();
   await page.getByRole('button', { name: /Outage simulator and decision records/ }).click();
+  await page.getByRole('button', { name: 'Wispr Flow tools and examples' }).click();
   await page.getByRole('button', { name: /Import from Wispr Flow or paste notes/ }).click();
   await expect(page.getByRole('dialog', { name: 'Import notes' })).toBeVisible();
 

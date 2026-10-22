@@ -47,6 +47,9 @@ for (const scheme of ['light', 'dark'] as const) {
 
       await page.goto('/app');
       await expectNoSeriousViolations(page, 'workspace');
+      await page.getByRole('button', { name: 'Wispr Flow tools and examples' }).click();
+      await expectNoSeriousViolations(page, 'command bar menu');
+      await page.keyboard.press('Escape');
       await page.getByLabel('Your instruction').fill('Move session storage to Redis and add login rate limiting.');
       await page.getByRole('button', { name: /Preview my change/ }).click();
       const review = page.getByRole('dialog', { name: 'Review this change' });
@@ -79,19 +82,22 @@ test('the voice loop works from the keyboard alone: instruction, preview, follow
   await page.keyboard.type('apply');
   await page.keyboard.press('Enter');
   await expect(review).toBeHidden();
-  await expect(page.getByText('v2 · updated')).toBeVisible();
+  await expect(page.locator('.va-version')).toHaveText('v2');
+  await expect(page.locator('.va-version')).toHaveAttribute('data-changed', 'true');
 
   await box.focus();
   await page.keyboard.press('Control+a');
   await page.keyboard.type('undo');
   await page.keyboard.press('Control+Enter');
-  await expect(page.getByText('v1 · baseline')).toBeVisible();
+  await expect(page.locator('.va-version')).toHaveText('v1');
+  await expect(page.locator('.va-version')).toHaveAttribute('data-changed', 'false');
 });
 
 test('pasted notes become an ordinary proposal through the import dialog, which is accessible', async ({ page }) => {
   // Two full axe analyses; give it room under a parallel run, like the test above.
   test.slow();
   await page.goto('/app');
+  await page.getByRole('button', { name: 'Wispr Flow tools and examples' }).click();
   await page.getByRole('button', { name: /Import from Wispr Flow or paste notes/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Import notes' });
   await expect(dialog.getByRole('link', { name: /Connect Wispr Flow/ })).toHaveAttribute('href', '/api/wispr/connect');

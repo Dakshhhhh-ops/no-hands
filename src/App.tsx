@@ -1,10 +1,9 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity, ArrowRight, ClipboardCheck, ClipboardList, FileArchive, FileCode2, GitBranch, HelpCircle, Layers,
-  Mic, Network, Play, RotateCcw, Server, ShieldAlert, Sun,
+  Network, Play, RotateCcw, Server, ShieldAlert, Sun,
 } from 'lucide-react';
 import TopBar from './components/workspace/TopBar.tsx';
-import Splitter from './components/workspace/Splitter.tsx';
 import Drawer from './components/workspace/Drawer.tsx';
 import type { DrawerTab } from './components/workspace/Drawer.tsx';
 import EmptyState from './components/workspace/EmptyState.tsx';
@@ -41,8 +40,6 @@ const ShortcutsModal = lazy(() => import('./components/ShortcutsModal.tsx'));
 const CommandPalette = lazy(() => import('./components/CommandPalette.tsx'));
 const WisprImportDialog = lazy(() => import('./components/WisprImportDialog.tsx'));
 
-const COMPOSER = { min: 320, max: 520, initial: 380 };
-
 function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement
     && (target.isContentEditable || ['TEXTAREA', 'INPUT', 'SELECT'].includes(target.tagName));
@@ -51,19 +48,23 @@ function isTypingTarget(target: EventTarget | null): boolean {
 export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTab, setDrawerTab] = useState<DrawerTab>('component');
-  const [drawerPinned, setDrawerPinned] = useLocalStorage('va-drawer-pinned', false);
   const [hasSelection, setHasSelection] = useState(false);
   const inspectorSlot = useRef<HTMLDivElement | null>(null);
-  const [composerWidth, setComposerWidth] = useLocalStorage('va-composer-width', COMPOSER.initial);
-  const [composerCollapsed, setComposerCollapsed] = useState(false);
   const composeInputRef = useRef<HTMLInputElement | null>(null);
   const driftInputRef = useRef<HTMLInputElement | null>(null);
-  const wide = useMediaQuery('(min-width: 1600px)');
+  // Below 1024px the docs slide-over covers the diagram, so it is modal there.
   const compact = useMediaQuery('(max-width: 1023px)');
-  const phone = useMediaQuery('(max-width: 767px)');
-  // On a phone one panel shows at a time, chosen from the bottom tab bar.
-  const [phoneView, setPhoneView] = useState<'say' | 'diagram'>('say');
   const { params } = useLocation();
+  // The guided demo's card sits above the command bar; the diagram leaves room for its height.
+  const [coachHeight, setCoachHeight] = useState(0);
+  const coachObserver = useRef<ResizeObserver | null>(null);
+  const coachRef = useCallback((node: HTMLDivElement | null) => {
+    coachObserver.current?.disconnect();
+    if (!node) { setCoachHeight(0); return; }
+    if (typeof ResizeObserver === 'undefined') return;
+    coachObserver.current = new ResizeObserver(([entry]) => { if (entry) setCoachHeight(Math.ceil(entry.contentRect.height)); });
+    coachObserver.current.observe(node);
+  }, []);
   const [showHistory, setShowHistory] = useState(false);
   const [advancedTools, setAdvancedTools] = useState(false);
   const [guidedStep, setGuidedStep] = useState(0);
@@ -180,7 +181,7 @@ export default function App() {
     setDrawerOpen(true);
   };
   const handleTabChange = (id: string) => {
-    if (id === 'diagram') { setDrawerOpen(drawerPinned && wide); return; }
+    if (id === 'diagram') { setDrawerOpen(false); return; }
     openDrawer(id as DrawerTab);
   };
   const onSelectComponent = (id: string | null) => {
@@ -206,7 +207,11 @@ export default function App() {
         return;
       }
       if (isTypingTarget(e.target)) return;
-      if (mod && e.key === 'z' && !e.shiftKey) {
+      if (e.key === '/' && !mod) {
+        // Slash goes to the command bar, as in most command-driven tools.
+        e.preventDefault();
+        document.getElementById('architecture-command')?.focus();
+      } else if (mod && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
       } else if (mod && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
@@ -363,7 +368,6 @@ export default function App() {
     setCommand(text);
     const box = document.getElementById('architecture-command');
     box?.focus({ preventScroll: true });
-    box?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   };
 
   // A spoken "undo" outside a review undoes the last applied change; "apply" or "cancel"
@@ -421,7 +425,6 @@ export default function App() {
       syncHistory(history);
     }
     setProposal(null);
-    setPhoneView('diagram');
     const recordedDecisionCount = Number(Boolean(decisionDraft.rateLimitThreshold.trim()))
       + Number(Boolean(decisionDraft.redisFallback.trim()));
     notify(recordedDecisionCount
@@ -470,17 +473,13 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const drawerShown = drawerOpen || (drawerPinned && wide && !compact);
-
   return (
-    <div className="va-app va-shell" style={cssVars({ '--va-composer-w': `${composerWidth}px` })}>
+    <div className="va-app va-shell" data-drawer={drawerOpen ? 'open' : undefined} style={cssVars({ '--va-coach-h': `${coachHeight}px` })}>
       <TopBar
         project={project}
         currentBranchId={currentBranchId}
         currentBranch={currentBranch}
         openDecisionCount={openDecisionCount}
-        guidedStep={guidedStep}
-        guidedTotal={GUIDED_STEPS.length}
         onOpenDoc={(id) => openDrawer(id as DrawerTab)}
         isImported={isImported}
         sampleChoice={sampleChoice}
@@ -513,14 +512,19 @@ export default function App() {
       <input ref={composeInputRef} type="file" accept=".yml,.yaml" hidden aria-label="docker-compose file" onChange={onComposeFile} />
       <input ref={driftInputRef} type="file" accept=".yml,.yaml" hidden aria-label="docker-compose file to check against" onChange={onDriftFile} />
 
-      <main className="va-shell-body" id="main" data-collapsed={composerCollapsed} data-view={phone ? phoneView : undefined}>
-        {composerCollapsed ? (
-          <div className="va-composer-rail">
-            <button type="button" className="va-btn va-btn-ghost va-btn-icon" onClick={() => setComposerCollapsed(false)} aria-label="Show the instruction panel" aria-controls="va-composer" aria-expanded={false}>
-              <ArrowRight size={18} />
-            </button>
-          </div>
-        ) : (
+      <main className="va-shell-body" id="main">
+        {/* The command bar floats at the bottom of the screen, with the guided demo's card above it. */}
+        <div className="va-dock">
+          {guidedStep > 0 && (
+            <div className="va-coach" ref={coachRef}>
+              <GuidedDemo
+                step={guidedStep}
+                onExit={() => setGuidedStep(0)}
+                onTypeIt={typeGuidedStep}
+                onRunCodeCheck={checkExampleDrift}
+              />
+            </div>
+          )}
           <Composer
             project={project}
             command={command}
@@ -531,6 +535,7 @@ export default function App() {
               setCommand('');
               setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
               setProposal(null);
+              document.getElementById('architecture-command')?.focus();
             }}
             onPreview={runInstruction}
             isLive={isLive}
@@ -546,19 +551,8 @@ export default function App() {
             onToggleMic={toggleDictation}
             sampleChoice={sampleChoice}
             isImported={isImported}
-            onCollapse={compact ? undefined : () => setComposerCollapsed(true)}
           />
-        )}
-        {!composerCollapsed && !compact ? (
-          <Splitter
-            value={composerWidth}
-            min={COMPOSER.min}
-            max={COMPOSER.max}
-            onChange={setComposerWidth}
-            controls="va-composer"
-            label="Resize the instruction panel"
-          />
-        ) : <span aria-hidden="true" />}
+        </div>
 
         <section className="va-canvas-area" aria-label="Architecture diagram">
           <span
@@ -609,16 +603,6 @@ export default function App() {
               onComposeText={importComposeText}
             />
           )}
-          {guidedStep > 0 && (
-            <div className="va-coach">
-              <GuidedDemo
-                step={guidedStep}
-                onExit={() => setGuidedStep(0)}
-                onTypeIt={typeGuidedStep}
-                onRunCodeCheck={checkExampleDrift}
-              />
-            </div>
-          )}
           {showImport && (
             <EmptyState
               asDialog
@@ -632,14 +616,11 @@ export default function App() {
         </section>
 
         <Drawer
-          open={drawerShown}
-          pinned={drawerPinned}
-          canPin={wide}
+          open={drawerOpen}
           overlay={compact}
           tab={drawerTab}
           onTab={(tab) => { sound.tab(); setDrawerTab(tab); }}
-          onClose={() => { setDrawerOpen(false); setDrawerPinned(false); }}
-          onTogglePin={() => setDrawerPinned(!drawerPinned)}
+          onClose={() => setDrawerOpen(false)}
           project={project}
           openDecisionCount={openDecisionCount}
           notify={notify}
@@ -648,19 +629,6 @@ export default function App() {
           hasSelection={hasSelection}
         />
       </main>
-      {phone && (
-        <nav className="va-bottom-tabs" aria-label="Workspace views">
-          <button type="button" aria-pressed={phoneView === 'say' && !drawerShown} onClick={() => { setDrawerOpen(false); setPhoneView('say'); }}>
-            <Mic size={20} aria-hidden="true" /> Say
-          </button>
-          <button type="button" aria-pressed={phoneView === 'diagram' && !drawerShown} onClick={() => { setDrawerOpen(false); setPhoneView('diagram'); }}>
-            <Network size={20} aria-hidden="true" /> Diagram
-          </button>
-          <button type="button" aria-pressed={drawerShown} onClick={() => openDrawer(drawerTab === 'component' ? 'impact' : drawerTab)}>
-            <FileCode2 size={20} aria-hidden="true" /> Docs
-          </button>
-        </nav>
-      )}
 
       {/* Review dialog */}
       {proposal && (

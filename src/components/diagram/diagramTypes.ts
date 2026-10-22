@@ -20,7 +20,7 @@ export const nodeW = 208,
 /** Which way the layout flows: left to right, or top to bottom when that fits the canvas better. */
 export type FlowDirection = 'LR' | 'TB';
 /** Gap between columns of the layout; edge labels sit in it, on a chip. */
-export const rankGap = 84;
+export const rankGap = 120;
 /** Font sizes in diagram units (the CSS uses the same), used to fit text with an ellipsis. */
 export const fontUnits = { title: 18, sub: 15, type: 13, edge: 15 };
 

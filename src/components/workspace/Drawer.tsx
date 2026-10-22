@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
 import type { ReactNode, RefObject } from 'react';
-import { Activity, ClipboardList, FileCode2, Layers, MousePointerClick, Pin, PinOff, ShieldAlert, X } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { X } from 'lucide-react';
 import ErrorBoundary from '../ErrorBoundary.tsx';
 import { ListSkeleton, TableSkeleton } from '../Skeleton.tsx';
 import type { Project, Proposal } from '../../types/schema.ts';
@@ -14,27 +13,24 @@ const TopologyPanel = lazy(() => import('../TopologyPanel.tsx'));
 
 export type DrawerTab = 'component' | 'impact' | 'openapi' | 'risk' | 'tasks' | 'topology';
 
-interface TabDef { id: DrawerTab; label: string; icon: LucideIcon }
+interface TabDef { id: DrawerTab; label: string }
 
 const TABS: TabDef[] = [
-  { id: 'component', label: 'Component', icon: MousePointerClick },
-  { id: 'impact', label: 'What changed', icon: Activity },
-  { id: 'openapi', label: 'API contract', icon: FileCode2 },
-  { id: 'risk', label: 'Risks', icon: ShieldAlert },
-  { id: 'tasks', label: 'Tasks', icon: ClipboardList },
+  { id: 'component', label: 'Component' },
+  { id: 'impact', label: 'What changed' },
+  { id: 'openapi', label: 'API contract' },
+  { id: 'risk', label: 'Risks' },
+  { id: 'tasks', label: 'Tasks' },
 ];
-const TOPOLOGY: TabDef = { id: 'topology', label: 'Topology', icon: Layers };
+const TOPOLOGY: TabDef = { id: 'topology', label: 'Topology' };
 
 export interface DrawerProps {
   open: boolean;
-  pinned: boolean;
-  canPin: boolean;
-  /** Below 1024px the drawer is an overlay: focus stays inside and Escape closes it. */
+  /** Below 1024px the drawer is modal: focus stays inside it. Escape closes it at every width. */
   overlay: boolean;
   tab: DrawerTab;
   onTab: (tab: DrawerTab) => void;
   onClose: () => void;
-  onTogglePin: () => void;
   project: Project | null;
   openDecisionCount: number;
   notify: (message: string) => void;
@@ -48,13 +44,22 @@ function Panel({ children, fallback }: { children: ReactNode; fallback: ReactNod
   return <ErrorBoundary fallback={<p>This view is unavailable.</p>}><Suspense fallback={fallback}>{children}</Suspense></ErrorBoundary>;
 }
 
-/** The right drawer: the selected component, what changed, and the generated docs, beside the diagram. */
+/** The slide-over on the right: the selected component, what changed, and the generated docs. */
 export default function Drawer({
-  open, pinned, canPin, overlay, tab, onTab, onClose, onTogglePin, project, openDecisionCount, notify, onResolve,
+  open, overlay, tab, onTab, onClose, project, openDecisionCount, notify, onResolve,
   inspectorSlot, hasSelection,
 }: DrawerProps) {
   const ref = useRef<HTMLElement | null>(null);
-  const tabs = [...TABS, ...(tab === 'topology' ? [TOPOLOGY] : [])];
+  // Component shows while something is selected; Topology once it has been opened from More.
+  const tabs = [
+    ...TABS.filter((item) => item.id !== 'component' || hasSelection || tab === 'component'),
+    ...(tab === 'topology' ? [TOPOLOGY] : []),
+  ];
+
+  // The open tab is always in view, even when the row scrolls sideways.
+  useEffect(() => {
+    if (open) document.getElementById(`drawer-tab-${tab}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [open, tab]);
 
   // As an overlay the drawer traps focus and closes on Escape, like a dialog.
   useEffect(() => {
@@ -92,13 +97,19 @@ export default function Drawer({
       ref={ref}
       className="va-drawer"
       data-open={open}
-      data-pinned={pinned}
       data-overlay={overlay}
       aria-label="Details"
       aria-modal={overlay && open ? true : undefined}
       role={overlay && open ? 'dialog' : undefined}
       hidden={!open}
+      onKeyDown={(event) => { if (event.key === 'Escape' && !overlay) { event.preventDefault(); onClose(); } }}
     >
+      <div className="va-drawer-title">
+        <h2>Details</h2>
+        <button type="button" className="va-btn va-btn-ghost va-btn-icon" onClick={onClose} aria-label="Close details">
+          <X size={18} />
+        </button>
+      </div>
       <div className="va-drawer-head">
         <div
           className="va-drawer-tabs"
@@ -119,7 +130,7 @@ export default function Drawer({
             document.getElementById(`drawer-tab-${nextTab.id}`)?.focus();
           }}
         >
-          {tabs.map(({ id, label, icon: Icon }) => (
+          {tabs.map(({ id, label }) => (
             <button
               key={id}
               id={`drawer-tab-${id}`}
@@ -130,20 +141,10 @@ export default function Drawer({
               tabIndex={tab === id ? 0 : -1}
               onClick={() => onTab(id)}
             >
-              <Icon size={16} aria-hidden="true" /> {label}
-              {id === 'risk' && openDecisionCount > 0 && <span className="va-tab-count">{openDecisionCount} open</span>}
+              {label}
+              {id === 'risk' && openDecisionCount > 0 && <> <span className="va-tab-count">{openDecisionCount}<span className="va-sr-only"> open</span></span></>}
             </button>
           ))}
-        </div>
-        <div className="va-drawer-tools">
-          {canPin && (
-            <button type="button" className="va-btn va-btn-ghost va-btn-icon" onClick={onTogglePin} aria-pressed={pinned} aria-label={pinned ? 'Unpin the details panel' : 'Pin the details panel open'}>
-              {pinned ? <PinOff size={16} /> : <Pin size={16} />}
-            </button>
-          )}
-          <button type="button" className="va-btn va-btn-ghost va-btn-icon" onClick={onClose} aria-label="Close details">
-            <X size={18} />
-          </button>
         </div>
       </div>
       <div className="va-drawer-body" id="drawer-panel" role="tabpanel" aria-labelledby={`drawer-tab-${tab}`} tabIndex={0}>

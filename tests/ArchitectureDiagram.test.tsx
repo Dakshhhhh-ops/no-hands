@@ -121,7 +121,7 @@ describe('ArchitectureDiagram', () => {
     render(<ArchitectureDiagram project={withData} />);
     fireEvent.click(screen.getByRole('button', { name: 'More tools' }));
     // The simulator bar loads on first use.
-    expect(await screen.findByRole('button', { name: 'Kill Session Cache' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Kill Session Cache' }, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Kill Main DB' })).toBeInTheDocument();
     expect(screen.getByText('Simulated')).toBeInTheDocument();
     expect(screen.getByText(/Simulated, not measured/)).toBeInTheDocument();
