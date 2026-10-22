@@ -21,7 +21,7 @@ import ComponentInspector from './diagram/ComponentInspector.tsx';
 import CycleBanner from './diagram/CycleBanner.tsx';
 import { applySignoffOverrides, getChaosTargets, getKeyboardTarget } from './diagram/diagramModel.ts';
 import { nodeH, nodeW, rankGap } from './diagram/diagramTypes.ts';
-import type { GridStyle, LayoutEngine, SignoffRole, ViewMode } from './diagram/diagramTypes.ts';
+import type { FlowDirection, GridStyle, LayoutEngine, SignoffRole, ViewMode } from './diagram/diagramTypes.ts';
 
 // Fit the model to the canvas, but never below this scale, where node names are about 14px;
 // a model too large for that scrolls inside the canvas instead of shrinking further.
@@ -75,27 +75,27 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
 
   const chaosTargets = getChaosTargets(project.components);
 
-  // Dynamic Hierarchical Layout (Dagre Sugiyama)
-  const autoLayout = useMemo(
-    () =>
-      computeGraphLayout(model.components, model.relationships, {
-        direction: 'LR',
-        nodeWidth: nodeW,
-        nodeHeight: nodeH,
-        rankSeparation: rankGap,
-        nodeSeparation: 36,
-        marginX: 16,
-        marginY: 24,
-      }),
-    [model.components, model.relationships]
-  );
-
-  const activeComponents: Component[] = layoutEngine === 'auto' ? autoLayout.components : model.components;
-  const width = layoutEngine === 'auto' ? autoLayout.width : 1000;
-  const height = layoutEngine === 'auto' ? autoLayout.height : 390;
+  // Layered layout (Dagre), computed both ways: left to right and top to bottom. The canvas uses
+  // whichever draws the model larger in the space it has.
+  const layouts = useMemo(() => ({
+    LR: computeGraphLayout(model.components, model.relationships, {
+      direction: 'LR', nodeWidth: nodeW, nodeHeight: nodeH, rankSeparation: rankGap, nodeSeparation: 36, marginX: 16, marginY: 24,
+    }),
+    TB: computeGraphLayout(model.components, model.relationships, {
+      direction: 'TB', nodeWidth: nodeW, nodeHeight: nodeH, rankSeparation: 64, nodeSeparation: 40, marginX: 24, marginY: 16,
+    }),
+  }), [model.components, model.relationships]);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
+  const fitFor = (w: number, h: number) => (canvasSize.w > 0 && canvasSize.h > 0 ? Math.min((canvasSize.w - 32) / w, (canvasSize.h - 32) / h) : 1);
+  const direction: FlowDirection = fitFor(layouts.TB.width, layouts.TB.height) > fitFor(layouts.LR.width, layouts.LR.height) * 1.05 ? 'TB' : 'LR';
+  const autoLayout = layouts[direction];
+  const activeComponents: Component[] = layoutEngine === 'auto' ? autoLayout.components : model.components;
+  const flow: FlowDirection = layoutEngine === 'auto' ? direction : 'LR';
+  const width = layoutEngine === 'auto' ? autoLayout.width : 1000;
+  const height = layoutEngine === 'auto' ? autoLayout.height : 390;
+
   const [legendOpen, setLegendOpen] = useState(false);
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -106,7 +106,7 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
     observer.observe(canvas);
     return () => observer.disconnect();
   }, []);
-  const fit = canvasSize.w > 0 && canvasSize.h > 0 ? Math.min((canvasSize.w - 32) / width, (canvasSize.h - 32) / height) : 1;
+  const fit = fitFor(width, height);
   const scale = Math.max(MIN_SCALE, fit) * zoom;
 
   const byId = useMemo(
@@ -305,6 +305,8 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
               selected={selected}
               viewMode={viewMode}
               telemetry={telemetry}
+              direction={flow}
+              animate={showTools}
             />
 
             {/* Component Nodes */}
@@ -320,7 +322,7 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
               handleNodeKeyDown={handleNodeKeyDown}
             />
 
-            <DiagramEdgeLabels relationships={model.relationships} byId={byId} telemetry={telemetry} />
+            <DiagramEdgeLabels relationships={model.relationships} byId={byId} telemetry={telemetry} direction={flow} />
 
           </svg>
         </div>

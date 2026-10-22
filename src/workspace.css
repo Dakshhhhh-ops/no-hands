@@ -98,7 +98,7 @@ button.va-chip { cursor: pointer; }
 .va-composer-panel .va-field textarea { min-height: 168px; font-size: 16px; line-height: 1.5; background: var(--va-bg); }
 .va-composer-panel .va-field-hint { flex-wrap: wrap; gap: 8px 12px; margin-top: 8px; color: var(--va-muted); font-size: 14px; }
 .va-composer-panel .va-field-hint kbd { font-size: 12px; }
-.va-composer-panel .va-composer-actions { display: grid; gap: 8px; }
+.va-composer-panel .va-composer-actions { display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; gap: 8px; }
 .va-composer-panel .va-composer-actions .va-composer-preview { width: 100%; height: 48px; justify-content: center; gap: 8px; font-size: 16px; }
 /* Disabled, Preview still reads as the primary action, with the reason under it. */
 .va-app .va-composer-panel .va-composer-preview:disabled { opacity: .55; cursor: not-allowed; }
@@ -240,3 +240,50 @@ button.va-chip { cursor: pointer; }
 @media (max-width: 1439px) {
   .va-shell-project .va-shell-label { display: none; }
 }
+
+/* ---------- A calmer, professional diagram: cards, one border per state, quiet connectors ---------- */
+.va-app .va-canvas-area .diagram-canvas {
+  background-color: var(--va-bg);
+  background-image: radial-gradient(color-mix(in srgb, var(--va-line-strong) 60%, transparent) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.va-app .va-canvas-area .node { cursor: pointer; }
+.va-app .va-canvas-area .node .node-box { fill: var(--va-panel); stroke: var(--va-line-strong); stroke-width: 1; filter: none; transition: stroke .15s ease; }
+.va-app .va-canvas-area .node:hover .node-box { stroke: var(--va-line-bright); }
+.va-app .va-canvas-area .node.changed .node-box, .va-app .va-canvas-area .node.direct .node-box { stroke: var(--va-accent); stroke-width: 1.5; }
+.va-app .va-canvas-area .node.downstream .node-box { stroke: var(--va-downstream); stroke-width: 1.5; }
+.va-app .va-canvas-area .node.upstream .node-box { stroke: var(--va-warn); stroke-width: 1.5; }
+.va-app .va-canvas-area .node.planned .node-box { stroke: var(--va-warn); stroke-dasharray: 6 4; }
+.va-app .va-canvas-area .node.node-degraded .node-box { stroke: var(--va-warn); stroke-width: 2; }
+.va-app .va-canvas-area .node.node-down .node-box { stroke: var(--va-danger); stroke-width: 2; }
+.va-app .va-canvas-area .node.selected .node-box { stroke: var(--va-accent); stroke-width: 2; filter: none; }
+.va-app .va-canvas-area .node .node-ring { fill: none; stroke: color-mix(in srgb, var(--va-accent) 30%, transparent); stroke-width: 4; filter: none; }
+.va-app .va-canvas-area .node.dimmed { opacity: .38; }
+.va-app .va-canvas-area .node:focus-visible { outline: none; }
+.va-app .va-canvas-area .node:focus-visible .node-box { stroke: var(--va-accent); stroke-width: 2.5; }
+.va-canvas-area .node .node-dot { fill: var(--va-faint); }
+.va-canvas-area .node.type-service .node-dot { fill: var(--va-accent); }
+.va-canvas-area .node.type-gateway .node-dot, .va-canvas-area .node.type-queue .node-dot { fill: var(--va-teal); }
+.va-canvas-area .node.type-database .node-dot { fill: var(--va-violet); }
+.va-canvas-area .node.type-cache .node-dot { fill: var(--va-amber); }
+.va-app .va-canvas-area .node .node-type { fill: var(--va-muted); font: 600 13px var(--va-font); letter-spacing: .08em; }
+.va-app .va-canvas-area .node text.node-title { fill: var(--va-ink); font: 650 18px var(--va-font); letter-spacing: -.01em; }
+.va-app .va-canvas-area .node .node-sub { fill: var(--va-muted); font: 400 15px var(--va-font); }
+.va-canvas-area .node .node-status { fill: var(--va-danger); font: 700 12px var(--va-font); letter-spacing: .06em; }
+.va-app .va-canvas-area .edge { stroke: var(--va-line-bright); stroke-width: 1.5; }
+.va-app .va-canvas-area .edge.changed, .va-app .va-canvas-area .diagram-relationship.direct .edge { stroke: var(--va-accent); }
+.va-canvas-area .edge-chip rect { fill: var(--va-bg); stroke: var(--va-line); stroke-width: 1; }
+.va-app .va-canvas-area .edge-label { fill: var(--va-muted); font: 500 15px var(--va-font); }
+
+/* ---------- A calmer composer ---------- */
+.va-app .va-composer-panel .va-field textarea:focus-visible {
+  border-color: color-mix(in srgb, var(--va-accent) 65%, var(--va-line-strong));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--va-accent) 14%, transparent);
+}
+.va-app .va-composer-panel .va-composer-actions > .va-composer-preview { display: flex; width: 100%; max-width: none; }
+.va-flow-tool-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.va-flow-tool-row button { display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 44px; padding: 0 8px; border-radius: 10px; }
+.va-flow-tool-row button svg { width: 16px; height: 16px; }
+
+/* The component count reads as a fact, not a button. */
+.va-shell-chips span.va-chip:not(.va-chip-accent) { border-color: transparent; padding: 0 4px; }

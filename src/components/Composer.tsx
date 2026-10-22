@@ -153,7 +153,7 @@ export default function Composer({
           </button>
           {micSupported && (
             <button type="button" onClick={onToggleMic} aria-pressed={isListening} aria-label={isListening ? 'Stop browser mic' : 'Browser mic (fallback)'} title="Only for people without Wispr Flow.">
-              <Mic size={20} aria-hidden="true" /> <span>{isListening ? 'Stop mic' : 'Browser mic'}</span>
+              <Mic size={20} aria-hidden="true" /> <span>{isListening ? 'Stop' : 'Mic'}</span>
             </button>
           )}
         </div>

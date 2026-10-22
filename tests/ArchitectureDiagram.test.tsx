@@ -146,7 +146,7 @@ describe('ArchitectureDiagram', () => {
     expect(screen.getByRole('button', { name: /100%/i })).toBeInTheDocument();
   });
 
-  it('gives data stores their own pattern, and services theirs', () => {
+  it('marks each component with its type, so a data store reads differently from a service', () => {
     const withStore: Project = {
       ...mockProject,
       components: [
@@ -155,8 +155,8 @@ describe('ArchitectureDiagram', () => {
       ],
     };
     const { container } = render(<ArchitectureDiagram project={withStore} />);
-    const fills = [...container.querySelectorAll<SVGRectElement>('rect[opacity="0.1"]')].map((rect) => rect.style.fill);
-    expect(fills.filter((fill) => fill.includes('pattern-datastore'))).toHaveLength(1);
-    expect(fills.filter((fill) => fill.includes('pattern-service'))).toHaveLength(3);
+    // Every card carries its type as a class (which colours its dot), and one coloured dot.
+    expect(container.querySelectorAll('.node.type-database')).toHaveLength(1);
+    expect(container.querySelectorAll('.node .node-dot')).toHaveLength(withStore.components.length);
   });
 });
