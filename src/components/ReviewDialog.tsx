@@ -154,7 +154,7 @@ export default function ReviewDialog({
                     id="review-rate-limit"
                     type="text"
                     value={decisionDraft.rateLimitThreshold}
-                    onChange={(event) => setDecisionDraft((current) => ({ ...current, rateLimitThreshold: event.target.value }))}
+                    onChange={(event) => { const value = event.target.value; setDecisionDraft((current) => ({ ...current, rateLimitThreshold: value })); }}
                     placeholder="Your chosen attempts and time window"
                     aria-describedby="review-rate-limit-help review-rate-limit-impact"
                   />
@@ -179,7 +179,7 @@ export default function ReviewDialog({
                     id="review-redis-fallback"
                     type="text"
                     value={decisionDraft.redisFallback}
-                    onChange={(event) => setDecisionDraft((current) => ({ ...current, redisFallback: event.target.value }))}
+                    onChange={(event) => { const value = event.target.value; setDecisionDraft((current) => ({ ...current, redisFallback: value })); }}
                     placeholder="Describe the behavior your team selected"
                     aria-describedby="review-redis-fallback-help review-redis-fallback-impact"
                   />
