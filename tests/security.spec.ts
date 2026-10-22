@@ -52,7 +52,7 @@ test('the guided demo, every export, the docs, and the import dialog run with no
   await page.goto('/');
 
   // Guided demo: recorded answers, review, spoken "apply", and the code check.
-  await page.getByRole('button', { name: 'Start guided demo' }).click();
+  await page.getByRole('link', { name: 'Start guided demo' }).click();
   const guide = page.getByRole('region', { name: 'Guided demo' });
   await expect(guide.getByText('step 1 of 3')).toBeVisible({ timeout: 20000 });
   for (let step = 0; step < 2; step += 1) {
@@ -81,11 +81,11 @@ test('the guided demo, every export, the docs, and the import dialog run with no
   await devops;
 
   // Generated docs, the outage simulator, and the import dialog.
+  await page.getByRole('button', { name: 'Generated docs' }).click();
   for (const name of ['API contract', 'Risks', 'Tasks']) {
-    await page.getByRole('button', { name: /Generated docs/ }).click();
-    await page.getByRole('button', { name: new RegExp(`^${name}`) }).click();
+    await page.getByRole('tab', { name: new RegExp(`^${name}`) }).click();
   }
-  await page.getByRole('tab', { name: 'Diagram' }).click();
+  await page.getByRole('button', { name: 'Close details' }).click();
   await page.getByRole('button', { name: /^More$/ }).click();
   await page.getByRole('button', { name: /Outage simulator and decision records/ }).click();
   await page.getByRole('button', { name: /Import from Wispr Flow or paste notes/ }).click();

@@ -30,9 +30,9 @@ describe('ArchitectureDiagram', () => {
 
   it('renders diagram with nodes and edges', () => {
     render(<ArchitectureDiagram project={mockProject} />);
-    expect(screen.getByText('Web Frontend')).toBeInTheDocument();
-    expect(screen.getByText('API Gateway')).toBeInTheDocument();
-    expect(screen.getByText('Auth Service')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Web Frontend, / })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^API Gateway, / })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Auth Service, / })).toBeInTheDocument();
   });
 
   it('has proper ARIA labels on SVG', () => {

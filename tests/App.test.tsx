@@ -42,6 +42,26 @@ vi.mock('lucide-react', () => {
     Zap: 'Zap',
     ExternalLink: 'ExternalLink',
     Target: 'Target',
+    Search: 'Search',
+    ChevronsLeft: 'ChevronsLeft',
+    WifiOff: 'WifiOff',
+    Cloud: 'Cloud',
+    Loader2: 'Loader2',
+    Download: 'Download',
+    Copy: 'Copy',
+    Flame: 'Flame',
+    Clock: 'Clock',
+    AlertTriangle: 'AlertTriangle',
+    ZoomIn: 'ZoomIn',
+    ZoomOut: 'ZoomOut',
+    ListOrdered: 'ListOrdered',
+    FileCheck2: 'FileCheck2',
+    Bug: 'Bug',
+    GitMerge: 'GitMerge',
+    CheckCircle2: 'CheckCircle2',
+    MousePointerClick: 'MousePointerClick',
+    Pin: 'Pin',
+    PinOff: 'PinOff',
   };
   const mockComponents: Record<string, (props: { size?: number; className?: string }) => ReactElement> = {};
   for (const [key] of Object.entries(icons)) {
@@ -52,10 +72,18 @@ vi.mock('lucide-react', () => {
   return mockComponents;
 });
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import App from '../src/App.tsx';
+import Landing from '../src/Landing.tsx';
 
 const renderApp = () => render(<App />);
+
+/** The samples are in the workspace's project switcher. */
+function loadSample() {
+  fireEvent.click(screen.getByRole('button', { name: /Switch project/ }));
+  fireEvent.click(screen.getByText('Load sample'));
+}
+
 
 describe('App component', () => {
   beforeEach(() => {
@@ -63,51 +91,44 @@ describe('App component', () => {
     localStorage.clear();
   });
 
-  it('renders hero section with start demo button', () => {
-    renderApp();
-    expect(screen.getByText('Start guided demo')).toBeInTheDocument();
+  it('renders hero section with start demo link', () => {
+    render(<Landing />);
+    expect(screen.getByRole('link', { name: /Start guided demo/ })).toHaveAttribute('href', '/app?demo=guided');
+    expect(screen.getByRole('link', { name: /Use my own stack/ })).toHaveAttribute('href', '/app?import=compose');
   });
 
   it('loads Commerce Platform sample when button clicked', () => {
     renderApp();
-    fireEvent.click(screen.getByText('Load sample'));
-    expect(screen.getByRole('heading', { level: 2, name: 'Commerce Platform' })).toBeInTheDocument();
+    loadSample();
+    expect(screen.getByRole('heading', { level: 1, name: 'Commerce Platform' })).toBeInTheDocument();
   });
 
   it('shows workspace section after loading sample', () => {
     renderApp();
-    fireEvent.click(screen.getByText('Load sample'));
-    expect(screen.getByText('What should change?')).toBeInTheDocument();
+    loadSample();
+    expect(screen.getByRole('heading', { name: 'Say the change' })).toBeInTheDocument();
   });
 
-  it('shows journey steps', () => {
+  it('puts focus in the instruction box on arrival, where Wispr Flow types', () => {
     renderApp();
-    fireEvent.click(screen.getByText('Load sample'));
-    expect(screen.getByText('Start with the sample')).toBeInTheDocument();
-    expect(screen.getByText('Enter or dictate a change')).toBeInTheDocument();
+    expect(document.activeElement).toBe(screen.getByLabelText('Your instruction'));
   });
 
-  it('renders all tabs', () => {
+  it('opens the docs in the details drawer, with Topology only once opened from More', () => {
     renderApp();
-    fireEvent.click(screen.getByText('Load sample'));
-    expect(screen.getByRole('tab', { name: 'Diagram' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'What changed' })).toBeInTheDocument();
-    // The generated documents live in one menu and join the tab row when opened.
-    expect(screen.queryByRole('tab', { name: 'Risks' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Generated docs/ }));
-    expect(screen.getByRole('button', { name: /^API contract/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Tasks/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Risks/ }));
-    expect(screen.getByRole('tab', { name: 'Risks', selected: true })).toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: 'Topology' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tablist', { name: 'Details' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^More$/ }));
     fireEvent.click(screen.getByRole('button', { name: /^Topology/ }));
+    const tabs = within(screen.getByRole('tablist', { name: 'Details' })).getAllByRole('tab').map((tab) => tab.textContent?.trim());
+    expect(tabs).toEqual(['Component', 'What changed', 'API contract', 'Risks', 'Tasks', 'Topology']);
     expect(screen.getByRole('tab', { name: 'Topology', selected: true })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Risks' }));
+    expect(screen.getByRole('tab', { name: 'Risks', selected: true })).toBeInTheDocument();
   });
 
   it('opens export menu', () => {
     renderApp();
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
     fireEvent.click(screen.getByRole('button', { name: /export/i }));
     expect(screen.getByText('Engineering artifacts')).toBeInTheDocument();
     expect(screen.queryByText('DevOps bundle')).not.toBeInTheDocument();
@@ -117,7 +138,7 @@ describe('App component', () => {
 
   it('toggles history panel', async () => {
     renderApp();
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
     fireEvent.click(screen.getByRole('button', { name: /^More$/ }));
     fireEvent.click(screen.getByRole('button', { name: /branches and history/i }));
     // The branches panel loads on first open.
@@ -125,13 +146,22 @@ describe('App component', () => {
     expect(branchChips.length).toBeGreaterThan(0);
   });
 
-  it('switches tabs with keyboard navigation', () => {
+  it('switches drawer tabs with keyboard navigation', () => {
     renderApp();
-    fireEvent.click(screen.getByText('Load sample'));
-    const diagramTab = screen.getByRole('tab', { name: 'Diagram', selected: true });
-    expect(diagramTab).toHaveAttribute('aria-selected', 'true');
-    fireEvent.keyDown(diagramTab, { key: 'ArrowRight' });
-    expect(screen.getByRole('tab', { name: 'What changed', selected: true })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /^More$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Topology/ }));
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Topology', selected: true }), { key: 'ArrowLeft' });
+    expect(screen.getByRole('tab', { name: 'Tasks', selected: true })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('resizes the instruction panel from the keyboard', () => {
+    renderApp();
+    const splitter = screen.getByRole('separator', { name: 'Resize the instruction panel' });
+    const before = Number(splitter.getAttribute('aria-valuenow'));
+    fireEvent.keyDown(splitter, { key: 'ArrowRight' });
+    expect(Number(splitter.getAttribute('aria-valuenow'))).toBe(before + 16);
+    fireEvent.keyDown(splitter, { key: 'End' });
+    expect(splitter).toHaveAttribute('aria-valuenow', '520');
   });
 });
 
@@ -142,20 +172,20 @@ describe('Accessibility', () => {
   });
 
   it('has proper heading hierarchy', () => {
-    renderApp();
+    render(<Landing />);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Say the change.');
   });
 
   it('has landmark regions', () => {
     renderApp();
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
     expect(screen.getByRole('main')).toBeInTheDocument();
-    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toBeInTheDocument();
   });
 
   it('export menu is keyboard accessible', () => {
     renderApp();
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
     const exportBtn = screen.getByRole('button', { name: /export/i });
     expect(exportBtn).toHaveAttribute('aria-haspopup', 'menu');
     fireEvent.click(exportBtn);
@@ -164,7 +194,7 @@ describe('Accessibility', () => {
 
   it('instruction textarea has proper labeling', () => {
     renderApp();
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
     const textarea = screen.getByLabelText('Your instruction');
     expect(textarea).toBeInTheDocument();
     expect(textarea).toHaveAttribute('placeholder');
@@ -172,6 +202,7 @@ describe('Accessibility', () => {
 
   it('sample selector is accessible', () => {
     renderApp();
+    fireEvent.click(screen.getByRole('button', { name: /Switch project/ }));
     const select = screen.getByLabelText('Sample architecture');
     expect(select).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Commerce Platform' })).toBeInTheDocument();
@@ -180,17 +211,18 @@ describe('Accessibility', () => {
 
   it('tabs have proper ARIA attributes', () => {
     renderApp();
-    fireEvent.click(screen.getByText('Load sample'));
-    const tablist = screen.getByRole('tablist', { name: 'Architecture outputs' });
-    expect(tablist).toBeInTheDocument();
-    const diagramTab = screen.getByRole('tab', { name: 'Diagram' });
-    expect(diagramTab).toHaveAttribute('aria-selected', 'true');
-    expect(diagramTab).toHaveAttribute('aria-controls', 'artifact-panel');
+    loadSample();
+    fireEvent.click(screen.getByRole('button', { name: /^More$/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Topology/ }));
+    expect(screen.getByRole('tablist', { name: 'Details' })).toBeInTheDocument();
+    const topologyTab = screen.getByRole('tab', { name: 'Topology' });
+    expect(topologyTab).toHaveAttribute('aria-selected', 'true');
+    expect(topologyTab).toHaveAttribute('aria-controls', 'drawer-panel');
   });
 
   it('sync status is announced to screen readers', () => {
     renderApp();
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
     const syncStatuses = screen.getAllByRole('status');
     expect(syncStatuses.length).toBeGreaterThan(0);
     expect(syncStatuses[0]).toBeInTheDocument();

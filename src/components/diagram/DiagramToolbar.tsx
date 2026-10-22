@@ -24,6 +24,8 @@ export interface DiagramToolbarProps {
   handleZoom: (delta: number) => void;
   resetZoom: () => void;
   handleModeChange: (mode: ViewMode) => void;
+  legendOpen?: boolean;
+  onToggleLegend?: () => void;
 }
 
 export default function DiagramToolbar({
@@ -44,6 +46,8 @@ export default function DiagramToolbar({
   handleZoom,
   resetZoom,
   handleModeChange,
+  legendOpen,
+  onToggleLegend,
 }: DiagramToolbarProps) {
   return (
     <div className="diagram-toolbar">
@@ -171,6 +175,10 @@ export default function DiagramToolbar({
           <button type="button" onClick={() => handleZoom(0.1)} title="Zoom In" aria-label="Zoom In">
             <ZoomIn size={13} />
           </button>
+          <button type="button" onClick={resetZoom} title="Fit the whole diagram in view" aria-label="Fit to view">Fit</button>
+          {onToggleLegend && (
+            <button type="button" onClick={onToggleLegend} aria-expanded={legendOpen} aria-controls="diagram-legend">Legend</button>
+          )}
         </div>
 
         {/* Baseline vs Current Toggle */}

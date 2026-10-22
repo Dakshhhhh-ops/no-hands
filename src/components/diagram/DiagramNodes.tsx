@@ -2,7 +2,7 @@ import type { KeyboardEvent, MouseEvent } from 'react';
 import type { DiagramNeighborhood } from '../../data/diagram.ts';
 import type { ChaosSimulationResult } from '../../data/chaosSimulator.ts';
 import type { Component } from '../../types/schema.ts';
-import { nodeW, nodeH } from './diagramTypes.ts';
+import { fitText, fontUnits, nodeW, nodeH } from './diagramTypes.ts';
 import type { ViewMode } from './diagramTypes.ts';
 
 export interface DiagramNodesProps {
@@ -188,14 +188,17 @@ export default function DiagramNodes({
                 strokeWidth="1.5"
                 strokeDasharray="5 4" style={{ fill: 'none' }} />
             )}
-            <text className="node-type" x="11" y="17">
+            {/* Long names and subtitles end in an ellipsis; the full text is in a title and in the inspector. */}
+            <text className="node-type" x="12" y="22">
               {node.type}{isPlanned ? ' · PLANNED' : ''}
             </text>
-            <text className="node-title" x="11" y="34">
-              {node.name}
+            <text className="node-title" x="12" y="45">
+              <title>{node.name}</title>
+              {fitText(node.name, nodeW - 30, fontUnits.title, 0.5)}
             </text>
-            <text className="node-sub" x="11" y="49">
-              {node.sub}
+            <text className="node-sub" x="12" y="62">
+              <title>{node.sub}</title>
+              {fitText(node.sub, nodeW - 40, fontUnits.sub, 0.46)}
             </text>
             
             {/* 3D Corner Indicator */}

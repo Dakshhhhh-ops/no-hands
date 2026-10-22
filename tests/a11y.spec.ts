@@ -6,15 +6,15 @@ import AxeBuilder from '@axe-core/playwright';
 // entrance animations to finish, so colors are measured as people see them.
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
-/** Opens an output view: Diagram and What changed are tabs; the generated docs are in a menu. */
+/** The diagram is always on screen at /app; the docs open in the details drawer. */
 async function openView(page: Page, name: string) {
-  if (['API contract', 'Risks', 'Tasks'].includes(name)) {
-    await page.getByRole('button', { name: /Generated docs/ }).click();
-    await page.getByRole('button', { name: new RegExp(`^${name}`) }).click();
-  } else {
-    await page.getByRole('tab', { name }).click();
-  }
+  if (name === 'Diagram') return;
+  const tab = page.getByRole('tab', { name: new RegExp(`^${name}`) });
+  if (!(await tab.isVisible())) await page.getByRole('button', { name: 'Generated docs' }).click();
+  await tab.click();
 }
+
+
 
 async function expectNoSeriousViolations(page: Page, label: string) {
   // Measure colors as people see them: wait for every finite animation and transition
@@ -45,7 +45,8 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.goto('/');
       await expectNoSeriousViolations(page, 'landing');
 
-      await page.getByRole('button', { name: 'Load sample' }).click();
+      await page.goto('/app');
+      await expectNoSeriousViolations(page, 'workspace');
       await page.getByLabel('Your instruction').fill('Move session storage to Redis and add login rate limiting.');
       await page.getByRole('button', { name: /Preview my change/ }).click();
       const review = page.getByRole('dialog', { name: 'Review this change' });
@@ -66,7 +67,7 @@ for (const scheme of ['light', 'dark'] as const) {
 }
 
 test('the voice loop works from the keyboard alone: instruction, preview, follow-up, apply', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/app');
   const box = page.getByLabel('Your instruction');
   await box.focus();
   await page.keyboard.type('catalog service ke aage redis cache laga do');
@@ -90,8 +91,7 @@ test('the voice loop works from the keyboard alone: instruction, preview, follow
 test('pasted notes become an ordinary proposal through the import dialog, which is accessible', async ({ page }) => {
   // Two full axe analyses; give it room under a parallel run, like the test above.
   test.slow();
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Load sample' }).click();
+  await page.goto('/app');
   await page.getByRole('button', { name: /Import from Wispr Flow or paste notes/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Import notes' });
   await expect(dialog.getByRole('link', { name: /Connect Wispr Flow/ })).toHaveAttribute('href', '/api/wispr/connect');
@@ -110,8 +110,7 @@ for (const scheme of ['light', 'dark'] as const) {
     // Four full axe analyses; give it room under a parallel run.
     test.slow();
     await page.emulateMedia({ colorScheme: scheme });
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Load sample' }).click();
+    await page.goto('/app');
     await page.getByRole('button', { name: /^More$/ }).click();
     await page.getByRole('button', { name: /Outage simulator and decision records/ }).click();
 

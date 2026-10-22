@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import App from '../src/App.tsx';
 
+/** The samples are in the workspace's project switcher. */
+function loadSample() {
+  fireEvent.click(screen.getByRole('button', { name: /Switch project/ }));
+  fireEvent.click(screen.getByText('Load sample'));
+}
+
+
 // The shared setup mock lists only some icons; this full-app test renders the real ones.
 vi.mock('lucide-react', async (importOriginal) => importOriginal());
 // The shared setup stubs the domain modules; this test exercises the real ones end to end.
@@ -52,7 +59,7 @@ describe('Model interpretation flow', () => {
     render(<App />);
 
     expect(await screen.findByText('Interpreted by Groq')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
 
     fireEvent.change(screen.getByLabelText('Your instruction'), {
       target: { value: 'add a notification service that listens to order events' },
@@ -83,7 +90,7 @@ describe('Model interpretation flow', () => {
     });
     render(<App />);
     await screen.findByText(/Interpreted by Groq/);
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
 
     fireEvent.change(screen.getByLabelText('Your instruction'), { target: { value: 'add rate limiting to login' } });
     fireEvent.click(screen.getByRole('button', { name: /Preview my change/ }));
@@ -123,7 +130,7 @@ describe('Voice follow-ups with a mocked model', () => {
   it('sends cleaned Hinglish, revises on a follow-up, and applies only on "apply karo"', async () => {
     render(<App />);
     await screen.findByText('Interpreted by Groq');
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
     fireEvent.change(screen.getByLabelText('Your instruction'), { target: { value: 'um payment provider ko kafka se connect karo' } });
     fireEvent.click(screen.getByRole('button', { name: /Preview my change/ }));
 
@@ -157,7 +164,7 @@ describe('Fallback badge', () => {
     }));
     render(<App />);
     await screen.findByText('Interpreted by Groq');
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
     fireEvent.change(screen.getByLabelText('Your instruction'), { target: { value: 'add rate limiting to login' } });
     fireEvent.click(screen.getByRole('button', { name: /Preview my change/ }));
 
@@ -179,7 +186,7 @@ describe('Recorded answers', () => {
     }));
     render(<App />);
     await screen.findByText('Recorded answers, then offline rules');
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
     fireEvent.change(screen.getByLabelText('Your instruction'), { target: { value: 'add a notification service that listens to order events' } });
     fireEvent.click(screen.getByRole('button', { name: /Preview my change/ }));
 
@@ -223,7 +230,7 @@ describe('Import notes', () => {
     stub({ '/api/wispr/status': { connected: false } });
     render(<App />);
     await screen.findByText('Interpreted by Claude');
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
     fireEvent.click(screen.getByRole('button', { name: /Import from Wispr Flow or paste notes/ }));
 
     const importDialog = await screen.findByRole('dialog', { name: 'Import notes' });
@@ -249,7 +256,7 @@ describe('Import notes', () => {
     });
     render(<App />);
     await screen.findByText('Interpreted by Claude');
-    fireEvent.click(screen.getByText('Load sample'));
+    loadSample();
     fireEvent.click(screen.getByRole('button', { name: /Import from Wispr Flow or paste notes/ }));
 
     const importDialog = await screen.findByRole('dialog', { name: 'Import notes' });

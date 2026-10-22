@@ -1,14 +1,24 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-/** Opens an output view: Diagram and What changed are tabs; the generated docs are in a menu. */
+/** The diagram is always on screen at /app; the docs open in the details drawer. */
 async function openView(page: Page, name: string) {
-  if (['API contract', 'Risks', 'Tasks'].includes(name)) {
-    await page.getByRole('button', { name: /Generated docs/ }).click();
-    await page.getByRole('button', { name: new RegExp(`^${name}`) }).click();
-  } else {
-    await page.getByRole('tab', { name }).click();
-  }
+  if (name === 'Diagram') return;
+  const tab = page.getByRole('tab', { name: new RegExp(`^${name}`) });
+  if (!(await tab.isVisible())) await page.getByRole('button', { name: 'Generated docs' }).click();
+  await tab.click();
+}
+
+/** The view is showing: the canvas for the diagram, the selected drawer tab for a document. */
+async function expectView(page: Page, name: string) {
+  if (name === 'Diagram') await expect(page.locator('.diagram-canvas')).toBeVisible();
+  else await expect(page.getByRole('tab', { name: new RegExp(`^${name}`) })).toHaveAttribute('aria-selected', 'true');
+}
+
+/** The samples are in the workspace's project switcher. */
+async function loadSample(page: Page) {
+  await page.getByRole('button', { name: /Switch project/ }).click();
+  await page.getByRole('button', { name: 'Load sample' }).click();
 }
 
 // Browser tests for the demo path. Without ANTHROPIC_API_KEY the app uses the
@@ -16,8 +26,9 @@ async function openView(page: Page, name: string) {
 
 test.describe('VoiceArchitect demo flow', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Load sample' }).click();
+    await page.goto('/app');
+    // The workspace is lazy-loaded; keyboard tests need it mounted before the first key.
+    await expect(page.getByLabel('Your instruction')).toBeFocused();
   });
 
   test('preview and apply a change, then see it in the diagram and history', async ({ page }) => {
@@ -32,12 +43,12 @@ test.describe('VoiceArchitect demo flow', () => {
     await expect(review).toBeHidden();
     await expect(page.getByText(/Change applied/).first()).toBeVisible();
 
-    await page.getByRole('tab', { name: 'Diagram' }).click();
+    await openView(page, 'Diagram');
     await expect(page.getByRole('button', { name: /^Payment Service, SERVICE/ })).toBeVisible();
 
     for (const tab of ['API contract', 'Risks', 'Tasks', 'What changed']) {
       await openView(page, tab);
-      await expect(page.getByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');
+      await expectView(page, tab);
     }
 
     await page.reload();
@@ -45,7 +56,7 @@ test.describe('VoiceArchitect demo flow', () => {
   });
 
   test('import the example docker-compose stack and reset back to it', async ({ page }) => {
-    await page.getByRole('button', { name: /From code/ }).click();
+    await page.getByRole('button', { name: /Switch project/ }).click();
     await page.getByRole('button', { name: 'Try example stack' }).click();
     // The importer is lazy-loaded; on a cold dev server under parallel load the first
     // load can be slow. Assert on what stays on screen, not the transient toast.
@@ -57,18 +68,18 @@ test.describe('VoiceArchitect demo flow', () => {
     await page.getByRole('button', { name: /^Reset to baseline/ }).click();
     await expect(page.getByRole('heading', { name: 'ride-share-platform' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Load sample' }).click();
+    await loadSample(page);
     await expect(page.getByRole('heading', { name: 'Commerce Platform' })).toBeVisible();
   });
 
   test('check the diagram against a newer docker-compose file and sync it', async ({ page }) => {
     // The longest flow in the suite (import, drift review, apply, recheck); give it room under parallel load.
     test.slow();
-    await page.getByRole('button', { name: /From code/ }).click();
+    await page.getByRole('button', { name: /Switch project/ }).click();
     await page.getByRole('button', { name: 'Try example stack' }).click();
     await expect(page.getByRole('heading', { name: 'ride-share-platform' })).toBeVisible({ timeout: 20000 });
 
-    await page.getByRole('button', { name: /From code/ }).click();
+    await page.getByRole('button', { name: /Switch project/ }).click();
     await page.getByRole('button', { name: 'Try example update' }).click();
     const review = page.getByRole('dialog', { name: 'Review this change' });
     await expect(review).toBeVisible({ timeout: 20000 });
@@ -78,11 +89,11 @@ test.describe('VoiceArchitect demo flow', () => {
 
     await review.getByRole('button', { name: /Apply change/ }).click();
     await expect(review).toBeHidden();
-    await page.getByRole('tab', { name: 'Diagram' }).click();
+    await openView(page, 'Diagram');
     await expect(page.getByRole('button', { name: /^search, DATABASE/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /^pricing-worker, SERVICE/ })).toHaveCount(0);
 
-    await page.getByRole('button', { name: /From code/ }).click();
+    await page.getByRole('button', { name: /Switch project/ }).click();
     await page.getByRole('button', { name: 'Try example update' }).click();
     await expect(page.getByText('The diagram matches ride-share-compose.v2.yml.')).toBeVisible();
   });
@@ -131,7 +142,7 @@ test.describe('VoiceArchitect demo flow', () => {
     await page.keyboard.press('Escape');
     await expect(shortcuts).toBeHidden();
 
-    await expect(page.getByRole('heading', { level: 2, name: 'Commerce Platform' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Commerce Platform' })).toBeVisible();
     expect(errors).toEqual([]);
   });
 
@@ -156,7 +167,9 @@ test.describe('VoiceArchitect demo flow', () => {
   });
 
   test('guided demo walks an English step, a Hinglish step, and the code check', async ({ page }) => {
-    await page.getByRole('button', { name: 'Start guided demo' }).click();
+    // From the first screen, as a judge would start it.
+    await page.goto('/');
+    await page.getByRole('link', { name: 'Start guided demo' }).click();
     const guide = page.getByRole('region', { name: 'Guided demo' });
     await expect(guide.getByText('step 1 of 3')).toBeVisible({ timeout: 20000 });
     await expect(page.getByRole('heading', { name: 'ride-share-platform' })).toBeVisible();
@@ -177,7 +190,7 @@ test.describe('VoiceArchitect demo flow', () => {
     await expect(sync.getByText('Add 2 services found in ride-share-compose.v2.yml')).toBeVisible({ timeout: 20000 });
     await sync.getByRole('button', { name: /Apply change/ }).click();
     await expect(guide.getByText(/Guided demo · done/)).toBeVisible();
-    await page.getByRole('tab', { name: 'Diagram' }).click();
+    await openView(page, 'Diagram');
     // The model matches the stack's kebab-case names (payment-service); the offline rule says Payment Service.
     await expect(page.getByRole('button', { name: /^payment[- ]service, SERVICE/i })).toBeVisible();
   });

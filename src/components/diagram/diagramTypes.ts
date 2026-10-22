@@ -15,5 +15,15 @@ export interface ChaosTarget {
 }
 
 /** Drawn size of a component node; connectors attach to its left and right edges. */
-export const nodeW = 144,
-  nodeH = 58;
+export const nodeW = 176,
+  nodeH = 70;
+/** Gap between columns of the layout; edge labels sit in it, on a chip. */
+export const rankGap = 84;
+/** Font sizes in diagram units (the CSS uses the same), used to fit text with an ellipsis. */
+export const fontUnits = { title: 18, sub: 15.5, type: 15.5, edge: 15.5 };
+
+/** Shortens text with an ellipsis so it fits a width in diagram units; widthPerEm is the font's average glyph width. */
+export function fitText(text: string, maxWidth: number, fontSize: number, widthPerEm = 0.56): string {
+  const maxChars = Math.max(3, Math.floor(maxWidth / (fontSize * widthPerEm)));
+  return text.length <= maxChars ? text : `${text.slice(0, maxChars - 1).trimEnd()}…`;
+}

@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 // CSS cascade order. app-shell.css (with ui-effects.css) comes first; later files win ties.
 import './app-shell.css';
-import App from './App.tsx';
+import Root from './Root.tsx';
 import { isAutomated } from './hooks/useMotion.ts';
 import { initialTheme } from './hooks/useTheme.ts';
 
@@ -35,6 +35,6 @@ if (!root) throw new Error('index.html has no #root element to render into.');
 
 createRoot(root).render(
   <React.StrictMode>
-    <App />
+    <Root />
   </React.StrictMode>,
 );

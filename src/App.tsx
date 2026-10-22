@@ -1,30 +1,33 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   Activity, ArrowRight, ClipboardCheck, ClipboardList, FileArchive, FileCode2, GitBranch, HelpCircle, Layers,
-  Network, Play, RotateCcw, Server, ShieldAlert, Sun,
+  Mic, Network, Play, RotateCcw, Server, ShieldAlert, Sun,
 } from 'lucide-react';
-import { SiteHeader, Hero, LoopSection, SiteFooter } from './components/landing/LandingSections.tsx';
-import { StudioHeader, StudioBar } from './components/StudioToolbar.tsx';
+import TopBar from './components/workspace/TopBar.tsx';
+import Splitter from './components/workspace/Splitter.tsx';
+import Drawer from './components/workspace/Drawer.tsx';
+import type { DrawerTab } from './components/workspace/Drawer.tsx';
+import EmptyState from './components/workspace/EmptyState.tsx';
 import GuidedDemo from './components/GuidedDemo.tsx';
 import { GUIDED_STEPS } from './data/guidedDemo.ts';
 import Composer from './components/Composer.tsx';
-import OutputPanel from './components/OutputPanel.tsx';
+import { DiagramView } from './components/OutputPanel.tsx';
 import ReviewDialog from './components/ReviewDialog.tsx';
 import ConnectionStatus from './components/ConnectionStatus.tsx';
 import { countOpenDecisions, getProjectSyncStatus } from './data/analysis.ts';
 import { sound } from './utils/sound.ts';
 import { useProjectState } from './hooks/useProjectState.ts';
 import { useDictation } from './hooks/useDictation.ts';
-import { useJourney } from './hooks/useJourney.ts';
 import { useExport } from './hooks/useExport.ts';
 import { useProposalReview } from './hooks/useProposalReview.ts';
 import { useToast } from './hooks/useToast.ts';
 import useLocalStorage from './hooks/useLocalStorage.ts';
 import { useTheme } from './hooks/useTheme.ts';
-import { useRevealOnScroll } from './hooks/useMotion.ts';
-import { useScrollSpy } from './hooks/useScrollSpy.ts';
+import { useMediaQuery } from './hooks/useMediaQuery.ts';
+import { navigate, useLocation } from './router.ts';
 import { isDialogOpen } from './hooks/useDialog.ts';
 import { cssVars } from './utils/cssVars.ts';
+import './workspace.css';
 import type { Proposal } from './types/schema.ts';
 import type { WisprReturn } from './components/WisprImportDialog.tsx';
 import { parseFollowUp } from './data/reviewCommands.ts';
@@ -38,7 +41,7 @@ const ShortcutsModal = lazy(() => import('./components/ShortcutsModal.tsx'));
 const CommandPalette = lazy(() => import('./components/CommandPalette.tsx'));
 const WisprImportDialog = lazy(() => import('./components/WisprImportDialog.tsx'));
 
-const NAV_SECTIONS = ['how', 'workspace'];
+const COMPOSER = { min: 320, max: 520, initial: 380 };
 
 function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement
@@ -46,7 +49,21 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 export default function App() {
-  const [tab, setTab] = useState('diagram');
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>('component');
+  const [drawerPinned, setDrawerPinned] = useLocalStorage('va-drawer-pinned', false);
+  const [hasSelection, setHasSelection] = useState(false);
+  const inspectorSlot = useRef<HTMLDivElement | null>(null);
+  const [composerWidth, setComposerWidth] = useLocalStorage('va-composer-width', COMPOSER.initial);
+  const [composerCollapsed, setComposerCollapsed] = useState(false);
+  const composeInputRef = useRef<HTMLInputElement | null>(null);
+  const driftInputRef = useRef<HTMLInputElement | null>(null);
+  const wide = useMediaQuery('(min-width: 1600px)');
+  const compact = useMediaQuery('(max-width: 1023px)');
+  const phone = useMediaQuery('(max-width: 767px)');
+  // On a phone one panel shows at a time, chosen from the bottom tab bar.
+  const [phoneView, setPhoneView] = useState<'say' | 'diagram'>('say');
+  const { params } = useLocation();
   const [showHistory, setShowHistory] = useState(false);
   const [advancedTools, setAdvancedTools] = useState(false);
   const [guidedStep, setGuidedStep] = useState(0);
@@ -62,9 +79,10 @@ export default function App() {
     setNotesLoaded(true);
     setNotesImport({ returned: result === 'connected' ? { connected: true } : { errorCode: params.get('code') || 'unavailable' } });
     // Drop the query so a reload does not reopen the dialog.
-    window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
+    navigate('/app', { replace: true });
   }, []);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const { toast, notify } = useToast();
 
@@ -117,17 +135,6 @@ export default function App() {
   const { isListening, isSupported: micSupported, toggle: toggleDictation } = dictation;
   const [followUp, setFollowUp] = useState('');
 
-  const journey = useJourney(project, command, null, tab, false, isListening);
-  const {
-    journeySteps,
-    currentJourneyStep,
-    journeyGuidance,
-    journeyOutputs,
-    inspectedArtifacts,
-    setInspectedArtifacts,
-    handleTabChange: journeyHandleTabChange,
-  } = journey;
-
   const exportHooks = useExport(project, notify);
   const {
     exportOpen,
@@ -139,8 +146,6 @@ export default function App() {
   } = exportHooks;
 
   const { theme, toggleTheme } = useTheme();
-  useRevealOnScroll();
-  const activeSection = useScrollSpy(NAV_SECTIONS);
 
   const proposalHooks = useProposalReview(project, sampleChoice, notify, { command, setCommand }, { decisionDraft, setDecisionDraft });
   const {
@@ -168,10 +173,19 @@ export default function App() {
     proposalNotes,
   } = proposalHooks;
 
-  const handleTabChange = (id: string) => {
+  // Docs and the component inspector open in the drawer beside the diagram.
+  const openDrawer = (tab: DrawerTab) => {
     sound.tab();
-    setTab(id);
-    journeyHandleTabChange(id);
+    setDrawerTab(tab);
+    setDrawerOpen(true);
+  };
+  const handleTabChange = (id: string) => {
+    if (id === 'diagram') { setDrawerOpen(drawerPinned && wide); return; }
+    openDrawer(id as DrawerTab);
+  };
+  const onSelectComponent = (id: string | null) => {
+    setHasSelection(Boolean(id));
+    if (id) { setDrawerTab('component'); setDrawerOpen(true); }
   };
 
   // Counted from the model's own risk findings, so imported stacks get their own decisions.
@@ -182,8 +196,16 @@ export default function App() {
   // Ctrl/Cmd+Z and Ctrl/Cmd+Y undo the model, but never while typing
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (proposal || isDialogOpen() || isTypingTarget(e.target)) return;
+      if (proposal || isDialogOpen()) return;
       const mod = e.ctrlKey || e.metaKey;
+      // The palette opens from anywhere, the instruction box included (it has focus on arrival).
+      if (mod && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(true);
+        sound.click();
+        return;
+      }
+      if (isTypingTarget(e.target)) return;
       if (mod && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
@@ -213,9 +235,8 @@ export default function App() {
     setCommand('');
     setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
     setProposal(null);
-    setTab('diagram');
+    setDrawerTab('component');
     setCurrentBranchId('main');
-    setInspectedArtifacts(new Set());
     setShowHistory(false);
   };
 
@@ -319,7 +340,7 @@ export default function App() {
     setCommand('');
     guidedBaseline.current = 0;
     setGuidedStep(1);
-    document.querySelector('.va-studio')?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById('architecture-command')?.focus({ preventScroll: true });
   };
 
   // Each applied change moves the guided demo one step forward; leaving the example stack ends it.
@@ -400,8 +421,7 @@ export default function App() {
       syncHistory(history);
     }
     setProposal(null);
-    setTab('impact');
-    setInspectedArtifacts(new Set());
+    setPhoneView('diagram');
     const recordedDecisionCount = Number(Boolean(decisionDraft.rateLimitThreshold.trim()))
       + Number(Boolean(decisionDraft.redisFallback.trim()));
     notify(recordedDecisionCount
@@ -433,144 +453,214 @@ export default function App() {
     { id: 'theme', label: 'Toggle Theme', description: 'Switch between dark and light mode', keys: [], icon: <Sun size={14} />, category: 'view', action: toggleTheme },
   ];
 
+  // Deep links: /app?demo=guided, /app?sample=commerce|food|ride-share, /app?import=compose.
+  const linkHandled = useRef(false);
+  useEffect(() => {
+    if (linkHandled.current) return;
+    linkHandled.current = true;
+    const demo = params.get('demo');
+    const sample = params.get('sample');
+    const importParam = params.get('import');
+    if (demo === 'guided') void startDemo();
+    else if (sample === 'ride-share') void importExampleCompose();
+    else if (sample === 'commerce' || sample === 'food') { setSampleChoice(sample); resetWorkspace(`${sample === 'food' ? 'Food Delivery' : 'Commerce Platform'} sample loaded.`, sample); }
+    else if (importParam === 'compose') setShowImport(true);
+    // Wispr Flow types into the focused field, so the instruction box has focus on arrival.
+    if (demo !== 'guided' && importParam !== 'compose') document.getElementById('architecture-command')?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const drawerShown = drawerOpen || (drawerPinned && wide && !compact);
+
   return (
-    <main className="va-app">
-      <SiteHeader activeSection={activeSection} theme={theme} onToggleTheme={toggleTheme} onStartDemo={startDemo} />
+    <div className="va-app va-shell" style={cssVars({ '--va-composer-w': `${composerWidth}px` })}>
+      <TopBar
+        project={project}
+        currentBranchId={currentBranchId}
+        currentBranch={currentBranch}
+        openDecisionCount={openDecisionCount}
+        guidedStep={guidedStep}
+        guidedTotal={GUIDED_STEPS.length}
+        onOpenDoc={(id) => openDrawer(id as DrawerTab)}
+        isImported={isImported}
+        sampleChoice={sampleChoice}
+        onSampleChoice={setSampleChoice}
+        onResetWorkspace={resetWorkspace}
+        onLoadSample={loadSample}
+        onImportExample={importExampleCompose}
+        onChooseCompose={() => composeInputRef.current?.click()}
+        onChooseDrift={() => driftInputRef.current?.click()}
+        onCheckExampleDrift={checkExampleDrift}
+        exportOpen={exportOpen}
+        setExportOpen={setExportOpen}
+        exportMenuRef={exportMenuRef}
+        exportAll={exportAll}
+        exportDiagram={exportDiagram}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        showHistory={showHistory}
+        setShowHistory={setShowHistory}
+        advancedTools={advancedTools}
+        setAdvancedTools={setAdvancedTools}
+        onReset={reset}
+        onExportDevOps={exportDevOps}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onShowShortcuts={() => setIsShortcutsOpen(true)}
+      />
+      <input ref={composeInputRef} type="file" accept=".yml,.yaml" hidden aria-label="docker-compose file" onChange={onComposeFile} />
+      <input ref={driftInputRef} type="file" accept=".yml,.yaml" hidden aria-label="docker-compose file to check against" onChange={onDriftFile} />
 
-      <Hero project={project} onStartDemo={startDemo} />
-
-      <LoopSection />
-
-      <section className="va-section va-section-work" id="workspace" aria-labelledby="va-work-title">
-        <div className="va-section-inner va-work-intro">
-          <h2 id="va-work-title" data-reveal style={cssVars({ '--d': 1 })}>Workspace</h2>
-          <p className="va-section-lead" data-reveal style={cssVars({ '--d': 2 })}>Start from a sample or your own docker-compose file, say a change, and review exactly what it affects before anything applies.</p>
-        </div>
-      <div className="va-studio">
-        <StudioHeader
-          project={project}
-          currentBranchId={currentBranchId}
-          currentBranch={currentBranch}
-          openDecisionCount={openDecisionCount}
-          onTabChange={handleTabChange}
-          exportOpen={exportOpen}
-          setExportOpen={setExportOpen}
-          exportMenuRef={exportMenuRef}
-          exportAll={exportAll}
-          exportDiagram={exportDiagram}
-          canUndo={canUndo}
-          canRedo={canRedo}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-        />
-
-        <StudioBar
-          project={project}
-          guideActive={guidedStep > 0}
-          journeySteps={journeySteps}
-          currentJourneyStep={currentJourneyStep}
-          journeyGuidance={journeyGuidance}
-          journeyOutputs={journeyOutputs}
-          inspectedArtifacts={inspectedArtifacts}
-          tab={tab}
-          onTabChange={handleTabChange}
-          isImported={isImported}
-          sampleChoice={sampleChoice}
-          onSampleChoice={setSampleChoice}
-          onResetWorkspace={resetWorkspace}
-          onLoadSample={loadSample}
-          onImportExample={importExampleCompose}
-          onCheckExampleDrift={checkExampleDrift}
-          onComposeFile={onComposeFile}
-          onDriftFile={onDriftFile}
-          showHistory={showHistory}
-          setShowHistory={setShowHistory}
-          currentBranch={currentBranch}
-          advancedTools={advancedTools}
-          setAdvancedTools={setAdvancedTools}
-          onReset={reset}
-          onExportDevOps={exportDevOps}
-        />
-
-        {guidedStep > 0 && (
-          <GuidedDemo
-            step={guidedStep}
-            onExit={() => setGuidedStep(0)}
-            onTypeIt={typeGuidedStep}
-            onRunCodeCheck={checkExampleDrift}
+      <main className="va-shell-body" id="main" data-collapsed={composerCollapsed} data-view={phone ? phoneView : undefined}>
+        {composerCollapsed ? (
+          <div className="va-composer-rail">
+            <button type="button" className="va-btn va-btn-ghost va-btn-icon" onClick={() => setComposerCollapsed(false)} aria-label="Show the instruction panel" aria-controls="va-composer" aria-expanded={false}>
+              <ArrowRight size={18} />
+            </button>
+          </div>
+        ) : (
+          <Composer
+            project={project}
+            command={command}
+            setCommand={setCommand}
+            setDecisionDraft={setDecisionDraft}
+            onClear={() => {
+              sound.click();
+              setCommand('');
+              setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
+              setProposal(null);
+            }}
+            onPreview={runInstruction}
+            isLive={isLive}
+            isInterpreting={isInterpreting}
+            aiStatus={aiStatus}
+            answerSource={answerSource}
+            fallbackReason={fallbackReason}
+            preview={preview}
+            onImportNotes={() => { setNotesLoaded(true); setNotesImport({ returned: null }); }}
+            onCopyDictionary={copyDictionaryWords}
+            micSupported={micSupported}
+            isListening={isListening}
+            onToggleMic={toggleDictation}
+            sampleChoice={sampleChoice}
+            isImported={isImported}
+            onCollapse={compact ? undefined : () => setComposerCollapsed(true)}
           />
         )}
+        {!composerCollapsed && !compact ? (
+          <Splitter
+            value={composerWidth}
+            min={COMPOSER.min}
+            max={COMPOSER.max}
+            onChange={setComposerWidth}
+            controls="va-composer"
+            label="Resize the instruction panel"
+          />
+        ) : <span aria-hidden="true" />}
 
-        {showHistory && (
-          <div className="va-history-panel">
-            <Suspense fallback={null}>
-            <ScenarioBranchingBar
-              currentBranchId={currentBranchId}
-              branches={branchList}
-              onSwitchBranch={handleSwitchBranch}
-              canUndo={canUndo}
-              canRedo={canRedo}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
-              timeline={timelineEntries}
-              changes={project?.changes || []}
-              onJumpToVersion={handleJumpToVersion}
-              comparison={scenarioComparison}
-              onOpenComparison={handleOpenComparison}
-              onForkBranch={() => { handleForkBranch(); notify('Forked the current model into a new branch. Changes here stay off main until you merge.'); }}
-              onMergeBranch={currentBranchId !== 'main' ? handleInitiateMerge : undefined}
+        <section className="va-canvas-area" aria-label="Architecture diagram">
+          <span
+            className="va-sync va-sr-only"
+            data-unresolved={Boolean(project && syncStatus.includes('unresolved'))}
+            role="status"
+            aria-live="polite"
+          >
+            {syncStatus}
+          </span>
+          {showHistory && (
+            <div className="va-history-panel">
+              <Suspense fallback={null}>
+                <ScenarioBranchingBar
+                  currentBranchId={currentBranchId}
+                  branches={branchList}
+                  onSwitchBranch={handleSwitchBranch}
+                  canUndo={canUndo}
+                  canRedo={canRedo}
+                  onUndo={handleUndo}
+                  onRedo={handleRedo}
+                  timeline={timelineEntries}
+                  changes={project?.changes || []}
+                  onJumpToVersion={handleJumpToVersion}
+                  comparison={scenarioComparison}
+                  onOpenComparison={handleOpenComparison}
+                  onForkBranch={() => { handleForkBranch(); notify('Forked the current model into a new branch. Changes here stay off main until you merge.'); }}
+                  onMergeBranch={currentBranchId !== 'main' ? handleInitiateMerge : undefined}
+                />
+              </Suspense>
+            </div>
+          )}
+          {project ? (
+            <DiagramView
+              project={project}
+              advancedTools={advancedTools}
+              setAdvancedTools={setAdvancedTools}
+              onLoadSample={loadSample}
+              inspectorSlot={inspectorSlot}
+              onSelect={onSelectComponent}
+              onOpenDocs={() => openDrawer('impact')}
             />
-            </Suspense>
-          </div>
-        )}
+          ) : (
+            <EmptyState
+              onStartDemo={startDemo}
+              onLoadSample={loadSample}
+              onChooseCompose={() => composeInputRef.current?.click()}
+              onComposeText={importComposeText}
+            />
+          )}
+          {guidedStep > 0 && (
+            <div className="va-coach">
+              <GuidedDemo
+                step={guidedStep}
+                onExit={() => setGuidedStep(0)}
+                onTypeIt={typeGuidedStep}
+                onRunCodeCheck={checkExampleDrift}
+              />
+            </div>
+          )}
+          {showImport && (
+            <EmptyState
+              asDialog
+              onClose={() => setShowImport(false)}
+              onStartDemo={() => { setShowImport(false); void startDemo(); }}
+              onLoadSample={() => { setShowImport(false); loadSample(); }}
+              onChooseCompose={() => { setShowImport(false); composeInputRef.current?.click(); }}
+              onComposeText={(text, name) => { setShowImport(false); return importComposeText(text, name); }}
+            />
+          )}
+        </section>
 
-      <div className="va-layout">
-        {/* ---------------- Composer ---------------- */}
-        <Composer
+        <Drawer
+          open={drawerShown}
+          pinned={drawerPinned}
+          canPin={wide}
+          overlay={compact}
+          tab={drawerTab}
+          onTab={(tab) => { sound.tab(); setDrawerTab(tab); }}
+          onClose={() => { setDrawerOpen(false); setDrawerPinned(false); }}
+          onTogglePin={() => setDrawerPinned(!drawerPinned)}
           project={project}
-          command={command}
-          setCommand={setCommand}
-          setDecisionDraft={setDecisionDraft}
-          onClear={() => {
-            sound.click();
-            setCommand('');
-            setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
-            setProposal(null);
-          }}
-          onPreview={runInstruction}
-          isLive={isLive}
-          isInterpreting={isInterpreting}
-          aiStatus={aiStatus}
-          answerSource={answerSource}
-          fallbackReason={fallbackReason}
-          preview={preview}
-          onImportNotes={() => { setNotesLoaded(true); setNotesImport({ returned: null }); }}
-          onCopyDictionary={copyDictionaryWords}
-          micSupported={micSupported}
-          isListening={isListening}
-          onToggleMic={toggleDictation}
-          sampleChoice={sampleChoice}
-          isImported={isImported}
-        />
-
-        {/* ---------------- Output ---------------- */}
-        <OutputPanel
-          project={project}
-          tab={tab}
-          onTabChange={handleTabChange}
           openDecisionCount={openDecisionCount}
-          syncStatus={syncStatus}
-          advancedTools={advancedTools}
-          setAdvancedTools={setAdvancedTools}
           notify={notify}
           onResolve={reviewResolution}
-          onLoadSample={loadSample}
+          inspectorSlot={inspectorSlot}
+          hasSelection={hasSelection}
         />
-      </div>
-      </div>
-      </section>
-
-      <SiteFooter />
+      </main>
+      {phone && (
+        <nav className="va-bottom-tabs" aria-label="Workspace views">
+          <button type="button" aria-pressed={phoneView === 'say' && !drawerShown} onClick={() => { setDrawerOpen(false); setPhoneView('say'); }}>
+            <Mic size={20} aria-hidden="true" /> Say
+          </button>
+          <button type="button" aria-pressed={phoneView === 'diagram' && !drawerShown} onClick={() => { setDrawerOpen(false); setPhoneView('diagram'); }}>
+            <Network size={20} aria-hidden="true" /> Diagram
+          </button>
+          <button type="button" aria-pressed={drawerShown} onClick={() => openDrawer(drawerTab === 'component' ? 'impact' : drawerTab)}>
+            <FileCode2 size={20} aria-hidden="true" /> Docs
+          </button>
+        </nav>
+      )}
 
       {/* Review dialog */}
       {proposal && (
@@ -646,6 +736,6 @@ export default function App() {
         </Suspense>
       )}
       <ConnectionStatus />
-    </main>
+    </div>
   );
 }

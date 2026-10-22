@@ -1,5 +1,6 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
-import type { KeyboardEvent, MouseEvent, SetStateAction } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent, MouseEvent, RefObject, SetStateAction } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getDiagramNeighborhood,
   computeGraphLayout,
@@ -13,12 +14,18 @@ import type { Component, Project } from '../types/schema.ts';
 import DiagramToolbar from './diagram/DiagramToolbar.tsx';
 import DiagramDefs from './diagram/DiagramDefs.tsx';
 import DiagramEdges from './diagram/DiagramEdges.tsx';
+import DiagramEdgeLabels from './diagram/DiagramEdgeLabels.tsx';
 import DiagramNodes from './diagram/DiagramNodes.tsx';
 import DiagramLegend from './diagram/DiagramLegend.tsx';
 import ComponentInspector from './diagram/ComponentInspector.tsx';
 import CycleBanner from './diagram/CycleBanner.tsx';
 import { applySignoffOverrides, getChaosTargets, getKeyboardTarget } from './diagram/diagramModel.ts';
+import { nodeH, nodeW, rankGap } from './diagram/diagramTypes.ts';
 import type { GridStyle, LayoutEngine, SignoffRole, ViewMode } from './diagram/diagramTypes.ts';
+
+// Fit the model to the canvas, but never below this scale, where node names are about 14px;
+// a model too large for that scrolls inside the canvas instead of shrinking further.
+const MIN_SCALE = 0.75;
 
 // The dialogs load on first open, so their markup stays out of the diagram's chunk.
 // The simulator bar and the two dialogs load on first use, with their CSS.
@@ -34,9 +41,14 @@ export interface ArchitectureDiagramProps {
   project: Project;
   toolsOpen?: boolean;
   onToolsOpenChange?: (open: boolean) => void;
+  /** Render the selected component's inspector here (the workspace's details drawer) instead of under the canvas. */
+  inspectorSlot?: RefObject<HTMLDivElement | null>;
+  /** Called with the selected component's id, or null when nothing is selected. */
+  onSelect?: (id: string | null) => void;
+  onOpenDocs?: () => void;
 }
 
-export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenChange }: ArchitectureDiagramProps) {
+export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenChange, inspectorSlot, onSelect }: ArchitectureDiagramProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('current');
   const [zoom, setZoom] = useState(1);
@@ -68,12 +80,12 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
     () =>
       computeGraphLayout(model.components, model.relationships, {
         direction: 'LR',
-        nodeWidth: 144,
-        nodeHeight: 58,
-        rankSeparation: 72,
-        nodeSeparation: 48,
-        marginX: 40,
-        marginY: 40,
+        nodeWidth: nodeW,
+        nodeHeight: nodeH,
+        rankSeparation: rankGap,
+        nodeSeparation: 36,
+        marginX: 16,
+        marginY: 24,
       }),
     [model.components, model.relationships]
   );
@@ -81,6 +93,21 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
   const activeComponents: Component[] = layoutEngine === 'auto' ? autoLayout.components : model.components;
   const width = layoutEngine === 'auto' ? autoLayout.width : 1000;
   const height = layoutEngine === 'auto' ? autoLayout.height : 390;
+
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
+  const [legendOpen, setLegendOpen] = useState(false);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setCanvasSize({ w: entry.contentRect.width, h: entry.contentRect.height });
+    });
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
+  const fit = canvasSize.w > 0 && canvasSize.h > 0 ? Math.min((canvasSize.w - 32) / width, (canvasSize.h - 32) / height) : 1;
+  const scale = Math.max(MIN_SCALE, fit) * zoom;
 
   const byId = useMemo(
     () => new Map<string, Component>(activeComponents.map((item) => [item.id, item])),
@@ -125,6 +152,9 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
 
   const depthMatrix = neighborhood.blastRadius?.depthMatrix;
 
+  useEffect(() => { onSelect?.(selectedId); }, [selectedId, onSelect]);
+  useEffect(() => { setZoom(1); }, [project.name, project.version]);
+
   function selectNode(event: MouseEvent<SVGGElement> | KeyboardEvent<SVGGElement>, nodeId: string) {
     if (event.type === 'keydown' && 'key' in event && !['Enter', ' '].includes(event.key)) return;
     if (event.type === 'keydown') event.preventDefault();
@@ -154,7 +184,7 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
 
   function handleZoom(delta: number) {
     sound.click();
-    setZoom((z) => Math.min(1.4, Math.max(0.7, +(z + delta).toFixed(1))));
+    setZoom((z) => Math.min(2, Math.max(0.5, +(z + delta).toFixed(1))));
   }
 
   function resetZoom() {
@@ -228,6 +258,8 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
         handleZoom={handleZoom}
         resetZoom={resetZoom}
         handleModeChange={handleModeChange}
+        legendOpen={legendOpen}
+        onToggleLegend={() => setLegendOpen((open) => !open)}
       />
 
       {/* Outage simulator: a model of the graph, not measurements from a running system */}
@@ -246,28 +278,21 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
       {/* Cycle Detection Warning Banner */}
       {neighborhood.cycleReport?.hasCycle && <CycleBanner cycleReport={neighborhood.cycleReport} />}
 
-      <div className={`diagram-canvas grid-style-${gridStyle}`}>
+      <div className={`diagram-canvas grid-style-${gridStyle}`} ref={canvasRef}>
         {/* Architectural Crosshair Corner Markers */}
         <div className="blueprint-crosshair top-left" aria-hidden="true">+</div>
         <div className="blueprint-crosshair top-right" aria-hidden="true">+</div>
         <div className="blueprint-crosshair bottom-left" aria-hidden="true">+</div>
         <div className="blueprint-crosshair bottom-right" aria-hidden="true">+</div>
 
-        <div
-          className="diagram-svg-wrapper"
-          style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: 'top center',
-            transition: 'transform 0.2s ease-out',
-          }}
-        >
+        <div className="diagram-svg-wrapper">
           <svg
             viewBox={`0 0 ${width} ${height}`}
+            width={Math.round(width * scale)}
+            height={Math.round(height * scale)}
             role="group"
             aria-label={`${model.name} architecture diagram. Select a component to inspect it and highlight its relationships.`}
-            style={{
-              filter: 'drop-shadow(0 4px 24px rgba(78, 242, 210, 0.08))',
-            }}
+            style={{ width: Math.round(width * scale), height: Math.round(height * scale) }}
           >
             <DiagramDefs />
 
@@ -295,15 +320,27 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
               handleNodeKeyDown={handleNodeKeyDown}
             />
 
+            <DiagramEdgeLabels relationships={model.relationships} byId={byId} telemetry={telemetry} />
+
           </svg>
         </div>
 
-        {/* Tactical Diagram Legend */}
-        <DiagramLegend projectVersion={project.version} hasCodeOrigin={hasCodeOrigin} />
       </div>
+      {legendOpen && <DiagramLegend projectVersion={project.version} hasCodeOrigin={hasCodeOrigin} />}
 
-      {/* Component Inspector */}
-      {selected ? (
+      {/* Component Inspector: in the workspace's drawer when it gives one, otherwise under the canvas */}
+      {selected && inspectorSlot?.current ? createPortal(
+        <ComponentInspector
+          selected={selected}
+          upstream={upstream}
+          downstream={downstream}
+          depthMatrix={depthMatrix}
+          connectedRelationships={connectedRelationships}
+          byId={byId}
+          setSelectedId={setSelectedId}
+        />,
+        inspectorSlot.current,
+      ) : selected ? (
         <ComponentInspector
           selected={selected}
           upstream={upstream}
@@ -313,7 +350,7 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
           byId={byId}
           setSelectedId={setSelectedId}
         />
-      ) : (
+      ) : inspectorSlot ? null : (
         <p className="diagram-help">
           Select a component to see what depends on it.
         </p>

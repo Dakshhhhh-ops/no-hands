@@ -107,6 +107,22 @@ vi.mock('lucide-react', () => {
     Copy: 'Copy',
     ZoomIn: 'ZoomIn',
     ZoomOut: 'ZoomOut',
+    Search: 'Search',
+    ExternalLink: 'ExternalLink',
+    BookA: 'BookA',
+    ChevronsLeft: 'ChevronsLeft',
+    WifiOff: 'WifiOff',
+    Cloud: 'Cloud',
+    Loader2: 'Loader2',
+    Bug: 'Bug',
+    Languages: 'Languages',
+    WandSparkles: 'WandSparkles',
+    GitMerge: 'GitMerge',
+    Link2: 'Link2',
+    Unlink: 'Unlink',
+    MousePointerClick: 'MousePointerClick',
+    Pin: 'Pin',
+    PinOff: 'PinOff',
   };
 
   const mockComponents: Record<string, (props: { size?: number; className?: string }) => ReactElement> = {};

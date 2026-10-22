@@ -19,12 +19,12 @@ test.describe('PWA offline capability', () => {
     await context.setOffline(true);
     try {
       await page.reload();
-      await expect(page.getByRole('button', { name: 'Start guided demo' })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Start guided demo' })).toBeVisible();
 
-      // The sample model is bundled, so it loads without the network.
-      await page.getByRole('button', { name: 'Load sample' }).click();
+      // The workspace route, its chunk, and the bundled sample all work without the network.
+      await page.goto('/app');
       await expect(page.getByRole('heading', { name: 'Commerce Platform' })).toBeVisible();
-      await expect(page.getByText('What should change?')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Say the change' })).toBeVisible();
       await expect(page.getByText(/Offline rules only/)).toBeVisible();
     } finally {
       await context.setOffline(false);

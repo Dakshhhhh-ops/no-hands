@@ -18,11 +18,11 @@ With a key, every preview is a live model call. A recorded answer is used only w
 
 ```sh
 npm test             # 150 unit tests, including Wispr sign-in and MCP against a fake server, the server's headers, and hostile or oversized request bodies
-npm run test:vitest  # 61 component tests (Vitest + RTL)
+npm run test:vitest  # 62 component tests (Vitest + RTL)
 npm run typecheck    # strict TypeScript with noUncheckedIndexedAccess across src/ and server/, no any
 npm run lint         # ESLint, 0 problems
 npm run build        # Production build
-npx playwright test  # 23 browser tests in Chromium and the same 23 in WebKit, plus the offline (PWA) test
+npx playwright test  # 36 browser tests in Chromium and the same 36 in WebKit, plus the offline (PWA) test
 npm run eval         # labelled instructions; add -- --provider anthropic (or groq) to measure a model
 ```
 
@@ -120,7 +120,10 @@ To reduce variation in the app itself, Groq requests use a fixed seed and temper
 
 ```
 src/
-├── App.tsx                  # Root component: landing page and the workspace studio
+├── main.tsx → Root.tsx       # Root picks the route: "/" (Landing.tsx) or "/app" (App.tsx, lazy-loaded)
+├── router.ts                # A tiny History API router: useLocation, navigate, Link
+├── Landing.tsx              # The landing page at "/"
+├── App.tsx                  # The full-screen workspace at /app (its own chunk, with workspace.css)
 ├── main.tsx                 # Entry point and CSS load order
 ├── hooks/                   # Project state and branches, interpretation and review, dictation,
 │                            # exports, dialogs, walkthrough, theme, toast, storage, motion, scroll
@@ -146,8 +149,8 @@ docs/                        # Wispr Flow research notes, submission notes, demo
 | Suite | Command | Tests |
 |-------|---------|-------|
 | Unit (Node) | `npm test` | 150 |
-| Component (Vitest + RTL) | `npm run test:vitest` | 61 |
-| Browser (Playwright: axe, CSP, every flow) | `npx playwright test` | 23 in Chromium + the same 23 in WebKit + 1 offline (PWA) |
+| Component (Vitest + RTL) | `npm run test:vitest` | 62 |
+| Browser (Playwright: axe, CSP, every flow) | `npx playwright test` | 36 in Chromium + the same 36 in WebKit + 1 offline (PWA) |
 
 App code in `src/` and `server/` is strict TypeScript (including `noUncheckedIndexedAccess`) with no `any`; the Node unit tests are plain JS. Measured on the production build (Brotli), the landing page's own scripts and stylesheets are 121 KB of JS and 15 KB of CSS; the four self-hosted font files total 100 KB; the page makes no third-party request.
 

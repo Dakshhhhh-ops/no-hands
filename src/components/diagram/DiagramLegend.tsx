@@ -6,7 +6,7 @@ export interface DiagramLegendProps {
 
 export default function DiagramLegend({ projectVersion, hasCodeOrigin }: DiagramLegendProps) {
   return (
-    <div className="legend">
+    <div className="legend" id="diagram-legend">
       <span className="legend-item"><i className="legend-direct" /> Selected / Direct</span>
       <span className="legend-item"><i className="legend-downstream" /> Downstream impact</span>
       <span className="legend-item"><i className="legend-upstream" /> Upstream outage cascade</span>

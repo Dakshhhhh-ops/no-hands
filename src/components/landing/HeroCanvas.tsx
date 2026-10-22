@@ -1,33 +1,26 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { prefersReducedMotion } from '../../hooks/useMotion.ts';
-import type { Component, Project } from '../../types/schema.ts';
 import { cssVars } from '../../utils/cssVars.ts';
 
-export interface HeroFragmentsProps {
-  project: Project | null;
-}
+// The Commerce sample's first services, as a compose file. Hard-coded: the landing page loads no model.
+const COMPOSE = `services:
+  gateway:
+    build: .
+  auth:
+    build: .
+  catalog:
+    build: .`;
 
 /**
- * Two small decorations in the hero's left gutter, beside the description: the
- * loaded model's docker-compose file and a "Listening" pill, the two inputs of
+ * Two small decorations in the hero's left gutter, beside the description: a
+ * docker-compose file and a "Listening" pill, the two inputs of
  * the loop. They are grid items placed by the content (see landing-canvas.css),
  * so they never overlap the text; below 1280px they are hidden. They drift
  * slightly and follow the pointer by depth. Decorative: hidden from assistive
  * tech; the product card in the right gutter and the workspace are the real UI.
  */
-export function HeroFragments({ project }: HeroFragmentsProps) {
+export function HeroFragments() {
   const ref = useRef<HTMLDivElement | null>(null);
-  const components = useMemo<Component[]>(() => project?.components || [], [project]);
-
-  const composeLines = useMemo<string[]>(() => {
-    const lines = ['services:'];
-    for (const c of components.filter((x) => x.type !== 'CLIENT').slice(0, 3)) {
-      const image = /^[a-z0-9./_-]+:[a-z0-9._-]+$/i.test(c.sub.split(' · ')[0] || '') ? c.sub.split(' · ')[0] : null;
-      lines.push(`  ${c.id}:`);
-      lines.push(image ? `    image: ${image}` : '    build: .');
-    }
-    return lines;
-  }, [components]);
 
   useEffect(() => {
     const el = ref.current;
@@ -63,7 +56,7 @@ export function HeroFragments({ project }: HeroFragmentsProps) {
     <div className="va-frags" ref={ref} aria-hidden="true">
       <div className="va-frag va-frag-code f-6" style={cssVars({ '--z': 0.8, '--r': '5deg' })}>
         <span className="va-frag-dots"><i /><i /><i /><em>docker-compose.yml</em></span>
-        <pre>{composeLines.join('\n')}</pre>
+        <pre>{COMPOSE}</pre>
       </div>
       <div className="va-frag va-frag-pill f-5" style={cssVars({ '--z': 1.1, '--r': '0deg' })}>
         <span className="va-mini-wave"><i /><i /><i /><i /><i /></span> Listening

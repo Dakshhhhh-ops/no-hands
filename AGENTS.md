@@ -19,8 +19,15 @@ architecture workspace.
 
 ## Project layout
 
-- `src/App.tsx` — root component; composes the landing sections, the studio toolbar,
-  guided demo, composer, output panel, and review dialog from `src/components/`.
+- Routes (`src/router.ts`, a small History API router; `src/Root.tsx` picks the page):
+  - `/` is the landing page, `src/Landing.tsx` (hero with the product card, the loop, your own stack).
+  - `/app` is the workspace, `src/App.tsx`, lazy-loaded so the landing page downloads none of it.
+    Deep links: `/app?demo=guided`, `/app?sample=commerce|food|ride-share`, `/app?import=compose`.
+- `src/App.tsx` — the full-screen workspace (100dvh, panels scroll on their own): the top bar
+  (`components/workspace/TopBar.tsx`), the composer with a keyboard-accessible splitter
+  (`Splitter.tsx`), the diagram canvas, the details drawer (`Drawer.tsx`: the selected component,
+  What changed, API contract, Risks, Tasks), the guided demo as a coach card, and the review dialog.
+  Its styles are `src/workspace.css`, loaded with the workspace chunk.
 - CSS is imported in `src/main.tsx`, and that order is the cascade: `app-shell.css` (which
   `@import`s `ui-effects.css`), `fonts.css` (self-hosted fonts from `src/fonts/`, OFL),
   `styles.css`, `responsive.css`, `theme.css` (legacy component styles), `tokens.css` (every

@@ -1,4 +1,4 @@
-import { ChevronDown, ClipboardCheck, ClipboardList, FileText, Mic } from 'lucide-react';
+import { BookA, ChevronDown, ChevronsLeft, ClipboardCheck, FileText, History, Mic } from 'lucide-react';
 import CommandPresets from './CommandPresets.tsx';
 import { fallbackLabel, providerLabel } from '../data/aiClient.ts';
 import type { AiStatus, AnswerSource, FallbackReason } from '../data/aiClient.ts';
@@ -30,30 +30,34 @@ export interface ComposerProps {
   onToggleMic: () => void;
   sampleChoice: 'commerce' | 'food';
   isImported: boolean;
+  onCollapse?: () => void;
 }
 
-/** Where a change is said or typed, previewed, and where the Wispr Flow tools live. */
+const EMPTY_DRAFT = { rateLimitThreshold: '', redisFallback: '' };
+
+/** The left panel: where a change is said or typed and previewed, with the Wispr Flow tools under it. */
 export default function Composer({
   project, command, setCommand, setDecisionDraft, onClear, onPreview, isLive, isInterpreting, aiStatus,
   answerSource, fallbackReason, preview, onImportNotes, onCopyDictionary, micSupported, isListening, onToggleMic,
-  sampleChoice, isImported,
+  sampleChoice, isImported, onCollapse,
 }: ComposerProps) {
+  const ready = Boolean(project && command.trim()) && !isInterpreting;
+  // The instructions behind the applied changes, newest first, to say again or adjust.
+  const recent = [...new Set((project?.changes || []).map((change) => change.originalInstruction).filter(Boolean))].slice(0, 3);
+  const use = (value: string) => { setCommand(value); setDecisionDraft(EMPTY_DRAFT); };
+
   return (
-    <section className="va-composer" aria-labelledby="va-composer-title">
-      <div className="va-composer-head">
-        <h2 id="va-composer-title">What should change?</h2>
-        {command && (
-          <button
-            type="button"
-            className="va-link-btn"
-            onClick={onClear}
-          >
-            Clear
+    <section className="va-composer-panel" id="va-composer" aria-labelledby="va-composer-title">
+      <div className="va-composer-panel-head">
+        <h2 id="va-composer-title">Say the change</h2>
+        {onCollapse && (
+          <button type="button" className="va-btn va-btn-ghost va-btn-icon" onClick={onCollapse} aria-label="Collapse the instruction panel">
+            <ChevronsLeft size={18} />
           </button>
         )}
       </div>
       <p className="va-composer-hint">
-        <Mic size={14} aria-hidden="true" /> Hold your Wispr Flow hotkey and speak, or type. English and Hinglish both work.
+        <Mic size={16} aria-hidden="true" /> Click the box, hold your Wispr Flow hotkey, and speak, or type. English and Hinglish both work.
       </p>
 
       <div className="va-wave" data-live={isLive} aria-hidden="true">
@@ -67,11 +71,8 @@ export default function Composer({
         <textarea
           id="architecture-command"
           value={command}
-          rows={5}
-          onChange={(event) => {
-            setCommand(event.target.value);
-            setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
-          }}
+          rows={7}
+          onChange={(event) => use(event.target.value)}
           onKeyDown={(e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
               e.preventDefault();
@@ -90,14 +91,15 @@ export default function Composer({
               ? `Interpreted by ${providerLabel(aiStatus.provider)}`
               : aiStatus.recordings ? 'Recorded answers, then offline rules' : 'Offline rules only'}
           </span>
-          {answerSource?.recorded && !fallbackReason && (
-            <span className="va-recorded-badge" role="status">Recorded answer{answerSource.model ? ` from ${answerSource.model}` : ''}</span>
-          )}
-          {fallbackReason && (aiStatus.ai || (aiStatus.recordings ?? 0) > 0) && (
-            <span className="va-fallback-badge" role="status">Offline rules for now: {fallbackLabel(fallbackReason)}</span>
-          )}
           <span aria-label="Press Control and Enter to preview"><kbd>Ctrl</kbd> <kbd>Enter</kbd></span>
+          {command && <button type="button" className="va-link-btn" onClick={onClear}>Clear</button>}
         </div>
+        {answerSource?.recorded && !fallbackReason && (
+          <span className="va-recorded-badge" role="status">Recorded answer{answerSource.model ? ` from ${answerSource.model}` : ''}</span>
+        )}
+        {fallbackReason && (aiStatus.ai || (aiStatus.recordings ?? 0) > 0) && (
+          <span className="va-fallback-badge" role="status">Offline rules for now: {fallbackLabel(fallbackReason)}</span>
+        )}
       </div>
 
       {preview && (
@@ -117,47 +119,56 @@ export default function Composer({
         <button
           type="button"
           className="va-btn va-btn-primary va-composer-preview"
-          disabled={!project || !command.trim() || isInterpreting}
+          disabled={!ready}
           aria-busy={isInterpreting}
+          aria-describedby="va-preview-note"
           onClick={onPreview}
         >
-          <ClipboardCheck size={16} /> {isInterpreting ? 'Interpreting…' : 'Preview my change'}
+          <ClipboardCheck size={18} /> {isInterpreting ? 'Interpreting…' : 'Preview my change'}
         </button>
-      <p className="va-composer-note">Nothing applies until you review it.</p>
+        <p className="va-composer-note" id="va-preview-note">
+          {!project ? 'Load a model first.' : command.trim() ? 'Nothing applies until you review it.' : 'Type or dictate a change first.'}
+        </p>
       </div>
 
-      <div className="va-voice-tools" role="group" aria-labelledby="va-voice-tools-title">
-        <h3 id="va-voice-tools-title">Wispr Flow tools</h3>
-        <button type="button" className="va-tool-row" onClick={onImportNotes} disabled={!project || isInterpreting}>
-          <span className="va-tool-icon" aria-hidden="true"><FileText size={15} /></span>
-          <span><b>Import from Wispr Flow or paste notes</b><small>A meeting summary or Scratchpad note becomes a reviewed proposal.</small></span>
-        </button>
-        <button type="button" className="va-tool-row" onClick={onCopyDictionary} disabled={!project}>
-          <span className="va-tool-icon" aria-hidden="true"><ClipboardList size={15} /></span>
-          <span><b>Copy names for your Flow dictionary</b><small>So Flow spells this model's services and technologies right.</small></span>
-        </button>
-        {micSupported && (
-          <button type="button" className="va-tool-row" onClick={onToggleMic} aria-pressed={isListening}>
-            <span className="va-tool-icon" aria-hidden="true"><Mic size={15} /></span>
-            <span><b>{isListening ? 'Stop browser mic' : 'Browser mic (fallback)'}</b><small>Only for people without Wispr Flow.</small></span>
+      {recent.length > 0 && (
+        <div className="va-recent">
+          <h3><History size={16} aria-hidden="true" /> Recent instructions</h3>
+          <ul>
+            {recent.map((text) => (
+              <li key={text}><button type="button" onClick={() => use(text)}>{text}</button></li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <details className="va-flow-tools" open>
+        <summary>Wispr Flow tools <ChevronDown size={16} aria-hidden="true" /></summary>
+        <div className="va-flow-tool-row">
+          <button type="button" onClick={onImportNotes} disabled={!project || isInterpreting} aria-label="Import from Wispr Flow or paste notes" title="A meeting summary or Scratchpad note becomes a reviewed proposal.">
+            <FileText size={20} aria-hidden="true" /> <span>Import</span>
           </button>
-        )}
-      </div>
+          <button type="button" onClick={onCopyDictionary} disabled={!project} aria-label="Copy names for your Flow dictionary" title="So Flow spells this model's services and technologies right.">
+            <BookA size={20} aria-hidden="true" /> <span>Dictionary</span>
+          </button>
+          {micSupported && (
+            <button type="button" onClick={onToggleMic} aria-pressed={isListening} aria-label={isListening ? 'Stop browser mic' : 'Browser mic (fallback)'} title="Only for people without Wispr Flow.">
+              <Mic size={20} aria-hidden="true" /> <span>{isListening ? 'Stop mic' : 'Browser mic'}</span>
+            </button>
+          )}
+        </div>
+      </details>
 
       <details className="va-examples">
-        <summary>Examples <ChevronDown size={14} aria-hidden="true" /></summary>
+        <summary>Examples <ChevronDown size={16} aria-hidden="true" /></summary>
         <CommandPresets
           sampleKind={sampleChoice}
           project={project}
           isImported={isImported}
-          onSelectPreset={(value) => {
-            setCommand(value);
-            setDecisionDraft({ rateLimitThreshold: '', redisFallback: '' });
-          }}
+          onSelectPreset={use}
           currentCommand={command}
         />
       </details>
-
     </section>
   );
 }

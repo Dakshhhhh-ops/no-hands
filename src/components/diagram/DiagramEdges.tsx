@@ -163,9 +163,6 @@ export default function DiagramEdges({
                 )}
               </>
             )}
-            <text className="edge-label" x={mid} y={(y1 + y2) / 2 - 5} textAnchor="middle">
-              {isSevered ? `⚠️ SEVERED: ${edge.label}` : edge.label}
-            </text>
           </g>
         );
       })}

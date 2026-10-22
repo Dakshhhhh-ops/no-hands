@@ -1,5 +1,5 @@
-import { ArrowRight, AudioLines, Moon, Play, Sun } from 'lucide-react';
-import type { Project } from '../../types/schema.ts';
+import { ArrowRight, AudioLines, FileCode2, Moon, Play, Sun } from 'lucide-react';
+import { Link } from '../../router.ts';
 import { cssVars } from '../../utils/cssVars.ts';
 import { HeroFragments } from './HeroCanvas.tsx';
 import HeroProof from './HeroProof.tsx';
@@ -7,16 +7,15 @@ import { SplitWords } from './Interactions.tsx';
 import LoopSteps from './LoopSteps.tsx';
 import VoiceField from './VoiceField.tsx';
 
-/* The landing page around the workspace: top bar, hero, the loop, and the footer. */
+/* The landing page at "/": top bar, hero, the loop, your own stack, and the footer. The workspace is at /app. */
 
 export interface SiteHeaderProps {
   activeSection: string | undefined;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
-  onStartDemo: () => void;
 }
 
-export function SiteHeader({ activeSection, theme, onToggleTheme, onStartDemo }: SiteHeaderProps) {
+export function SiteHeader({ activeSection, theme, onToggleTheme }: SiteHeaderProps) {
   return (
     <header className="va-topbar">
       <a className="va-brand" href="#top" aria-label="VoiceArchitect home">
@@ -25,7 +24,7 @@ export function SiteHeader({ activeSection, theme, onToggleTheme, onStartDemo }:
       </a>
       <nav className="va-nav" aria-label="Page sections">
         <a href="#how" aria-current={activeSection === 'how' ? 'true' : undefined}>How it works</a>
-        <a href="#workspace" aria-current={activeSection === 'workspace' ? 'true' : undefined}>Workspace</a>
+        <a href="#own-stack" aria-current={activeSection === 'own-stack' ? 'true' : undefined}>Your stack</a>
       </nav>
       <div className="va-topbar-actions">
         <button
@@ -37,25 +36,20 @@ export function SiteHeader({ activeSection, theme, onToggleTheme, onStartDemo }:
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-        <button type="button" className="va-btn va-btn-primary va-topbar-demo" onClick={onStartDemo}>
-          <Play size={14} /> Guided demo
-        </button>
+        <Link to="/app" className="va-btn va-btn-primary va-topbar-demo">
+          Open workspace <ArrowRight size={14} />
+        </Link>
       </div>
     </header>
   );
 }
 
-export interface HeroProps {
-  project: Project | null;
-  onStartDemo: () => void;
-}
-
-export function Hero({ project, onStartDemo }: HeroProps) {
+export function Hero() {
   return (
     <section className="va-hero va-hero-canvas va-hero-simple" id="top" aria-labelledby="va-hero-title">
       <span className="va-canvas-grid" aria-hidden="true" />
       <VoiceField />
-      <HeroFragments project={project} />
+      <HeroFragments />
 
       <div className="va-canvas-center">
         <p className="va-hero-eyebrow" data-reveal>
@@ -73,12 +67,12 @@ export function Hero({ project, onStartDemo }: HeroProps) {
             Hinglish, review the exact diff, then check it against your <span className="va-nowrap">docker-compose file</span>.
           </p>
           <div className="va-hero-actions" data-reveal style={cssVars({ '--d': 5 })}>
-            <button type="button" className="va-btn va-btn-primary va-btn-lg" onClick={onStartDemo}>
+            <Link to="/app?demo=guided" className="va-btn va-btn-primary va-btn-lg">
               <Play size={16} /> Start guided demo
-            </button>
-            <a className="va-btn va-btn-lg" href="#workspace">
+            </Link>
+            <Link to="/app?import=compose" className="va-btn va-btn-lg">
               Use my own stack <ArrowRight size={16} />
-            </a>
+            </Link>
           </div>
           <p className="va-hero-note" data-reveal style={cssVars({ '--d': 6 })}>
             No sign-in. Three steps: an English change, a Hinglish change, and a check against newer code.
@@ -103,11 +97,39 @@ export function LoopSection() {
   );
 }
 
+export function OwnStackSection() {
+  return (
+    <section className="va-section va-own-stack" id="own-stack" aria-labelledby="va-own-title">
+      <div className="va-section-inner">
+        <h2 id="va-own-title" className="va-section-title" data-reveal style={cssVars({ '--d': 1 })}>
+          Use it on <em>your own stack</em>
+        </h2>
+        <ol className="va-own-steps" data-reveal style={cssVars({ '--d': 2 })}>
+          <li><b>Find your compose file.</b> <code>docker-compose.yml</code> or <code>compose.yaml</code>, usually at the root of the repo.</li>
+          <li><b>Import it.</b> It is read in your browser and never uploaded; the diagram is drawn from your services and their connections.</li>
+          <li><b>Say a change, review it, apply it.</b> When the code moves on, check the diagram against the newer compose file.</li>
+        </ol>
+        <div className="va-own-actions" data-reveal style={cssVars({ '--d': 3 })}>
+          <Link to="/app?import=compose" className="va-btn va-btn-primary va-btn-lg">
+            <FileCode2 size={16} /> Import my docker-compose
+          </Link>
+          <Link to="/app?sample=commerce" className="va-btn va-btn-lg">Try a sample first</Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function SiteFooter() {
   return (
     <footer className="va-footer va-footer-simple">
       <span className="va-footer-brand"><AudioLines size={14} /> VoiceArchitect</span>
-      <span>Architecture docs that stay true to the code. Nothing changes without your review.</span>
+      <span>Nothing changes without your review.</span>
+      <nav className="va-footer-links" aria-label="Footer">
+        <Link to="/app">Workspace</Link>
+        <a href="https://github.com/Dakshhhhh-ops/no-hands">GitHub</a>
+        <a href="https://github.com/Dakshhhhh-ops/no-hands/blob/main/docs/wispr-notes.md">Wispr Flow notes</a>
+      </nav>
     </footer>
   );
 }

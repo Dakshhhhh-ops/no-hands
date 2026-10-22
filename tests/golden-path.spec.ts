@@ -3,14 +3,24 @@ import type { Page } from '@playwright/test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** Opens an output view: Diagram and What changed are tabs; the generated docs are in a menu. */
+/** The diagram is always on screen at /app; the docs open in the details drawer. */
 async function openView(page: Page, name: string) {
-  if (['API contract', 'Risks', 'Tasks'].includes(name)) {
-    await page.getByRole('button', { name: /Generated docs/ }).click();
-    await page.getByRole('button', { name: new RegExp(`^${name}`) }).click();
-  } else {
-    await page.getByRole('tab', { name }).click();
-  }
+  if (name === 'Diagram') return;
+  const tab = page.getByRole('tab', { name: new RegExp(`^${name}`) });
+  if (!(await tab.isVisible())) await page.getByRole('button', { name: 'Generated docs' }).click();
+  await tab.click();
+}
+
+/** The view is showing: the canvas for the diagram, the selected drawer tab for a document. */
+async function expectView(page: Page, name: string) {
+  if (name === 'Diagram') await expect(page.locator('.diagram-canvas')).toBeVisible();
+  else await expect(page.getByRole('tab', { name: new RegExp(`^${name}`) })).toHaveAttribute('aria-selected', 'true');
+}
+
+/** The samples are in the workspace's project switcher. */
+async function loadSample(page: Page) {
+  await page.getByRole('button', { name: /Switch project/ }).click();
+  await page.getByRole('button', { name: 'Load sample' }).click();
 }
 
 // The core story: import your compose file, say a change, review it, apply it,
@@ -19,8 +29,8 @@ async function openView(page: Page, name: string) {
 const SAMPLE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'samples', 'ride-share-compose.yml');
 
 test('import a compose file, say a change, apply it, see every tab follow, and export', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: /From code/ }).click();
+  await page.goto('/app');
+  await page.getByRole('button', { name: /Switch project/ }).click();
   await page.getByLabel('docker-compose file', { exact: true }).setInputFiles(SAMPLE);
   await expect(page.getByRole('heading', { name: 'ride-share-platform' })).toBeVisible({ timeout: 20000 });
   await expect(page.getByText('8 components', { exact: true })).toBeVisible();
@@ -34,13 +44,13 @@ test('import a compose file, say a change, apply it, see every tab follow, and e
   await expect(review).toBeHidden();
   await expect(page.getByLabel('Your instruction')).toHaveValue('add a Redis cache in front of the trips API');
 
-  await page.getByRole('tab', { name: 'What changed' }).click();
+  await openView(page, 'What changed');
   await expect(page.getByRole('heading', { level: 4, name: 'trips-api → redis' })).toBeVisible();
   await openView(page, 'Risks');
   await expect(page.getByRole('heading', { level: 3, name: 'Risks and open questions' })).toBeVisible();
   await openView(page, 'Tasks');
   await expect(page.getByRole('heading', { level: 3, name: 'Engineering tasks' })).toBeVisible();
-  await page.getByRole('tab', { name: 'Diagram' }).click();
+  await openView(page, 'Diagram');
   await expect(page.getByRole('button', { name: /^trips-api, SERVICE/ })).toBeVisible();
 
   await page.getByRole('button', { name: /^Export/ }).click();
@@ -69,9 +79,9 @@ test('a Hinglish instruction goes to the model as dictated, and only "apply" app
     });
   });
 
-  await page.goto('/');
+  await page.goto('/app');
   await expect(page.getByText('Interpreted by Groq')).toBeVisible();
-  await page.getByRole('button', { name: 'Load sample' }).click();
+  await loadSample(page);
   await page.getByLabel('Your instruction').fill('payment provider ko kafka se connect karo');
   await page.getByRole('button', { name: /Preview my change/ }).click();
 
@@ -103,11 +113,10 @@ test('loading the app and opening every view logs no errors', async ({ page, bro
     if (browserName === 'webkit' && webkitSelectNoise.test(message.text())) return;
     errors.push(`console: ${message.text()}`);
   });
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Load sample' }).click();
+  await page.goto('/app');
   for (const tab of ['API contract', 'Risks', 'Tasks', 'What changed', 'Diagram']) {
     await openView(page, tab);
-    await expect(page.getByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');
+    await expectView(page, tab);
   }
   await page.getByRole('button', { name: /^More$/ }).click();
   await page.getByRole('button', { name: /^Topology/ }).click();
@@ -116,8 +125,7 @@ test('loading the app and opening every view logs no errors', async ({ page, bro
 });
 
 test('decisions typed in the review dialog are recorded in the model, not only counted', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Load sample' }).click();
+  await page.goto('/app');
   await page.getByLabel('Your instruction').fill('Move session storage to Redis, keep PostgreSQL as the source of truth, add rate limiting to the authentication endpoint, and make login resilient if Redis becomes unavailable.');
   await page.getByRole('button', { name: /Preview my change/ }).click();
   const review = page.getByRole('dialog', { name: 'Review this change' });
@@ -137,8 +145,7 @@ test('decisions typed in the review dialog are recorded in the model, not only c
 test('a component removed on a branch is removed from main when the branch merges', async ({ page }) => {
   // Fork, preview, apply, and merge: a long flow for one 30-second budget on a busy machine.
   test.slow();
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Load sample' }).click();
+  await page.goto('/app');
   const redisNode = page.getByRole('button', { name: /^Redis, / });
   await expect(redisNode).toBeVisible();
 
@@ -151,13 +158,13 @@ test('a component removed on a branch is removed from main when the branch merge
   const review = page.getByRole('dialog', { name: 'Review this change' });
   await review.getByRole('button', { name: /Apply change/ }).click();
   await expect(review).toBeHidden();
-  await page.getByRole('tab', { name: 'Diagram' }).click();
+  await openView(page, 'Diagram');
   await expect(redisNode).toHaveCount(0);
 
   // Merged against the fork point, the branch's deletion reaches main.
   await page.getByRole('button', { name: /Merge to Main/ }).click();
   await expect(page.getByRole('button', { name: /Merge to Main/ })).toHaveCount(0);
-  await page.getByRole('tab', { name: 'Diagram' }).click();
+  await openView(page, 'Diagram');
   await expect(page.getByRole('button', { name: /^PostgreSQL, / })).toBeVisible();
   await expect(redisNode).toHaveCount(0);
 });
