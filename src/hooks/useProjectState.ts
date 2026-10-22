@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { HistoryTimeline } from '../data/historyManager.ts';
 import { makeCommerceProject } from '../data/commerce.ts';
 import { makeFoodDeliveryProject } from '../data/foodDelivery.ts';
@@ -89,10 +89,11 @@ export function useProjectState(): UseProjectStateReturn {
 
   // Every change to a model, its history, or the branch in use is saved, so a reload
   // (or a return from Wispr Flow's sign-in) lands on the same stack with undo intact.
-  // Opening the app saves nothing: a save that could not be read is left alone until
-  // the person changes something, rather than replaced by the default sample.
+  // Saved before the change is painted, so nothing on screen is unsaved, even if the page
+  // is left at once. Opening the app saves nothing: a save that could not be read is left
+  // alone until the person changes something, rather than replaced by the default sample.
   const opened = useRef(true);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (opened.current) {
       opened.current = false;
       return;
