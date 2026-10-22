@@ -8,7 +8,7 @@ Voice keeps your architecture diagram in sync with your code.
 
 ## The loop
 
-1. **Import your docker-compose file.** The diagram is drawn from your real services, `depends_on`, and the connection strings in their environment variables.
+1. **Import your docker-compose file.** In the workspace, click **From code → Import docker-compose** and pick the `docker-compose.yml` (or `compose.yaml`) from your project folder, usually at the root of the repo. The diagram is drawn from your real services, `depends_on`, and the connection strings in their environment variables.
 2. **Say the change.** Click the instruction box, hold your Wispr Flow hotkey, and speak, in English or Hinglish: "order service ko Kafka se connect karo". A model (Groq's `openai/gpt-oss-120b`, measured below) turns it into a short list of explicit operations, and every operation is checked against the current model and the Zod schema.
 3. **Review the exact diff.** Nothing changes yet. In the follow-up field, say "make it PostgreSQL instead" to revise, "undo that" to step back, or "cancel".
 4. **Say "apply".** The diagram, the API contract, the risks, and the tasks update together, and every applied change can be undone.
@@ -32,7 +32,15 @@ Not integrated: any Wispr Flow API to start dictation or read dictations (none i
 
 ## Try it
 
-On the live site, **Start guided demo** imports an example stack and walks three steps: an English change, a Hinglish change, and a check against the next version of the compose file. To use your own project, choose **From code → Import docker-compose**, then later **Check against code** with a newer version of the same file.
+On the live site, **Start guided demo** imports an example stack and walks three steps: an English change, a Hinglish change, and a check against the next version of the compose file.
+
+To use your own project:
+
+1. Find its compose file: `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, or `compose.yaml`, usually at the root of the repo. If the project is only on GitHub, open the file there and use **Download raw file**.
+2. Click **From code → Import docker-compose** and pick the file. It is read in your browser and not uploaded; when you preview a change, a summary of the diagram (components, connections, API operations, and requirements) is sent to the model, never the file itself.
+3. When the code changes, click **From code → Check against code** and pick the newer version of the same file.
+
+No compose file? Use **From code → Try example stack**. Projects described only in Kubernetes manifests, Terraform, or a plain list of services cannot be imported yet.
 
 Locally:
 
