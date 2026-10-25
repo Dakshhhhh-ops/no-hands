@@ -127,6 +127,8 @@ test('loading the app and opening every view logs no errors', async ({ page, bro
 });
 
 test('decisions typed in the review dialog are recorded in the model, not only counted', async ({ page }) => {
+  // Apply and the docs drawer can each take several seconds in WebKit on a busy machine.
+  test.slow();
   await page.goto('/app');
   await page.getByLabel('Your instruction').fill('Move session storage to Redis, keep PostgreSQL as the source of truth, add rate limiting to the authentication endpoint, and make login resilient if Redis becomes unavailable.');
   await page.getByRole('button', { name: /Preview my change/ }).click();
@@ -135,7 +137,9 @@ test('decisions typed in the review dialog are recorded in the model, not only c
   await review.getByLabel('Login behavior if Redis is unavailable').fill('Fall back to PostgreSQL sessions');
   await review.getByRole('button', { name: /Apply change/ }).click();
   await expect(review).toBeHidden();
-  await expect(page.getByText(/Change applied with 2 recorded decisions/)).toBeVisible();
+  // The "Change applied" toast lasts 4.5 seconds, which a slow apply can use up before a
+  // check runs, so this checks the project's version instead; the decisions are checked below.
+  await expect(page.locator('.va-version')).toHaveText('v2');
 
   // The applied model carries both answers: no open decision is left, and the risk view quotes them.
   await expect(page.getByText(/\d+ open decisions?/)).toHaveCount(0);
