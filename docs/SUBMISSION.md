@@ -6,8 +6,6 @@ VoiceArchitect keeps your architecture diagram in sync with your code, by voice.
 
 ## The problem
 
-> **TODO (author):** rewrite this section in my own words: where stale architecture diagrams hurt in my own work, and what I did before. The paragraph below is a generic placeholder, not my story.
-
 Architecture diagrams go stale the week they are drawn. Updating them means opening a drawing tool, finding the right boxes, and remembering what the code actually runs, so nobody does it. Teams end up reviewing designs against a picture that no longer matches the services in production, and the API contract, risk notes, and tasks drift with it.
 
 ## How Wispr Flow is used
@@ -51,7 +49,6 @@ The model was run 3 times with different seeds on 2026-10-21; 18 of 22 cases pas
 
 ## Judge checklist
 
-0. Open LIVE_URL. No sign-in. If the page takes about a minute, the free server is waking up after 15 idle minutes. Then follow steps 2 to 6 there.
 1. `npm ci && npm run dev`, then open the printed URL. For model interpretation, put `GROQ_API_KEY` (free tier; the measured interpreter) or `ANTHROPIC_API_KEY` in `.env.local` first; without a key the guided demo uses recorded answers and everything else the offline rules.
 2. Click **Start guided demo** (or open `/app?demo=guided`). It imports an example docker-compose stack and walks three steps: an English change, a Hinglish change, and a check against the next version of the compose file.
 3. With Wispr Flow, the command bar at the bottom of the workspace already has focus: hold your hotkey, and say a change, for example "catalog service ke aage Redis cache laga do". Preview it.

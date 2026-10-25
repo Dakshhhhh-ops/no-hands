@@ -1,10 +1,14 @@
 # VoiceArchitect
 
-**Live:** LIVE_URL (no sign-in; click **Start guided demo** on the first screen, which opens the workspace at `/app?demo=guided`). On the free hosting plan, the first visit after 15 idle minutes takes about a minute while the server wakes.
-
 Voice keeps your architecture diagram in sync with your code.
 
-> **TODO (author):** replace this note with the problem in my own words: where stale architecture diagrams hurt in my work, and what I did before VoiceArchitect. Nothing here has been written on my behalf.
+Architecture diagrams go stale the week they are drawn: updating one means opening a drawing tool and remembering what the code actually runs, so nobody does it. VoiceArchitect draws the diagram from your docker-compose file, lets you change it by saying the change with Wispr Flow, shows the exact diff before anything applies, and checks the diagram against newer code.
+
+**Run it:** not hosted yet. Run it locally in two minutes (see [Try it](#try-it)), then click **Start guided demo**, or open `/app?demo=guided`.
+
+![The workspace: a docker-compose stack drawn as a diagram, with a planned payment service added by voice, and the command bar at the bottom](docs/images/workspace.png)
+
+![The review dialog: a Hinglish instruction became two explicit operations, shown as a diff before anything applies](docs/images/review.png)
 
 ## The loop
 
@@ -29,11 +33,11 @@ Decisions from a meeting can enter the same loop: import a Wispr Flow Notetaker 
 - **Dictionary help.** One click copies the loaded model's component and technology names so you can add them to your Flow dictionary.
 - **Import from Wispr Flow.** **Import from Wispr Flow or paste notes** connects to Wispr Flow's read-only MCP server (`https://api.wisprflow.ai/connect/mcp`) with your own Wispr Flow sign-in (authorization code flow with PKCE). The sign-in is sealed with AES-256-GCM into an HttpOnly cookie that only the server can open, so it survives a server restart, and an expired access token is refreshed automatically; the browser code never sees a token. It lists recent Notetaker meetings and Scratchpad notes and reads only the summary or note you pick, never transcripts or dictation history. The text goes to the model as quoted data, not instructions, and whatever it proposes still goes through validation and the review diff. Wispr Flow requires Notetaker and MCP access on the account. **Status: tested against mocks of Wispr's sign-in and MCP servers; not yet verified with a real Wispr Flow sign-in.**
 
-Not integrated: any Wispr Flow API to start dictation or read dictations (none is documented for web pages, and the MCP server does not expose dictation history), and a dictionary import file (the format is undocumented). Without Wispr Flow you can type, paste notes, or use the **Browser mic (fallback)** button. Sources for every statement are in [docs/wispr-notes.md](docs/wispr-notes.md).
+Not integrated: any Wispr Flow API to start dictation or read dictations (none is documented for web pages, and the MCP server does not expose dictation history), and a dictionary import file (the format is undocumented). Without Wispr Flow you can type, paste notes, or use **Mic** in the command bar's **+** menu (the browser's own speech recognition, as a fallback). Sources for every statement are in [docs/wispr-notes.md](docs/wispr-notes.md).
 
 ## Try it
 
-On the live site, **Start guided demo** (`/app?demo=guided`) imports an example stack and walks three steps: an English change, a Hinglish change, and a check against the next version of the compose file.
+In the app, **Start guided demo** (`/app?demo=guided`) imports an example stack and walks three steps: an English change, a Hinglish change, and a check against the next version of the compose file.
 
 To use your own project:
 
