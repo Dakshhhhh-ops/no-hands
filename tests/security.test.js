@@ -238,3 +238,35 @@ test('a client that never stops sending gets the 413 and is disconnected', () =>
   assert.equal(outcome.status, 413);
   assert.equal(outcome.stillOpen, undefined, 'the server closed the connection');
 }));
+
+
+test('importing from GitHub left the CSP exactly as it was: the browser still talks only to this origin', () => {
+  // GitHub is reached by the server, never by the page, so no GitHub host may appear here.
+  assert.equal(CONTENT_SECURITY_POLICY, [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data: blob:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; '));
+  assert.doesNotMatch(CONTENT_SECURITY_POLICY, /github/i);
+});
+
+test('the GitHub import route answers with the same security headers as every other response', () => withServer({ trustProxy: false }, async (base) => {
+  // A link to another host is refused before any request to GitHub, so this needs no network.
+  const response = await fetch(`${base}/api/github/compose`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: 'https://gitlab.com/octo/shop' }),
+  });
+  assert.equal(response.status, 400);
+  assert.equal(response.headers.get('content-security-policy'), CONTENT_SECURITY_POLICY);
+  assert.equal((await response.json()).code, 'bad_url');
+}));

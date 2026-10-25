@@ -42,6 +42,17 @@ const CommandPalette = lazy(() => import('./components/CommandPalette.tsx'));
 const WisprImportDialog = lazy(() => import('./components/WisprImportDialog.tsx'));
 const ComposeExportDialog = lazy(() => import('./components/ComposeExportDialog.tsx'));
 
+/** What POST /api/github/compose answers: the file and where it was read, or an error written for the person. */
+interface GitHubComposeAnswer {
+  text?: string;
+  fileName?: string;
+  path?: string;
+  owner?: string;
+  repo?: string;
+  sha?: string;
+  error?: string;
+}
+
 function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement
     && (target.isContentEditable || ['TEXTAREA', 'INPUT', 'SELECT'].includes(target.tagName));
@@ -281,6 +292,27 @@ export default function App() {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (file) file.text().then((text) => importComposeText(text, file.name));
+  };
+
+  /** Reads the compose file of a public GitHub repository through the server, then imports it. Throws a message to show. */
+  const importFromGitHub = async (url: string) => {
+    const response = await fetch('/api/github/compose', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const body = await response.json().catch(() => null) as GitHubComposeAnswer | null;
+    if (!response.ok || !body || typeof body.text !== 'string' || typeof body.fileName !== 'string') {
+      throw new Error(body?.error || 'The repository could not be imported. Try again in a moment.');
+    }
+    const { projectFromCompose } = await import('./data/composeImport.ts');
+    const imported = projectFromCompose(body.text, body.fileName);
+    sound.click();
+    projectLoadProject(imported, { fileName: body.fileName, text: body.text });
+    clearWorkspaceUi();
+    setShowImport(false);
+    const where = body.owner && body.repo ? ` in ${body.owner}/${body.repo}${body.sha ? ` at ${body.sha.slice(0, 7)}` : ''}` : '';
+    notify(`Imported ${imported.components.length} services and ${imported.relationships.length} connections from ${body.path || body.fileName}${where}.`);
   };
 
   const importExampleCompose = async () => {
@@ -685,6 +717,7 @@ export default function App() {
               onLoadSample={loadSample}
               onChooseCompose={() => composeInputRef.current?.click()}
               onComposeText={importComposeText}
+              onGitHubImport={importFromGitHub}
             />
           )}
           {showImport && (
@@ -695,6 +728,7 @@ export default function App() {
               onLoadSample={() => { setShowImport(false); loadSample(); }}
               onChooseCompose={() => { setShowImport(false); composeInputRef.current?.click(); }}
               onComposeText={(text, name) => { setShowImport(false); return importComposeText(text, name); }}
+              onGitHubImport={importFromGitHub}
             />
           )}
         </section>

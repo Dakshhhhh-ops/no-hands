@@ -8,6 +8,8 @@ import type { FallbackReason } from './limits.ts';
 import { RecordingStore, recordingKey } from './recordings.ts';
 import type { Recording } from './recordings.ts';
 import { WisprConnector } from './wisprMcp.ts';
+import { GitHubImportError, fetchComposeFromGitHub } from './githubCompose.ts';
+import type { GitHubCompose } from './githubCompose.ts';
 import type { Interpretation } from '../src/types/schema.ts';
 
 /**
@@ -435,10 +437,16 @@ export interface ApiOptions {
   record?: boolean;
   /** The Wispr Flow import connector; tests pass one with a fake fetch. */
   wispr?: WisprConnector;
+  /** Reads a compose file from a public GitHub repository; tests pass a fake. */
+  github?: (link: string) => Promise<GitHubCompose>;
 }
 
+/** A GitHub link is a few hundred bytes; anything much larger is not a link. */
+const MAX_GITHUB_BODY_BYTES = 4 * 1024;
+
 /**
- * Connect-style middleware for /api/health, /api/status, and /api/interpret.
+ * Connect-style middleware for /api/health, /api/status, /api/interpret, /api/wispr/*,
+ * and /api/github/compose.
  * Instructions and keys are never logged.
  */
 export function createApiMiddleware(options: ApiOptions = {}) {
@@ -450,6 +458,9 @@ export function createApiMiddleware(options: ApiOptions = {}) {
   const recordings = options.recordings || new RecordingStore();
   const record = options.record ?? (options.env || process.env).VOICEARCHITECT_RECORD === '1';
   const wispr = options.wispr || new WisprConnector({ trustProxy: limits.trustProxy });
+  // GitHub imports get their own per-IP budget, the same size as the model's, so neither starves the other.
+  const githubPerIp = new RateLimiter(limits.perMinute, 60_000, options.now);
+  const github = options.github || ((link: string) => fetchComposeFromGitHub(link, { token: (options.env || process.env).GITHUB_TOKEN }));
 
   return async function apiMiddleware(req: IncomingMessage, res: ServerResponse, next: () => void) {
     try {
@@ -461,10 +472,44 @@ export function createApiMiddleware(options: ApiOptions = {}) {
     }
   };
 
+  /** POST /api/github/compose { url }: the compose file of a public repository, read at a commit. */
+  async function handleGitHub(req: IncomingMessage, res: ServerResponse) {
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { error: 'Use POST.' });
+      return;
+    }
+    const slot = githubPerIp.take(clientKey(req, limits.trustProxy));
+    if (!slot.ok) {
+      res.setHeader('Retry-After', String(slot.retryAfterSeconds));
+      sendJson(res, 429, { error: 'Too many GitHub imports from this address in the last minute. Try again shortly.', code: 'rate_limited', retryAfter: slot.retryAfterSeconds });
+      return;
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = await readJsonBody(req, MAX_GITHUB_BODY_BYTES);
+    } catch (error) {
+      const status = error instanceof InterpretError ? error.status : 400;
+      if (status === 413) res.setHeader('Connection', 'close');
+      sendJson(res, status, { error: error instanceof Error ? error.message : 'Bad request.' });
+      return;
+    }
+    try {
+      sendJson(res, 200, await github(typeof body.url === 'string' ? body.url : ''));
+    } catch (error) {
+      // GitHub's own words are never passed on; each failure has a message written for the person.
+      if (error instanceof GitHubImportError) sendJson(res, error.status, { error: error.message, code: error.code });
+      else sendJson(res, 502, { error: 'The file could not be read from GitHub. Try again in a moment.', code: 'unavailable' });
+    }
+  }
+
   async function handle(req: IncomingMessage, res: ServerResponse, next: () => void) {
     const url = (req.url || '').split('?')[0] ?? '';
     if (url.startsWith('/api/wispr/')) {
       await wispr.handle(req, res, new URL(req.url || '/', 'http://localhost'));
+      return;
+    }
+    if (url === '/api/github/compose') {
+      await handleGitHub(req, res);
       return;
     }
     if (url === '/api/health' && req.method === 'GET') {

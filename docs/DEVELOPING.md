@@ -10,7 +10,7 @@ cp .env.example .env.local   # then set GROQ_API_KEY (free tier, measured below)
 npm run dev
 ```
 
-The key is read only by the Vite dev and preview servers, which expose `/api/status`, `/api/interpret`, `/api/health`, and `/api/wispr/*`. It is never bundled into the browser code. When both keys are set, Claude is used. The label under the instruction box shows which provider is active.
+The key is read only by the Vite dev and preview servers, which expose `/api/status`, `/api/interpret`, `/api/health`, `/api/wispr/*`, and `/api/github/compose`. It is never bundled into the browser code. When both keys are set, Claude is used. The label under the instruction box shows which provider is active.
 
 With a key, every preview is a live model call. A recorded answer is used only when the live call cannot be made: no key, a rate limit, the daily cap, a timeout, or a provider error. The server then serves a recording of the same request if it has one, labelled "Recorded answer", and otherwise the browser uses the offline rules; either way a badge says why. Without any key the label reads "Recorded answers, then offline rules".
 
@@ -71,6 +71,8 @@ Any other host that runs a Node process or a Docker image works too. Set these a
 | `PORT` | `8080` | Port for `npm start` and the Docker image. |
 
 A recording is keyed by a SHA-256 of the model, the system prompt, the output schema, and the exact message sent to the model (instruction, current architecture, and any imported notes), so it only answers the identical request, and editing the prompt or schema retires old recordings. Recordings hold the model's answer only, never a key.
+
+`POST /api/github/compose` with `{ "url": "https://github.com/owner/repo" }` returns that public repository's compose file (`docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, or `compose.yaml`, at the root or in the folder of a `/tree/` link), read at a commit sha. Only github.com links are accepted, requests go only to api.github.com and raw.githubusercontent.com (redirects are followed by hand and only to those hosts), files over 256 KB are refused while streaming, every request shares a 5-second deadline, and private repositories are refused. An optional `GITHUB_TOKEN` raises GitHub's rate limit and is sent only to api.github.com. The page never talks to GitHub, so the CSP is unchanged.
 
 `GET /api/health` reports `{ "status": "ok" }` for health checks. The server never logs instructions or keys. Limits are kept in memory, so they reset when the process restarts and are per process, not shared across replicas.
 
@@ -139,6 +141,7 @@ src/
 ├── types/schema.ts          # Zod schema (single source of truth)
 └── utils/                   # Sound cues
 server/                      # /api/health, /api/status, /api/interpret (Claude or Groq), limits
+├── githubCompose.ts         # /api/github/compose: a public repository's compose file, GitHub hosts only
 ├── recordings.ts            # Recorded answers, keyed by a SHA-256 of the exact request
 ├── recordings/              # Recordings that back up the guided demo
 ├── wisprMcp.ts              # /api/wispr/*: Wispr Flow sign-in (OAuth 2.1, PKCE) and MCP client

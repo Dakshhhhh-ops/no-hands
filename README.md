@@ -41,8 +41,8 @@ In the app, **Start guided demo** (`/app?demo=guided`) imports an example stack 
 
 To use your own project:
 
-1. Find its compose file: `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, or `compose.yaml`, usually at the root of the repo. If the project is only on GitHub, open the file there and use **Download raw file**.
-2. Open `/app?import=compose` (or **Use my own stack** on the first screen) and choose the file or drop it on the panel. It is read in your browser and not uploaded; when you preview a change, a summary of the diagram (components, connections, API operations, and requirements) is sent to the model, never the file itself.
+1. Find its compose file: `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, or `compose.yaml`, usually at the root of the repo.
+2. Open `/app?import=compose` (or **Use my own stack** on the first screen) and choose the file or drop it on the panel. It is read in your browser and not uploaded. If the project is a public GitHub repository, paste its link instead (`https://github.com/owner/repo`, or a `/tree/<branch>/<folder>` link): the server reads the compose file at the latest commit, and private repositories are refused. Either way, when you preview a change, a summary of the diagram (components, connections, API operations, and requirements) is sent to the model, never the file itself.
 3. When the code changes, open **Switch project → Check against code** and pick the newer version of the same file.
 
 No compose file? Use **Switch project → Try example stack**, or open `/app?sample=ride-share`. Projects described only in Kubernetes manifests, Terraform, or a plain list of services cannot be imported yet.

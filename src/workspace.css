@@ -382,6 +382,18 @@ button.va-chip { cursor: pointer; }
 .va-empty-dialog { height: auto; max-width: 820px; padding: 32px; border: 1px solid var(--va-line-strong); border-radius: 24px; background: var(--va-panel); box-shadow: 0 30px 80px rgba(0, 0, 0, .5); }
 .va-empty-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
 .va-app .va-empty-dialog h2 { font-size: 32px; text-align: left; }
+/* Import from a public GitHub repository, below the three choices */
+.va-github-import { display: grid; gap: 8px; width: min(100%, 752px); }
+.va-github-import label { display: inline-flex; align-items: center; gap: 8px; color: var(--va-ink); font-weight: 600; }
+.va-github-import label svg { color: var(--va-accent-strong); }
+.va-github-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.va-github-row input {
+  flex: 1 1 260px; min-width: 0; min-height: 44px; padding: 0 14px;
+  border: 1px solid var(--va-line-strong); border-radius: 12px; background: var(--va-bg); color: var(--va-ink); font: 16px/1.4 var(--va-font);
+}
+.va-github-row input:focus-visible { border-color: var(--va-accent); outline: 2px solid var(--va-accent); outline-offset: 1px; }
+.va-github-import small { color: var(--va-muted); font-size: 13px; }
+.va-github-error { margin: 0; color: color-mix(in srgb, var(--va-danger) 70%, var(--va-ink)); font-size: 14px; }
 
 /* ---------- Contrast and size on the workspace's surfaces (WCAG AA, nothing under 12px) ---------- */
 .va-shell .button.primary { background: var(--va-accent-strong); border-color: var(--va-accent-strong); color: var(--va-accent-ink); }

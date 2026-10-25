@@ -1,20 +1,39 @@
 import { useEffect, useRef, useState } from 'react';
-import type { DragEvent } from 'react';
-import { FileCode2, Play, RotateCcw, X } from 'lucide-react';
+import type { DragEvent, FormEvent } from 'react';
+import { FileCode2, GitBranch, Play, RotateCcw, X } from 'lucide-react';
 
 export interface EmptyStateProps {
   onStartDemo: () => void;
   onLoadSample: () => void;
   onChooseCompose: () => void;
   onComposeText: (text: string, fileName: string) => Promise<void> | void;
+  /** Imports from a public GitHub repository link; rejects with a message to show. */
+  onGitHubImport?: (url: string) => Promise<void>;
   /** Shown over the canvas (for /app?import=compose) rather than in place of it. */
   asDialog?: boolean;
   onClose?: () => void;
 }
 
 /** Three ways in: the guided demo, a sample, or your own docker-compose file (pick it or drop it here). */
-export default function EmptyState({ onStartDemo, onLoadSample, onChooseCompose, onComposeText, asDialog, onClose }: EmptyStateProps) {
+export default function EmptyState({ onStartDemo, onLoadSample, onChooseCompose, onComposeText, onGitHubImport, asDialog, onClose }: EmptyStateProps) {
   const [dragging, setDragging] = useState(false);
+  const [repoUrl, setRepoUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [repoError, setRepoError] = useState('');
+
+  const importFromGitHub = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!onGitHubImport || !repoUrl.trim() || importing) return;
+    setImporting(true);
+    setRepoError('');
+    try {
+      await onGitHubImport(repoUrl.trim());
+    } catch (error) {
+      setRepoError(error instanceof Error ? error.message : 'The repository could not be imported.');
+    } finally {
+      setImporting(false);
+    }
+  };
   const firstRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -62,11 +81,37 @@ export default function EmptyState({ onStartDemo, onLoadSample, onChooseCompose,
     </div>
   );
 
+  const github = onGitHubImport && (
+    <form className="va-github-import" onSubmit={importFromGitHub} aria-busy={importing}>
+      <label htmlFor="va-github-url"><GitBranch size={16} aria-hidden="true" /> Or import from a public GitHub repository</label>
+      <div className="va-github-row">
+        <input
+          id="va-github-url"
+          type="url"
+          inputMode="url"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="https://github.com/owner/repo"
+          value={repoUrl}
+          onChange={(event) => { setRepoUrl(event.target.value); setRepoError(''); }}
+          aria-describedby="va-github-hint"
+          aria-invalid={repoError ? true : undefined}
+        />
+        <button type="submit" className="va-btn va-btn-primary" disabled={!repoUrl.trim() || importing}>
+          {importing ? 'Importing…' : 'Import'}
+        </button>
+      </div>
+      <small id="va-github-hint">Reads docker-compose.yml, docker-compose.yaml, compose.yml, or compose.yaml at the root, or in the folder of a /tree/ link. Private repositories are not read.</small>
+      {repoError && <p className="va-github-error" role="alert">{repoError}</p>}
+    </form>
+  );
+
   if (!asDialog) {
     return (
       <div className="va-empty-state">
         <h2>Start from your own stack</h2>
         {choices}
+        {github}
       </div>
     );
   }
@@ -80,6 +125,7 @@ export default function EmptyState({ onStartDemo, onLoadSample, onChooseCompose,
           </button>
         </div>
         {choices}
+        {github}
       </section>
     </div>
   );

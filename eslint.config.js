@@ -25,6 +25,7 @@ const browserGlobals = {
   cancelAnimationFrame: 'readonly',
   fetch: 'readonly',
   Response: 'readonly',
+  Headers: 'readonly',
   AbortController: 'readonly',
   IntersectionObserver: 'readonly',
   MutationObserver: 'readonly',
