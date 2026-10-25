@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Activity, ArrowRight, ClipboardCheck, ClipboardList, FileArchive, FileCode2, GitBranch, HelpCircle, Layers,
-  Network, Play, RotateCcw, Server, ShieldAlert, Sun,
+  Activity, ArrowRight, ClipboardCheck, ClipboardList, Download, FileArchive, FileCode2, GitBranch, HelpCircle, Layers,
+  Network, Play, RotateCcw, Server, ShieldAlert, Sun, X,
 } from 'lucide-react';
 import TopBar from './components/workspace/TopBar.tsx';
 import Drawer from './components/workspace/Drawer.tsx';
@@ -27,7 +27,8 @@ import { navigate, useLocation } from './router.ts';
 import { isDialogOpen } from './hooks/useDialog.ts';
 import { cssVars } from './utils/cssVars.ts';
 import './workspace.css';
-import type { Proposal } from './types/schema.ts';
+import type { ComposeSource, Project, Proposal } from './types/schema.ts';
+import type { ComposePatch } from './data/composePatch.ts';
 import type { WisprReturn } from './components/WisprImportDialog.tsx';
 import { parseFollowUp } from './data/reviewCommands.ts';
 import { dictionaryWords } from './data/dictation.ts';
@@ -39,6 +40,7 @@ const MergeConflictModal = lazy(() => import('./components/MergeConflictModal.ts
 const ShortcutsModal = lazy(() => import('./components/ShortcutsModal.tsx'));
 const CommandPalette = lazy(() => import('./components/CommandPalette.tsx'));
 const WisprImportDialog = lazy(() => import('./components/WisprImportDialog.tsx'));
+const ComposeExportDialog = lazy(() => import('./components/ComposeExportDialog.tsx'));
 
 function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement
@@ -84,6 +86,11 @@ export default function App() {
   }, []);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  // After an applied change, the version whose changes can be written into the imported compose file.
+  const [composeOfferFor, setComposeOfferFor] = useState<number | null>(null);
+  const [composePatch, setComposePatch] = useState<ComposePatch | null>(null);
+  // The newer compose file a drift review came from; it becomes the workspace's file once applied.
+  const driftSource = useRef<ComposeSource | null>(null);
 
   const { toast, notify } = useToast();
 
@@ -104,6 +111,8 @@ export default function App() {
     loadSample: projectLoadSample,
     loadProject: projectLoadProject,
     isImported,
+    composeSource,
+    setComposeSource,
     reset: projectReset,
     setBranchProject,
     syncHistory,
@@ -243,6 +252,7 @@ export default function App() {
     setDrawerTab('component');
     setCurrentBranchId('main');
     setShowHistory(false);
+    setComposeOfferFor(null);
   };
 
   const resetWorkspace = (message: string, kind: 'commerce' | 'food' = sampleChoice) => {
@@ -259,7 +269,7 @@ export default function App() {
       const { projectFromCompose } = await import('./data/composeImport.ts');
       const imported = projectFromCompose(text, fileName);
       sound.click();
-      projectLoadProject(imported);
+      projectLoadProject(imported, { fileName, text });
       clearWorkspaceUi();
       notify(`Imported ${imported.components.length} services and ${imported.relationships.length} connections from ${fileName}.`);
     } catch (error) {
@@ -299,7 +309,10 @@ export default function App() {
       const { detectCodeDrift, driftProposal } = await import('./data/driftCheck.ts');
       const report = detectCodeDrift(project, text, fileName);
       const drift = driftProposal(report, project);
+      driftSource.current = isImported ? { fileName, text } : null;
       if (!drift) {
+        // The file matches the diagram, so it is the code to write later changes into.
+        if (isImported) setComposeSource({ fileName, text });
         const planned = report.plannedNotInCode.length;
         notify(`The diagram matches ${fileName}.${planned ? ` ${planned} planned component${planned === 1 ? ' is' : 's are'} not in code yet.` : ''}`);
         return;
@@ -425,11 +438,59 @@ export default function App() {
       syncHistory(history);
     }
     setProposal(null);
+    if (proposal.source === 'drift' && driftSource.current) {
+      // Synced with a newer file: that file is the one later changes are written into.
+      setComposeSource(driftSource.current);
+      driftSource.current = null;
+    } else if (composeSource) {
+      void offerCompose(composeSource, appliedProject);
+    }
     const recordedDecisionCount = Number(Boolean(decisionDraft.rateLimitThreshold.trim()))
       + Number(Boolean(decisionDraft.redisFallback.trim()));
     notify(recordedDecisionCount
       ? `Change applied with ${recordedDecisionCount} recorded decision${recordedDecisionCount === 1 ? '' : 's'}. Implementation is still proposed.`
       : 'Change applied. Any unanswered decisions remain open in every view.');
+  }
+
+  /** Offers the updated compose file when the applied change gives the file something to write. */
+  async function offerCompose(source: ComposeSource, applied: Project) {
+    try {
+      const { patchCompose } = await import('./data/composePatch.ts');
+      setComposeOfferFor(patchCompose(source.text, applied, source.fileName).changed ? applied.version : null);
+    } catch {
+      setComposeOfferFor(null);
+    }
+  }
+
+  /** The imported compose file with the diagram's changes written in, for review before download. */
+  async function openComposeExport() {
+    setExportOpen(false);
+    if (!project || !composeSource) {
+      notify('Import a docker-compose file first: the updated file is written from it.');
+      return;
+    }
+    try {
+      const { patchCompose } = await import('./data/composePatch.ts');
+      setComposePatch(patchCompose(composeSource.text, project, composeSource.fileName));
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'The compose file could not be updated.');
+    }
+  }
+
+  function downloadCompose() {
+    if (!composePatch) return;
+    sound.export();
+    const url = URL.createObjectURL(new Blob([composePatch.text], { type: 'text/yaml' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = composePatch.fileName;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    // What was downloaded is the code from now on; the next update starts from it.
+    setComposeSource({ fileName: composePatch.fileName, text: composePatch.text });
+    setComposePatch(null);
+    setComposeOfferFor(null);
+    notify(`${composePatch.fileName} downloaded. Replace the file in your project with it.`);
   }
 
   const paletteCommands = [
@@ -443,6 +504,7 @@ export default function App() {
     { id: 'export-svg', label: 'Export Diagram (SVG)', description: 'Download architecture as SVG', keys: [], icon: <FileCode2 size={14} />, category: 'export', action: () => exportDiagram('svg') },
     { id: 'export-png', label: 'Export Diagram (PNG)', description: 'Download architecture as PNG', keys: [], icon: <FileCode2 size={14} />, category: 'export', action: () => exportDiagram('png') },
     { id: 'export-mermaid', label: 'Export Mermaid', description: 'Download Mermaid source', keys: [], icon: <FileCode2 size={14} />, category: 'export', action: () => exportDiagram('mermaid') },
+    { id: 'export-compose', label: 'Updated Compose File', description: 'Write the applied changes into the imported compose file', keys: [], icon: <FileCode2 size={14} />, category: 'export', action: () => { void openComposeExport(); } },
     { id: 'tab-diagram', label: 'Diagram Tab', description: 'Switch to architecture diagram', keys: ['→'], icon: <Network size={14} />, category: 'navigation', action: () => handleTabChange('diagram') },
     { id: 'tab-openapi', label: 'API Contract Tab', description: 'Switch to OpenAPI contract', keys: ['→'], icon: <FileCode2 size={14} />, category: 'navigation', action: () => handleTabChange('openapi') },
     { id: 'tab-risk', label: 'Risks Tab', description: 'Switch to risk audit', keys: ['→'], icon: <ShieldAlert size={14} />, category: 'navigation', action: () => handleTabChange('risk') },
@@ -455,6 +517,9 @@ export default function App() {
     { id: 'shortcuts', label: 'Keyboard Shortcuts', description: 'Show all keyboard shortcuts', keys: ['?'], icon: <HelpCircle size={14} />, category: 'help', action: () => setIsShortcutsOpen(true) },
     { id: 'theme', label: 'Toggle Theme', description: 'Switch between dark and light mode', keys: [], icon: <Sun size={14} />, category: 'view', action: toggleTheme },
   ];
+
+  // Shown for the version it was computed for: an undo hides it, a redo brings it back.
+  const offerShown = Boolean(composeSource && project && composeOfferFor === project.version && !proposal);
 
   // Deep links: /app?demo=guided, /app?sample=commerce|food|ride-share, /app?import=compose.
   const linkHandled = useRef(false);
@@ -505,6 +570,8 @@ export default function App() {
         setAdvancedTools={setAdvancedTools}
         onReset={reset}
         onExportDevOps={exportDevOps}
+        composeFileName={composeSource?.fileName}
+        onExportCompose={composeSource ? () => { void openComposeExport(); } : undefined}
         theme={theme}
         onToggleTheme={toggleTheme}
         onShowShortcuts={() => setIsShortcutsOpen(true)}
@@ -515,14 +582,29 @@ export default function App() {
       <main className="va-shell-body" id="main">
         {/* The command bar floats at the bottom of the screen, with the guided demo's card above it. */}
         <div className="va-dock">
-          {guidedStep > 0 && (
-            <div className="va-coach" ref={coachRef}>
-              <GuidedDemo
-                step={guidedStep}
-                onExit={() => setGuidedStep(0)}
-                onTypeIt={typeGuidedStep}
-                onRunCodeCheck={checkExampleDrift}
-              />
+          {(guidedStep > 0 || offerShown) && (
+            <div className="va-dock-cards" ref={coachRef}>
+              {guidedStep > 0 && (
+                <div className="va-coach">
+                  <GuidedDemo
+                    step={guidedStep}
+                    onExit={() => setGuidedStep(0)}
+                    onTypeIt={typeGuidedStep}
+                    onRunCodeCheck={checkExampleDrift}
+                  />
+                </div>
+              )}
+              {offerShown && composeSource && (
+                <div className="va-compose-offer">
+                  <span role="status">This change can go into your {composeSource.fileName}.</span>
+                  <button type="button" className="va-btn va-btn-primary va-btn-sm" onClick={() => { void openComposeExport(); }}>
+                    <Download size={14} aria-hidden="true" /> Download updated compose file
+                  </button>
+                  <button type="button" className="va-btn va-btn-ghost va-btn-icon" onClick={() => setComposeOfferFor(null)} aria-label="Dismiss the compose file offer">
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
             </div>
           )}
           <Composer
@@ -691,6 +773,11 @@ export default function App() {
             onClose={() => setNotesImport(null)}
             onPropose={proposeFromNotes}
           />
+        </Suspense>
+      )}
+      {composePatch && (
+        <Suspense fallback={null}>
+          <ComposeExportDialog patch={composePatch} onClose={() => setComposePatch(null)} onDownload={downloadCompose} />
         </Suspense>
       )}
       {isShortcutsOpen && (

@@ -45,6 +45,7 @@ The model was run 3 times with different seeds on 2026-10-21; 18 of 22 cases pas
 - The Wispr Flow import is tested against mocks, not yet against a real sign-in. A sign-in lasts 8 hours and survives restarts only while `WISPR_SESSION_SECRET` stays the same.
 - The diagram is a model of the architecture, not of a running system. Risks are computed from the model and labelled as such; nothing is measured from production.
 - Drift checks compare services, images, and connections in docker-compose. Ports, volumes, and environment values are not modeled.
+- Writing changes back to the compose file covers caches, databases, queues, `depends_on`, connection strings, and removals. Application services drawn in the diagram are not written, because their image or build context is unknown.
 - Rate limits and the daily cap are kept in memory per server process.
 - Tasks and exports are proposals; nothing is sent to an issue tracker or deployed.
 

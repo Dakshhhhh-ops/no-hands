@@ -12,7 +12,8 @@ Voice keeps your architecture diagram in sync with your code.
 2. **Say the change.** Click the instruction box, hold your Wispr Flow hotkey, and speak, in English or Hinglish: "order service ko Kafka se connect karo". A model (Groq's `openai/gpt-oss-120b`, measured below) turns it into a short list of explicit operations, and every operation is checked against the current model and the Zod schema.
 3. **Review the exact diff.** Nothing changes yet. In the follow-up field, say "make it PostgreSQL instead" to revise, "undo that" to step back, or "cancel".
 4. **Say "apply".** The diagram, the API contract, the risks, and the tasks update together, and every applied change can be undone. The workspace, its undo history, and its branches are saved in your browser, so a reload or a Wispr Flow sign-in brings you back to the same stack.
-5. **Check against the code.** When the code moves on, compare the diagram with the newer compose file. New and retired services become one reviewable sync; components planned in the diagram but not built yet are kept and shown dashed.
+5. **Write it back to your compose file.** After an applied change, **Download updated compose file** shows a unified diff of your own file with the change written in: a new cache, database, or queue becomes a service with a pinned image, a `depends_on` entry, and a connection-string variable, and services removed from the diagram are listed before anything is dropped. Comments and ordering are kept. Application services drawn in the diagram are not written, since only you know their image or build context.
+6. **Check against the code.** When the code moves on, compare the diagram with the newer compose file. New and retired services become one reviewable sync; components planned in the diagram but not built yet are kept and shown dashed.
 
 Decisions from a meeting can enter the same loop: import a Wispr Flow Notetaker summary or Scratchpad note, or paste notes, and they become a proposal you review like a spoken one.
 
@@ -69,6 +70,7 @@ Claude is supported (`claude-opus-5-5`, used when `ANTHROPIC_API_KEY` is set) bu
 - Offline mode understands only a handful of request patterns; full understanding needs a model key.
 - The workspace is saved in this browser only (localStorage), with the last 25 undo steps per branch. Another browser or device starts fresh, and clearing site data clears it.
 - Drift checks compare services, images, and connections. Ports, volumes, and environment values are not modeled.
+- The compose write-back adds caches, databases, and queues (with a pinned image and credentials read from `.env`), `depends_on`, and connection strings, and removes services and `depends_on` entries. It never invents an image for an application service, and a connection string left behind by a removed connection is flagged for you to delete rather than deleted.
 - Risks are findings computed from the model, not from production telemetry; tasks are proposals and are not sent to an issue tracker.
 
 The **More** menu holds extra tools that are not part of the loop above.

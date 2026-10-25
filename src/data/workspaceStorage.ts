@@ -1,5 +1,5 @@
 import { WorkspaceSnapshotSchema } from '../types/schema.ts';
-import type { BranchSnapshot, Project, WorkspaceSnapshot } from '../types/schema.ts';
+import type { BranchSnapshot, ComposeSource, Project, WorkspaceSnapshot } from '../types/schema.ts';
 import { HistoryTimeline } from './historyManager.ts';
 
 /**
@@ -28,6 +28,8 @@ export interface WorkspaceState {
   sampleChoice: 'commerce' | 'food';
   currentBranchId: string;
   importedProject: Project | null;
+  /** The compose file the stack came from, or the newer one it was last synced or written to. */
+  composeSource: ComposeSource | null;
   branches: Record<string, WorkspaceBranch>;
 }
 
@@ -51,6 +53,7 @@ export function toSnapshot(state: WorkspaceState, historyLimit = HISTORY_LIMIT):
     sampleChoice: state.sampleChoice,
     currentBranchId: state.currentBranchId,
     importedProject: state.importedProject,
+    composeSource: state.composeSource,
     branches,
   };
 }
@@ -85,6 +88,7 @@ export function parseWorkspace(text: string | null | undefined): WorkspaceState 
     sampleChoice: parsed.data.sampleChoice,
     currentBranchId: parsed.data.currentBranchId,
     importedProject: parsed.data.importedProject,
+    composeSource: parsed.data.composeSource ?? null,
     branches,
   };
 }

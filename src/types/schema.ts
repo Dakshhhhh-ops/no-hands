@@ -334,12 +334,21 @@ export const BranchSnapshotSchema = z.object({
 });
 export type BranchSnapshot = z.infer<typeof BranchSnapshotSchema>;
 
+/** The docker-compose file a workspace was imported from, kept so applied changes can be written back into it. */
+export const ComposeSourceSchema = z.object({
+  fileName: z.string().min(1),
+  text: z.string().max(1024 * 1024),
+});
+export type ComposeSource = z.infer<typeof ComposeSourceSchema>;
+
 export const WorkspaceSnapshotSchema = z.object({
   schemaVersion: z.literal(1),
   sampleChoice: z.enum(['commerce', 'food']),
   currentBranchId: z.string().min(1),
   /** The imported model Reset returns to; null when the workspace started from a sample. */
   importedProject: ProjectSchema.nullable(),
+  /** Kept once for the workspace, not in every undo step. Older saves have none. */
+  composeSource: ComposeSourceSchema.nullable().optional(),
   branches: z.record(z.string(), BranchSnapshotSchema),
 }).superRefine((workspace, ctx) => {
   if (!workspace.branches.main) {

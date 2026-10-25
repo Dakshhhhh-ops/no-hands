@@ -62,17 +62,21 @@ export function detectCodeDrift(project: Project, composeSource: string, fileNam
     }
   }
 
-  const modelEdges = new Map(project.relationships.map((r) => [edgeKey(r), r]));
-  const codeEdges = new Map(code.relationships.map((r) => [edgeKey(r), r]));
+  // Code says only that two services are wired together (depends_on, a connection string),
+  // not which way calls or data flow, so a connection matches in either direction: the
+  // diagram's "kafka -> consumer" is the code's "consumer depends_on kafka".
+  const modelEdges = new Set(project.relationships.map(edgeKey));
+  const codeEdges = new Set(code.relationships.map(edgeKey));
+  const linked = (edges: Set<string>, r: Relationship) => edges.has(edgeKey(r)) || edges.has(edgeKey({ from: r.to, to: r.from }));
   const removedIds = new Set(removedFromCode.map((c) => c.id));
   const touchesRemoved = (r: Relationship) => removedIds.has(r.from) || removedIds.has(r.to);
 
-  const connectionsAddedInCode = code.relationships.filter((r) => !modelEdges.has(edgeKey(r)));
+  const connectionsAddedInCode = code.relationships.filter((r) => !linked(modelEdges, r));
   const connectionsRemovedFromCode = project.relationships.filter(
-    (r) => r.origin === 'code' && !codeEdges.has(edgeKey(r)) && !touchesRemoved(r),
+    (r) => r.origin === 'code' && !linked(codeEdges, r) && !touchesRemoved(r),
   );
   const plannedConnections = project.relationships.filter(
-    (r) => r.origin !== 'code' && !codeEdges.has(edgeKey(r)) && !touchesRemoved(r),
+    (r) => r.origin !== 'code' && !linked(codeEdges, r) && !touchesRemoved(r),
   );
 
   const inSync = !addedInCode.length && !removedFromCode.length && !changedInCode.length

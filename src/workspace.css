@@ -255,6 +255,15 @@ button.va-chip { cursor: pointer; }
 .va-app .va-command-menu .preset-tag { flex: none; min-width: 84px; color: var(--va-accent-strong); font: 600 12px/1 var(--va-mono); letter-spacing: .04em; text-transform: uppercase; }
 .va-app .va-command-menu .preset-name { color: var(--va-ink); font: 500 14px/1.35 var(--va-font); }
 
+/* Cards above the command bar: the guided demo, and the offer to update the compose file */
+.va-dock-cards { display: grid; gap: 10px; }
+.va-compose-offer {
+  display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 16px;
+  border: 1px solid var(--va-line-strong); border-radius: 16px; background: var(--va-panel);
+  box-shadow: 0 20px 48px -28px rgba(0, 0, 0, .6); font-size: 14px;
+}
+.va-compose-offer > span { flex: 1; min-width: 0; color: var(--va-ink); }
+
 /* The guided demo's card */
 .va-coach {
   border: 1px solid var(--va-line-strong); border-radius: 20px; overflow: hidden;

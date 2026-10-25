@@ -42,6 +42,9 @@ export interface TopBarProps {
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   onShowShortcuts: () => void;
+  /** Opens the review of the imported compose file with the applied changes written in; absent before an import. */
+  onExportCompose?: () => void;
+  composeFileName?: string;
 }
 
 /**
@@ -53,7 +56,7 @@ export default function TopBar({
   sampleChoice, onSampleChoice, onResetWorkspace, onLoadSample, onImportExample, onChooseCompose, onChooseDrift,
   onCheckExampleDrift, exportOpen, setExportOpen, exportMenuRef, exportAll, exportDiagram, canUndo, canRedo, onUndo,
   onRedo, showHistory, setShowHistory, advancedTools, setAdvancedTools, onReset, onExportDevOps, theme, onToggleTheme,
-  onShowShortcuts,
+  onShowShortcuts, onExportCompose, composeFileName,
 }: TopBarProps) {
   const [showProject, setShowProject] = useState(false);
   const [showMore, setShowMore] = useState(false);
@@ -177,6 +180,12 @@ export default function TopBar({
                 <FileCode2 size={16} />
                 <span><b>Mermaid source</b><small>Editable architecture flowchart text</small></span>
               </button>
+              {onExportCompose && (
+                <button type="button" role="menuitem" className="va-menu-item" onClick={onExportCompose}>
+                  <FileCode2 size={16} />
+                  <span><b>Updated {composeFileName || 'compose file'}</b><small>Your compose file with the applied changes, shown as a diff first</small></span>
+                </button>
+              )}
             </div>
           )}
         </div>

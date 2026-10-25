@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { HistoryTimeline } from '../data/historyManager.ts';
 import { makeCommerceProject } from '../data/commerce.ts';
 import { makeFoodDeliveryProject } from '../data/foodDelivery.ts';
-import type { Project } from '../types/schema.ts';
+import type { ComposeSource, Project } from '../types/schema.ts';
 import { forkBranch, compareBranches } from '../data/branching.ts';
 import { detectMergeConflicts, executeMerge, type MergeConflict } from '../data/semanticMerge.ts';
 import { loadWorkspace, saveWorkspace } from '../data/workspaceStorage.ts';
@@ -33,8 +33,10 @@ interface UseProjectStateReturn {
   timelineEntries: Array<{ version: number; label: string; patchCount: number; timestamp: number; changeId?: string }>;
   scenarioComparison: ReturnType<typeof compareBranches> | null;
   loadSample: (_kind?: 'commerce' | 'food') => void;
-  loadProject: (_project: Project) => void;
+  loadProject: (_project: Project, _source?: ComposeSource | null) => void;
   isImported: boolean;
+  composeSource: ComposeSource | null;
+  setComposeSource: (_source: ComposeSource | null) => void;
   reset: () => void;
   setBranchProject: (_branchId: string, _next: Project) => void;
   syncHistory: (_history: HistoryTimeline) => void;
@@ -75,6 +77,8 @@ export function useProjectState(): UseProjectStateReturn {
   const [currentBranchId, setCurrentBranchId] = useState(saved && savedBranch ? saved.currentBranchId : 'main');
   // An imported project replaces the sample as the baseline that Reset returns to.
   const [importedProject, setImportedProject] = useState<Project | null>(saved?.importedProject ?? null);
+  // The compose file behind an imported stack: where applied changes are written back.
+  const [composeSource, setComposeSource] = useState<ComposeSource | null>(saved?.composeSource ?? null);
   const [branches, setBranches] = useState<Record<string, BranchState>>(() => saved?.branches ?? {
     main: makeMainBranch(makeCommerceProject()),
   });
@@ -98,8 +102,8 @@ export function useProjectState(): UseProjectStateReturn {
       opened.current = false;
       return;
     }
-    saveWorkspace({ sampleChoice, currentBranchId, importedProject, branches });
-  }, [sampleChoice, currentBranchId, importedProject, branches]);
+    saveWorkspace({ sampleChoice, currentBranchId, importedProject, composeSource, branches });
+  }, [sampleChoice, currentBranchId, importedProject, composeSource, branches]);
 
   const branchList = useMemo(() => Object.values(branches).map((b) => ({
     id: b.id,
@@ -151,13 +155,15 @@ export function useProjectState(): UseProjectStateReturn {
     setCanRedo(false);
   }
 
-  function loadProject(next: Project) {
+  function loadProject(next: Project, source: ComposeSource | null = null) {
     setImportedProject(next);
+    setComposeSource(source);
     startFrom(structuredClone(next));
   }
 
   function loadSample(kind: 'commerce' | 'food' = sampleChoice) {
     setImportedProject(null);
+    setComposeSource(null);
     setSampleChoice(kind);
     const fresh = kind === 'food' ? makeFoodDeliveryProject() : makeCommerceProject();
     setProject(fresh);
@@ -294,6 +300,8 @@ export function useProjectState(): UseProjectStateReturn {
     loadSample,
     loadProject,
     isImported: importedProject !== null,
+    composeSource,
+    setComposeSource,
     reset,
     setBranchProject,
     syncHistory,

@@ -134,7 +134,8 @@ src/
 ├── data/                    # Domain logic, pure TypeScript: compose import, drift check,
 │                            # operations applier, risks and fixes, OpenAPI, exports,
 │                            # dictation cleanup, Hinglish and English patterns, follow-ups
-│   └── workspaceStorage.ts  # Saves branches, undo history, and the imported baseline; Zod-checked on load
+│   ├── composePatch.ts      # Writes applied changes back into the imported compose file (yaml Document API) and diffs it
+│   └── workspaceStorage.ts  # Saves branches, undo history, the imported baseline, and its compose file; Zod-checked on load
 ├── types/schema.ts          # Zod schema (single source of truth)
 └── utils/                   # Sound cues
 server/                      # /api/health, /api/status, /api/interpret (Claude or Groq), limits
