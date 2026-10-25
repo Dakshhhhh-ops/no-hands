@@ -99,7 +99,7 @@ test('on a phone the badge fits one line and the product card follows the note i
 test('the headline and the product card keep their accessible names', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toHaveAccessibleName('Say the change. See what it touches.');
-  await expect(page.getByRole('figure', { name: 'Example: a Hinglish instruction becomes a reviewed change' })).toBeVisible();
+  await expect(page.getByRole('figure', { name: 'Example: a spoken instruction becomes a reviewed change' })).toBeVisible();
 });
 
 test.describe('with reduced motion', () => {
@@ -109,7 +109,7 @@ test.describe('with reduced motion', () => {
     await page.goto('/');
     const card = page.locator('.va-proof');
     await expect(card).toBeVisible();
-    await expect(card.locator('.va-proof-said')).toHaveText('payment service ko alag container mein daalo aur gateway se connect karo');
+    await expect(card.locator('.va-proof-said')).toHaveText('Move the payment service into its own container and connect it to the gateway');
     expect(await card.locator('.va-proof-ghost').textContent()).toBe('');
     await expect(card.locator('.va-story-diff li')).toHaveText(['+ payment-service (new service, own container)', '+ gateway → payment-service']);
     await expect(card.locator('.va-story-diff li[data-hidden]')).toHaveCount(0);

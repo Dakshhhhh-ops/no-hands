@@ -4,11 +4,11 @@ import { DictationChip, StoryActions, StoryDiff } from './StoryParts.tsx';
 import type { StoryDiffLine } from './StoryParts.tsx';
 
 /*
- * The product in the hero: the guided demo's Hinglish step, from dictation to a
- * reviewed change. The strings are hard-coded (the change the recorded step
+ * The product in the hero: the guided demo's payment-service step, said in
+ * English, from dictation to a reviewed change. The strings are hard-coded (the change the recorded step
  * produces) so the landing page imports nothing from src/data.
  */
-const SAID = 'payment service ko alag container mein daalo aur gateway se connect karo';
+const SAID = 'Move the payment service into its own container and connect it to the gateway';
 const DIFF: StoryDiffLine[] = [
   { kind: 'add', text: '+ payment-service (new service, own container)' },
   { kind: 'add', text: '+ gateway → payment-service' },
@@ -83,7 +83,7 @@ export default function HeroProof() {
   const typing = frame.chars < SAID.length;
   return (
     <figure className="va-story-card va-proof" ref={ref}>
-      <figcaption className="va-sr-only">Example: a Hinglish instruction becomes a reviewed change</figcaption>
+      <figcaption className="va-sr-only">Example: a spoken instruction becomes a reviewed change</figcaption>
       {/* The untyped rest of the sentence keeps its place, invisible, so the card never changes size. */}
       <div aria-hidden="true">
         <p className="va-story-transcript va-proof-said">
