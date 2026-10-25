@@ -19,8 +19,6 @@ export const nodeW = 208,
   nodeH = 80;
 /** Which way the layout flows: left to right, or top to bottom when that fits the canvas better. */
 export type FlowDirection = 'LR' | 'TB';
-/** Gap between columns of the layout; edge labels sit in it, on a chip. */
-export const rankGap = 120;
 /** Font sizes in diagram units (the CSS uses the same), used to fit text with an ellipsis. */
 export const fontUnits = { title: 18, sub: 15, type: 13, edge: 15 };
 
@@ -46,4 +44,53 @@ export function connectorPoints(from: Pick<Component, 'x' | 'y'>, to: Pick<Compo
   const y2 = to.y + nodeH / 2;
   const mid = (x1 + x2) / 2;
   return { x1, y1, x2, y2, labelX: mid, labelY: (y1 + y2) / 2, path: `M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2 - 7} ${y2}` };
+}
+
+/** Connector labels: the widest a chip gets, its padding and height, and the label font's glyph width. */
+const LABEL_MAX_W = 168;
+const LABEL_PAD_X = 8;
+export const LABEL_CHIP_H = fontUnits.edge + 10;
+const LABEL_GLYPH = 0.52;
+
+/** The text a connector label shows (shortened with an ellipsis past LABEL_MAX_W) and its chip size. */
+export function edgeLabelBox(label: string): { text: string; width: number; height: number } {
+  const text = fitText(label, LABEL_MAX_W - LABEL_PAD_X * 2, fontUnits.edge, LABEL_GLYPH);
+  const width = Math.min(LABEL_MAX_W, Math.ceil(text.length * fontUnits.edge * LABEL_GLYPH + LABEL_PAD_X * 2));
+  return { text, width, height: LABEL_CHIP_H };
+}
+
+/**
+ * A connector drawn along the layout's route: it leaves the side of one component facing the flow,
+ * passes through each bend (its label among them) with the curve running along the flow, and
+ * ends at the arrowhead on the next component. Without a route it falls back to a direct curve.
+ */
+export function routedConnector(
+  from: Pick<Component, 'x' | 'y'>,
+  to: Pick<Component, 'x' | 'y'>,
+  direction: FlowDirection,
+  route: { points: { x: number; y: number }[]; label: { x: number; y: number } | null } | undefined,
+): { path: string; labelX: number; labelY: number } {
+  const direct = connectorPoints(from, to, direction);
+  // A route that runs backward (a cycle) or has no bends is drawn as the direct curve.
+  const forward = direction === 'TB' ? to.y > from.y : to.x > from.x;
+  const bends = route && forward ? route.points.slice(1, -1) : [];
+  if (bends.length === 0) {
+    return { path: direct.path, labelX: route?.label?.x ?? direct.labelX, labelY: route?.label?.y ?? direct.labelY };
+  }
+  const end = direction === 'TB' ? { x: direct.x2, y: direct.y2 - 7 } : { x: direct.x2 - 7, y: direct.y2 };
+  const points = [{ x: direct.x1, y: direct.y1 }, ...bends, end];
+  let path = `M ${points[0]!.x} ${points[0]!.y}`;
+  for (let i = 1; i < points.length; i += 1) {
+    const a = points[i - 1]!;
+    const b = points[i]!;
+    if (direction === 'TB') {
+      const mid = (a.y + b.y) / 2;
+      path += ` C ${a.x} ${mid}, ${b.x} ${mid}, ${b.x} ${b.y}`;
+    } else {
+      const mid = (a.x + b.x) / 2;
+      path += ` C ${mid} ${a.y}, ${mid} ${b.y}, ${b.x} ${b.y}`;
+    }
+  }
+  const label = route?.label ?? points[Math.floor(points.length / 2)]!;
+  return { path, labelX: label.x, labelY: label.y };
 }

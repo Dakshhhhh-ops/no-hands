@@ -450,6 +450,8 @@ export default function App() {
     notify(recordedDecisionCount
       ? `Change applied with ${recordedDecisionCount} recorded decision${recordedDecisionCount === 1 ? '' : 's'}. Implementation is still proposed.`
       : 'Change applied. Any unanswered decisions remain open in every view.');
+    // The box is ready for the next change; the applied instruction stays under + → Recent.
+    setCommand('');
   }
 
   /** Offers the updated compose file when the applied change gives the file something to write. */

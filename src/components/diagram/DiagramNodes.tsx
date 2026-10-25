@@ -17,6 +17,8 @@ export interface DiagramNodesProps {
   telemetry: ChaosSimulationResult;
   selectNode: (event: MouseEvent<SVGGElement> | KeyboardEvent<SVGGElement>, nodeId: string) => void;
   handleNodeKeyDown: (event: KeyboardEvent<SVGGElement>, nodeId: string) => void;
+  /** Components added by the change just applied; they glow for a moment, marked "Added". */
+  freshIds: ReadonlySet<string>;
 }
 
 /**
@@ -33,6 +35,7 @@ export default function DiagramNodes({
   telemetry,
   selectNode,
   handleNodeKeyDown,
+  freshIds,
 }: DiagramNodesProps) {
   return (
     <>
@@ -49,11 +52,12 @@ export default function DiagramNodes({
         const status = telemetry.nodeMetrics.get(node.id)?.status;
         const isDown = status === 'DOWN';
         const isDegraded = status === 'DEGRADED';
+        const isFresh = freshIds.has(node.id);
         const classes = [
           'node', `type-${node.type.toLowerCase()}`,
           isChanged && 'changed', isSelected && 'selected', isDirect && 'direct', isDownstream && 'downstream',
           isUpstream && 'upstream', isDown && 'node-down', isDegraded && 'node-degraded', isPlanned && 'planned',
-          dimmed && 'dimmed', 'node-enter',
+          dimmed && 'dimmed', isFresh && 'fresh', 'node-enter',
         ].filter(Boolean).join(' ');
 
         return (
@@ -68,12 +72,16 @@ export default function DiagramNodes({
             onClick={(event) => selectNode(event, node.id)}
             onKeyDown={(event) => handleNodeKeyDown(event, node.id)}
           >
+            {isFresh && <rect className="node-fresh-ring" x={-6} y={-6} width={nodeW + 12} height={nodeH + 12} rx={15} />}
             {isSelected && <rect className="node-ring" x={-5} y={-5} width={nodeW + 10} height={nodeH + 10} rx={14} />}
             <rect className="node-box" width={nodeW} height={nodeH} rx={10} />
             <circle className="node-dot" cx={17} cy={19} r={4.5} />
             <text className="node-type" x={28} y={23.5}>
               {node.type}{isPlanned ? ' · PLANNED' : ''}
             </text>
+            {isFresh && !isPlanned && !isDown && !isDegraded && (
+              <text className="node-fresh-tag" x={nodeW - 12} y={23.5} textAnchor="end">ADDED</text>
+            )}
             {(isDown || isDegraded) && (
               <text className="node-status" x={nodeW - 12} y={23.5} textAnchor="end">{isDown ? 'DOWN' : 'SLOW'}</text>
             )}

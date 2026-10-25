@@ -2,7 +2,8 @@ import { relationshipKey } from '../../data/diagram.ts';
 import type { DiagramNeighborhood } from '../../data/diagram.ts';
 import type { ChaosSimulationResult } from '../../data/chaosSimulator.ts';
 import type { Component, Relationship } from '../../types/schema.ts';
-import { connectorPoints } from './diagramTypes.ts';
+import { routedConnector } from './diagramTypes.ts';
+import type { EdgeRoute } from '../../data/graphLayout.ts';
 import type { FlowDirection, ViewMode } from './diagramTypes.ts';
 
 export interface DiagramEdgesProps {
@@ -17,6 +18,10 @@ export interface DiagramEdgesProps {
   direction: FlowDirection;
   /** Traffic dots run along the connectors only while the outage simulator is open. */
   animate: boolean;
+  /** The layout's routes by relationship key. */
+  routes: Record<string, EdgeRoute>;
+  /** Relationship keys added by the change just applied; they glow for a moment. */
+  freshKeys: ReadonlySet<string>;
 }
 
 export default function DiagramEdges({
@@ -29,6 +34,8 @@ export default function DiagramEdges({
   telemetry,
   direction,
   animate,
+  routes,
+  freshKeys,
 }: DiagramEdgesProps) {
   return (
     <>
@@ -36,7 +43,9 @@ export default function DiagramEdges({
         const from = byId.get(edge.from);
         const to = byId.get(edge.to);
         if (!from || !to) return null;
-        const { path } = connectorPoints(from, to, direction);
+        const key = relationshipKey(edge);
+        const { path } = routedConnector(from, to, direction, routes[key]);
+        const isFresh = freshKeys.has(key);
 
         const isDirect = neighborhood.directRelationships.has(relationshipKey(edge));
         const isDownstream =
@@ -68,11 +77,11 @@ export default function DiagramEdges({
 
         return (
           <g
-            key={relationshipKey(edge)}
+            key={key}
             className={`diagram-relationship ${isDirect ? 'direct' : ''} ${isDownstream ? 'downstream' : ''} ${isUpstream ? 'upstream' : ''} ${dimmed ? 'dimmed' : ''}`}
           >
             <path
-              className={`edge ${isChanged ? 'changed' : ''} ${isSevered ? 'severed' : ''} ${isCongested ? 'congested' : ''}`}
+              className={`edge ${isChanged ? 'changed' : ''} ${isFresh ? 'fresh' : ''} ${isSevered ? 'severed' : ''} ${isCongested ? 'congested' : ''}`}
               d={path}
               style={{ markerEnd: marker }}
             />

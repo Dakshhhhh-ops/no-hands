@@ -206,7 +206,7 @@ export default function Composer({
           <span className="va-fallback-badge" role="status">Offline rules for now: {fallbackLabel(fallbackReason)}</span>
         )}
         <span className="va-command-hint" id="va-command-hint">
-          {!project ? 'Load a model first.' : 'Hold your Wispr Flow hotkey and speak, or type. English or Hinglish.'}
+          {!project ? 'Load a model first.' : 'Hold your Wispr Flow hotkey and speak, or type.'}
         </span>
         <span className="va-command-keys" aria-hidden="true"><kbd>Enter</kbd> to preview</span>
       </div>

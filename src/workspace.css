@@ -146,6 +146,22 @@ button.va-chip { cursor: pointer; }
 .va-canvas-area .edge-chip.severed rect { stroke: var(--va-danger); }
 .va-app .va-canvas-area .edge-label { fill: var(--va-muted); stroke: none; font: 500 15px var(--va-font); }
 
+/* What the change just applied added: a pulsing ring and an "Added" tag on components, a flowing
+   line on connections. It fades out after a few seconds (FRESH_MS in ArchitectureDiagram.tsx). */
+.va-canvas-area .node-fresh-ring {
+  fill: color-mix(in srgb, var(--va-accent) 12%, transparent); stroke: var(--va-accent); stroke-width: 2.5;
+  animation: va-fresh-pulse 1.2s ease-in-out infinite;
+}
+.va-canvas-area .node .node-fresh-tag { fill: var(--va-accent-strong); font: 700 12px var(--va-font); letter-spacing: .06em; }
+.va-app .va-canvas-area .edge.fresh { stroke: var(--va-accent); stroke-width: 3; stroke-dasharray: 8 6; animation: va-fresh-flow .9s linear infinite; }
+.va-canvas-area .edge-chip.fresh rect { fill: color-mix(in srgb, var(--va-accent) 12%, var(--va-bg)); stroke: var(--va-accent); stroke-width: 1.5; }
+.va-app .va-canvas-area .edge-chip.fresh .edge-label { fill: var(--va-ink); }
+@keyframes va-fresh-pulse { 0%, 100% { stroke-opacity: .3; } 50% { stroke-opacity: 1; } }
+@keyframes va-fresh-flow { to { stroke-dashoffset: -28; } }
+@media (prefers-reduced-motion: reduce) {
+  .va-canvas-area .node-fresh-ring, .va-app .va-canvas-area .edge.fresh { animation: none; }
+}
+
 /* ---------- The dock: the command bar, with the guided demo's card above it ---------- */
 .va-dock {
   position: absolute; left: 0; right: 0; bottom: 16px; z-index: 20;
@@ -269,11 +285,13 @@ button.va-chip { cursor: pointer; }
   border: 1px solid var(--va-line-strong); border-radius: 20px; overflow: hidden;
   box-shadow: 0 28px 64px -28px rgba(0, 0, 0, .65);
 }
-.va-coach .va-guide { padding: 14px 18px; border: 0; background: color-mix(in srgb, var(--va-accent) 7%, var(--va-panel)); }
+.va-coach .va-guide { gap: 4px; padding: 10px 16px 12px; border: 0; background: color-mix(in srgb, var(--va-accent) 7%, var(--va-panel)); }
 .va-coach .va-guide-step { font-size: 12px; }
+.va-coach .va-guide-actions { flex-wrap: nowrap; gap: 6px 12px; margin: 0; }
 .va-coach .va-guide-say { font-size: 16px; }
-.va-coach .va-guide-say span, .va-coach .va-guide-changes, .va-coach .va-guide-note { font-size: 14px; }
-.va-coach .va-guide-note { color: var(--va-muted); }
+.va-coach .va-guide-say q { font-size: 20px; }
+.va-coach .va-guide-note { margin: 0; color: var(--va-muted); font-size: 13px; line-height: 1.45; }
+.va-coach .va-guide-changes { font-size: inherit; }
 
 /* ---------- Slide-over: the selected component and the generated docs ---------- */
 .va-drawer {
@@ -401,6 +419,8 @@ button.va-chip { cursor: pointer; }
   .va-command-bar { border-radius: 22px; }
   .va-command-go { width: 44px; padding: 0; justify-content: center; }
   .va-command-go-label, .va-command-hint, .va-command-keys, .va-command-detected, .va-coach .va-guide-changes { display: none; }
+  .va-coach .va-guide-head { align-items: flex-start; }
+  .va-coach .va-link-btn { white-space: nowrap; }
   .va-command-menu { left: -6px; width: calc(100vw - 20px); }
   .va-drawer, .va-drawer[data-overlay="true"] {
     top: auto; left: 0; right: 0; bottom: 0; width: 100%; max-width: none; height: 82dvh;

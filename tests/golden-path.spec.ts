@@ -42,10 +42,12 @@ test('import a compose file, say a change, apply it, see every tab follow, and e
   await expect(review.getByText(/trips-api → redis/).first()).toBeVisible();
   await review.getByRole('button', { name: /Apply change/ }).click();
   await expect(review).toBeHidden();
-  await expect(page.getByLabel('Your instruction')).toHaveValue('add a Redis cache in front of the trips API');
+  // The box clears for the next change; the cleaned-up instruction ("red is" → Redis) is on record.
+  await expect(page.getByLabel('Your instruction')).toHaveValue('');
 
   await openView(page, 'What changed');
   await expect(page.getByRole('heading', { level: 4, name: 'trips-api → redis' })).toBeVisible();
+  await expect(page.getByText('add a Redis cache in front of the trips API').first()).toBeVisible();
   await openView(page, 'Risks');
   await expect(page.getByRole('heading', { level: 3, name: 'Risks and open questions' })).toBeVisible();
   await openView(page, 'Tasks');

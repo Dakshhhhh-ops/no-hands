@@ -9,6 +9,18 @@ export interface LayoutOptions {
   nodeSeparation?: number;
   marginX?: number;
   marginY?: number;
+  /**
+   * The drawn size of a relationship's label, or null for none. With it, the layout leaves room
+   * for every label and routes each connector through its label, so labels never sit on a node
+   * or on each other.
+   */
+  edgeLabelSize?: (relationship: Relationship) => { width: number; height: number } | null;
+}
+
+/** A connector's route: the bends between its two ends, and where its label sits. */
+export interface EdgeRoute {
+  points: { x: number; y: number }[];
+  label: { x: number; y: number } | null;
 }
 
 export interface PositionedComponent extends Component {
@@ -21,6 +33,8 @@ export interface LayoutResult {
   width: number;
   height: number;
   direction: 'LR' | 'TB' | 'BT' | 'RL';
+  /** Routes by `${from}->${to}:${label}`, the same key as relationshipKey in diagram.ts. */
+  edges: Record<string, EdgeRoute>;
 }
 
 /**
@@ -58,10 +72,11 @@ export function computeGraphLayout(
     nodeSeparation = 48,
     marginX = 40,
     marginY = 40,
+    edgeLabelSize,
   } = options;
 
   if (components.length === 0) {
-    return { components: [], width: 1000, height: 390, direction };
+    return { components: [], width: 1000, height: 390, direction, edges: {} };
   }
 
   const g = new dagre.graphlib.Graph({ multigraph: true });
@@ -87,7 +102,8 @@ export function computeGraphLayout(
   const componentIdSet = new Set(components.map((c) => c.id));
   relationships.forEach((rel, index) => {
     if (componentIdSet.has(rel.from) && componentIdSet.has(rel.to)) {
-      g.setEdge(rel.from, rel.to, {}, `rel-${index}`);
+      const size = edgeLabelSize?.(rel) ?? null;
+      g.setEdge(rel.from, rel.to, size ? { ...size, labelpos: 'c' } : {}, `rel-${index}`);
     }
   });
 
@@ -120,6 +136,29 @@ export function computeGraphLayout(
     }
   }
 
+  // Connector bends and labels can reach past the nodes, so they count toward the bounds too.
+  const rawEdges: { key: string; points: { x: number; y: number }[]; label: { x: number; y: number; width: number; height: number } | null }[] = [];
+  relationships.forEach((rel, index) => {
+    if (!componentIdSet.has(rel.from) || !componentIdSet.has(rel.to)) return;
+    const edge = g.edge({ v: rel.from, w: rel.to, name: `rel-${index}` }) as
+      | { points?: { x: number; y: number }[]; x?: number; y?: number; width?: number; height?: number }
+      | undefined;
+    if (!edge) return;
+    const points = edge.points ?? [];
+    const label = typeof edge.x === 'number' && typeof edge.y === 'number' && edge.width
+      ? { x: edge.x, y: edge.y, width: edge.width, height: edge.height ?? 0 }
+      : null;
+    for (const point of points) {
+      minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x);
+      minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y);
+    }
+    if (label) {
+      minX = Math.min(minX, label.x - label.width / 2); maxX = Math.max(maxX, label.x + label.width / 2);
+      minY = Math.min(minY, label.y - label.height / 2); maxY = Math.max(maxY, label.y + label.height / 2);
+    }
+    rawEdges.push({ key: `${rel.from}->${rel.to}:${rel.label}`, points, label });
+  });
+
   // Normalize coordinates so the canvas starts cleanly at marginX / marginY
   const offsetX = minX < marginX ? marginX - minX : 0;
   const offsetY = minY < marginY ? marginY - minY : 0;
@@ -133,6 +172,14 @@ export function computeGraphLayout(
     };
   });
 
+  const edges: Record<string, EdgeRoute> = {};
+  for (const edge of rawEdges) {
+    edges[edge.key] = {
+      points: edge.points.map((point) => ({ x: point.x + offsetX, y: point.y + offsetY })),
+      label: edge.label ? { x: edge.label.x + offsetX, y: edge.label.y + offsetY } : null,
+    };
+  }
+
   const totalWidth = Math.max(1000, maxX + offsetX + marginX);
   const totalHeight = Math.max(390, maxY + offsetY + marginY);
 
@@ -141,6 +188,7 @@ export function computeGraphLayout(
     width: totalWidth,
     height: totalHeight,
     direction,
+    edges,
   };
 }
 

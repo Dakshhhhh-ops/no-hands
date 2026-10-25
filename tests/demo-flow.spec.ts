@@ -51,8 +51,10 @@ test.describe('VoiceArchitect demo flow', () => {
       await expectView(page, tab);
     }
 
+    // After apply the box is empty for the next change, and the applied change survives a reload.
+    await expect(page.getByLabel('Your instruction')).toHaveValue('');
     await page.reload();
-    await expect(page.getByLabel('Your instruction')).toHaveValue('Split payments into a separate service');
+    await expect(page.getByRole('button', { name: /^Payment Service, SERVICE/ })).toBeVisible();
   });
 
   test('import the example docker-compose stack and reset back to it', async ({ page }) => {

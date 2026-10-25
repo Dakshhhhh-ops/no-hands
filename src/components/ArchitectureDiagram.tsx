@@ -5,6 +5,7 @@ import {
   getDiagramNeighborhood,
   computeGraphLayout,
   getDeploymentPlan,
+  relationshipKey,
 } from '../data/diagram.ts';
 import { sound } from '../utils/sound.ts';
 import { useChaosWorker } from '../hooks/useChaosWorker.ts';
@@ -20,13 +21,40 @@ import DiagramLegend from './diagram/DiagramLegend.tsx';
 import ComponentInspector from './diagram/ComponentInspector.tsx';
 import CycleBanner from './diagram/CycleBanner.tsx';
 import { applySignoffOverrides, getChaosTargets, getKeyboardTarget } from './diagram/diagramModel.ts';
-import { nodeH, nodeW, rankGap } from './diagram/diagramTypes.ts';
+import { edgeLabelBox, nodeH, nodeW } from './diagram/diagramTypes.ts';
+import type { Relationship } from '../types/schema.ts';
 import type { FlowDirection, GridStyle, LayoutEngine, SignoffRole, ViewMode } from './diagram/diagramTypes.ts';
 
 // Fit the model to the canvas, but never below this scale, where node names are about 14px;
 // a model too large for that scrolls inside the canvas instead of shrinking further.
 const MIN_SCALE = 0.75;
 const MAX_FIT = 1.2;
+// A phone is too narrow for a readable fit, so there the diagram may shrink a little further.
+const MIN_SCALE_NARROW = 0.6;
+const NARROW = 640;
+// How long a just-applied change glows on the diagram.
+const FRESH_MS = 4500;
+
+const labelSize = (relationship: Relationship) => {
+  if (!relationship.label) return null;
+  const { width, height } = edgeLabelBox(relationship.label);
+  return { width, height };
+};
+
+interface FreshParts { ids: ReadonlySet<string>; keys: ReadonlySet<string> }
+const NOTHING_FRESH: FreshParts = { ids: new Set(), keys: new Set() };
+
+/** The window's size, which picks the layout direction so opening a panel only re-fits the diagram. */
+function useViewport() {
+  const read = () => (typeof window === 'undefined' ? { w: 1440, h: 900 } : { w: window.innerWidth, h: window.innerHeight });
+  const [size, setSize] = useState(read);
+  useEffect(() => {
+    const onResize = () => setSize(read());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return size;
+}
 
 // The dialogs load on first open, so their markup stays out of the diagram's chunk.
 // The simulator bar and the two dialogs load on first use, with their CSS.
@@ -76,21 +104,46 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
 
   const chaosTargets = getChaosTargets(project.components);
 
-  // Layered layout (Dagre), computed both ways: left to right and top to bottom. The canvas uses
-  // whichever draws the model larger in the space it has.
+  // Layered layout (Dagre), computed both ways: left to right and top to bottom. Each label gets
+  // its own room in the layout (Dagre halves the rank gap around it), and each connector follows
+  // the route Dagre found, so lines cross less and labels never overlap. The canvas uses whichever
+  // direction draws the model larger in the window.
   const layouts = useMemo(() => ({
     LR: computeGraphLayout(model.components, model.relationships, {
-      direction: 'LR', nodeWidth: nodeW, nodeHeight: nodeH, rankSeparation: rankGap, nodeSeparation: 36, marginX: 16, marginY: 24,
+      direction: 'LR', nodeWidth: nodeW, nodeHeight: nodeH, rankSeparation: 48, nodeSeparation: 36, marginX: 16, marginY: 24, edgeLabelSize: labelSize,
     }),
     TB: computeGraphLayout(model.components, model.relationships, {
-      direction: 'TB', nodeWidth: nodeW, nodeHeight: nodeH, rankSeparation: 64, nodeSeparation: 40, marginX: 24, marginY: 16,
+      direction: 'TB', nodeWidth: nodeW, nodeHeight: nodeH, rankSeparation: 56, nodeSeparation: 40, marginX: 24, marginY: 16, edgeLabelSize: labelSize,
     }),
   }), [model.components, model.relationships]);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
   const fitFor = (w: number, h: number) => (canvasSize.w > 0 && canvasSize.h > 0 ? Math.min((canvasSize.w - 32) / w, (canvasSize.h - 32) / h) : 1);
-  const direction: FlowDirection = fitFor(layouts.TB.width, layouts.TB.height) > fitFor(layouts.LR.width, layouts.LR.height) * 1.05 ? 'TB' : 'LR';
+  // The direction depends on the window, not the canvas, so the docs drawer or the guided demo's
+  // card opening does not flip the whole diagram; they only re-fit it.
+  const viewport = useViewport();
+  const fitInWindow = (w: number, h: number) => Math.min((viewport.w - 48) / w, (viewport.h - 200) / h);
+  // Once drawn one way, the diagram keeps that direction while it still fits reasonably, so an
+  // applied change does not turn the whole picture on its side.
+  // A different project starts fresh.
+  const [lastDirection, setLastDirection] = useState<{ project: string; direction: FlowDirection } | null>(null);
+  const kept = lastDirection?.project === project.name ? lastDirection.direction : null;
+  const fitTB = fitInWindow(layouts.TB.width, layouts.TB.height);
+  const fitLR = fitInWindow(layouts.LR.width, layouts.LR.height);
+  const inWindow = { TB: fitTB, LR: fitLR };
+  // In the canvas as it is now: with the docs drawer open, there is less room.
+  const inCanvas = (d: FlowDirection) => fitFor(layouts[d].width, layouts[d].height);
+  const other = (d: FlowDirection): FlowDirection => (d === 'TB' ? 'LR' : 'TB');
+  let direction: FlowDirection = fitTB > fitLR * 1.05 ? 'TB' : 'LR';
+  if (kept && inCanvas(kept) >= MIN_SCALE) {
+    // It still fits readably: switch only when the other way is much better in the window.
+    direction = inWindow[other(kept)] > inWindow[kept] * 1.3 ? other(kept) : kept;
+  } else if (kept) {
+    // It no longer fits (a panel opened, or the model grew): use whichever fits the canvas better.
+    direction = inCanvas(other(kept)) > inCanvas(kept) ? other(kept) : kept;
+  }
+  if (kept !== direction) setLastDirection({ project: project.name, direction });
   const autoLayout = layouts[direction];
   const activeComponents: Component[] = layoutEngine === 'auto' ? autoLayout.components : model.components;
   const flow: FlowDirection = layoutEngine === 'auto' ? direction : 'LR';
@@ -109,7 +162,30 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
   }, []);
   const fit = fitFor(width, height);
   // Fitted, but never under MIN_SCALE (text stays readable) or over MAX_FIT (cards stay card-sized).
-  const scale = Math.max(MIN_SCALE, Math.min(fit, MAX_FIT)) * zoom;
+  const scale = Math.max(viewport.w < NARROW ? MIN_SCALE_NARROW : MIN_SCALE, Math.min(fit, MAX_FIT)) * zoom;
+
+  // When a change is applied, what it added glows for a moment, so the eye lands on it.
+  const [fresh, setFresh] = useState<FreshParts>(NOTHING_FRESH);
+  const lastSeen = useRef<{ name: string; version: number; ids: Set<string>; keys: Set<string> } | null>(null);
+  useEffect(() => {
+    const ids = new Set(project.components.map((c) => c.id));
+    const keys = new Set(project.relationships.map(relationshipKey));
+    const previous = lastSeen.current;
+    lastSeen.current = { name: project.name, version: project.version, ids, keys };
+    if (!previous || previous.name !== project.name || project.version <= previous.version) return;
+    const added: FreshParts = {
+      ids: new Set([...ids].filter((id) => !previous.ids.has(id))),
+      keys: new Set([...keys].filter((key) => !previous.keys.has(key))),
+    };
+    if (added.ids.size || added.keys.size) setFresh(added);
+  }, [project]);
+  useEffect(() => {
+    if (fresh === NOTHING_FRESH) return undefined;
+    const timer = setTimeout(() => setFresh(NOTHING_FRESH), FRESH_MS);
+    return () => clearTimeout(timer);
+  }, [fresh]);
+  const shownFresh = viewMode === 'current' && layoutEngine === 'auto' ? fresh : NOTHING_FRESH;
+  const routes = layoutEngine === 'auto' ? autoLayout.edges : {};
 
   const byId = useMemo(
     () => new Map<string, Component>(activeComponents.map((item) => [item.id, item])),
@@ -314,6 +390,8 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
               telemetry={telemetry}
               direction={flow}
               animate={showTools}
+              routes={routes}
+              freshKeys={shownFresh.keys}
             />
 
             {/* Component Nodes */}
@@ -327,9 +405,10 @@ export default function ArchitectureDiagram({ project, toolsOpen, onToolsOpenCha
               telemetry={telemetry}
               selectNode={selectNode}
               handleNodeKeyDown={handleNodeKeyDown}
+              freshIds={shownFresh.ids}
             />
 
-            <DiagramEdgeLabels relationships={model.relationships} byId={byId} telemetry={telemetry} direction={flow} />
+            <DiagramEdgeLabels relationships={model.relationships} byId={byId} telemetry={telemetry} direction={flow} routes={routes} freshKeys={shownFresh.keys} />
 
           </svg>
         </div>
