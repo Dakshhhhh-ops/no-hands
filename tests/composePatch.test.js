@@ -175,7 +175,8 @@ test('comments, key order, blank lines, and quoting survive the patch', () => {
 });
 
 test('Windows line endings are kept', () => {
-  const crlf = sample.replace(/\n/g, '\r\n');
+  // The sample may already have CRLF endings (a Windows checkout), so normalize before converting.
+  const crlf = sample.replace(/\r?\n/g, '\r\n');
   const patch = patchCompose(crlf, changed({ connect: [['accounts-api', 'kafka']] }, crlf), FILE);
   assert.ok(patch.changed);
   assert.equal(patch.text.split('\n').length, patch.text.split('\r\n').length, 'every line ends with CRLF');
