@@ -12,6 +12,8 @@ async function openView(page: Page, name: string) {
   const tab = page.getByRole('tab', { name: new RegExp(`^${name}`) });
   if (!(await tab.isVisible())) await page.getByRole('button', { name: 'Generated docs' }).click();
   await tab.click();
+  // Wait for the tab to render, so its entrance fades have started before the scan waits for them.
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
 }
 
 

@@ -399,6 +399,8 @@ button.va-chip { cursor: pointer; }
 .va-shell .button.primary { background: var(--va-accent-strong); border-color: var(--va-accent-strong); color: var(--va-accent-ink); }
 .va-shell .telemetry-health-badge { color: color-mix(in srgb, var(--tone) 65%, var(--va-ink)) !important; }
 .va-drawer .vp-pill { color: color-mix(in srgb, var(--tone) 70%, var(--va-ink)); }
+/* Tags sit on tinted cards too (amber "Open decision" measured 4.41:1 on one); the dot keeps the pure tone. */
+.va-drawer .vp-tag { color: color-mix(in srgb, var(--tone) 70%, var(--va-ink)); }
 .va-drawer :is(.vp-pill, .vp-tag) { font-size: 12px; }
 
 /* ---------- Below 1280px: the zoom controls give their room to the project name ---------- */
